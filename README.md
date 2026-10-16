@@ -34,6 +34,12 @@ dependencies, no network calls, no telemetry.
 
 ---
 
+## Tabletop & IR-readiness (facilitator)
+
+Beyond the analyst trainers, **[`tabletop/`](tabletop/)** runs any case — plus three readiness-only scenarios (ransomware-extortion decision, breach-notification clock, vendor compromise) — as a **facilitated tabletop**: decision injects with role owners, a maturity rating per inject, and a one-page after-action scored against **NIST SP 800-61r3 / CSF 2.0**. It is the advisory-side companion to the trainers — for IR-readiness reviews and exercises, not analyst drills. Served at `…/tabletop/`.
+
+---
+
 ## Who these are for
 
 Threat hunters, SOC analysts (Tier 1–3), incident responders / DFIR analysts,
@@ -83,4 +89,4 @@ endorsed by any party named in a trainer.
 
 ---
 
-*Index generated 2026-10-16T16:50Z · Squidoor trainer build `HUNT-20261015-2250Z`.*
+*Index generated 2026-10-16T20:24Z · Squidoor trainer build `HUNT-20261015-2250Z`.*
