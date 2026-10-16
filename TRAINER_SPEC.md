@@ -39,6 +39,9 @@ Every trainer MUST contain:
 - **Build stamping:** a `BUILD_ID` constant of the form `HUNT-YYYYMMDD-HHMMZ` and
   a `STAMP_UTC` constant, both surfaced in-app and echoed in the trainer's README.
 - **Keyboard navigation:** `←` / `→` through the walkthrough.
+- **Build-a-range guide** (`RANGE.md`): a free, mostly-local lab that reproduces
+  the case's artifacts hands-on, with honest fidelity tiers and a clear
+  **emulation boundary** — no live malware/exploit, synthetic artifacts only.
 
 ---
 
