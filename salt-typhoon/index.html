@@ -306,14 +306,13 @@
    and the Aug 2025 joint advisory (AA25-239A). This is a NETWORK-DEVICE
    case with no EDR; the public host-level record is thinner than an
    endpoint case, so attacker-view and attribution are labeled as
-   INFERENCE and stated in calibrated, evolving terms. ATT&CK IDs here
-   are ANALYST-MAPPED from reported behaviors (the reviewed sources did
-   not publish a table); verify against AA25-239A. All consoles are
+   INFERENCE and stated in calibrated, evolving terms. ATT&CK IDs are
+   taken from AA25-239A Appendix A, verified against the advisory. All consoles are
    ILLUSTRATIVE/synthetic (RFC 5737 IPs, example device names, no real
    IOCs); report-sourced technique artifacts are labeled, not IOCs.
    ============================================================ */
-const BUILD_ID="HUNT-20261016-0242Z (fact-checked)";
-const STAMP_UTC="2026-10-16T02:42Z";
+const BUILD_ID="HUNT-20261016-0306Z (ATT&CK verified vs AA25-239A)";
+const STAMP_UTC="2026-10-16T03:06Z";
 const LEAD_NAME="Dana R.",LEAD_INIT="DR",LEAD_ROLE="Hunt Lead";
 
 const GAPS=[{id:"entry",text:"Confirm how access was obtained (valid creds? a CVE?)"},{id:"devices",text:"Enumerate every compromised network device"},{id:"persist",text:"Find all persistence (accounts, tunnels, AAA, SSH keys)"},{id:"harvest",text:"Determine what creds/configs were captured"},{id:"scope",text:"Map scope, including peered/partner networks"},{id:"attrib",text:"Attribute the activity (calibrated)"},{id:"telemetry",text:"Establish whether we even HAVE the logs to see this"}];
@@ -340,19 +339,48 @@ const GLOSS=[
 ];
 
 const ATTACK=[
- ["Initial Access","Valid Accounts (legitimate credentials; source unknown)","T1078"],
- ["Initial Access","Exploit Public-Facing Application (one case: Smart Install CVE-2018-0171; advisory CVE list)","T1190"],
- ["Collection / Cred Access","Network Sniffing (SNMP/TACACS/RADIUS capture; JumbledPath pcap)","T1040"],
- ["Collection","Data from Config Repo: Network Device Config Dump (TFTP/FTP)","T1602.002"],
- ["Collection","Data from Config Repo: SNMP (MIB Dump)","T1602.001"],
- ["Persistence / Def Evasion","Modify Authentication Process (rogue AAA/TACACS+ servers)","T1556"],
- ["Persistence","Create Account: Local (unexpected device/Linux accounts)","T1136.001"],
+ ["Reconnaissance","Active Scanning","T1595"],
+ ["Reconnaissance","Gather Victim Network Information: Network Topology","T1590.004"],
+ ["Resource Development","Acquire Infrastructure: Virtual Private Server","T1583.003"],
+ ["Resource Development","Compromise Infrastructure: Network Devices","T1584.008"],
+ ["Resource Development","Obtain Capabilities: Exploits (siet.py)","T1588.005"],
+ ["Resource Development","Obtain Capabilities: Tool (map.tcl, tclproxy.tcl, wodSSHServer)","T1588.002"],
+ ["Initial Access","Exploit Public-Facing Application (publicly known CVEs)","T1190"],
+ ["Initial Access","Trusted Relationship (pivot between providers)","T1199"],
+ ["Execution","System Services (commands via SNMP)","T1569"],
+ ["Execution","Container Administration Command (Guest Shell)","T1609"],
+ ["Execution","Command & Scripting Interpreter: Python (siet.py)","T1059.006"],
+ ["Execution","Command & Scripting Interpreter: Network Device CLI","T1059.008"],
+ ["Persistence","Create Account: Local Account","T1136.001"],
+ ["Persistence","Create/Modify System Process: Container Service (Guest Shell)","T1543.005"],
  ["Persistence","Account Manipulation: SSH Authorized Keys","T1098.004"],
- ["Lateral Movement","Remote Services: SSH (alternate sshd on high port, e.g. :57722)","T1021.004"],
- ["Command & Control","Protocol Tunneling (GRE tunnels)","T1572"],
- ["Command & Control","Proxy: Internal Proxy (loopback-as-SSH-source, device hop points)","T1090.001"],
- ["Defense Evasion","Indicator Removal: Clear Linux/Command History (.bash_history, wtmp, btmp, auth.log)","T1070.002/.003"],
- ["Defense Evasion","Impair Defenses (log clearing, guestshell disable)","T1562.001"]
+ ["Privilege Escalation","Exploitation for Privilege Escalation (CVE-2023-20273)","T1068"],
+ ["Defense Evasion","Obfuscated Files/Info: Command Obfuscation (double encoding)","T1027.010"],
+ ["Defense Evasion","Obfuscated Files or Information (spoof source IPs in logs)","T1027"],
+ ["Defense Evasion","Impair Defenses: Disable/Modify System Firewall (modify ACLs)","T1562.004"],
+ ["Defense Evasion","Deploy Container (Guest Shell)","T1610"],
+ ["Defense Evasion","Indicator Removal (delete/clear logs)","T1070"],
+ ["Defense Evasion","Indicator Removal: Clear Persistence (guestshell destroy)","T1070.009"],
+ ["Defense Evasion","Network Boundary Bridging (abuse peering connections)","T1599"],
+ ["Credential Access","Network Sniffing (PCAP for configs & credentials)","T1040"],
+ ["Credential Access","Modify Authentication Process (rogue TACACS+/AAA)","T1556"],
+ ["Credential Access","OS Credential Dumping (weak Cisco Type 7 passwords)","T1003"],
+ ["Credential Access","Brute Force: Password Cracking (Cisco Type 5)","T1110.002"],
+ ["Discovery","System Information Discovery","T1082"],
+ ["Discovery","System Network Configuration Discovery","T1016"],
+ ["Lateral Movement","Remote Services (alter SNMP for peer devices)","T1021"],
+ ["Lateral Movement","Remote Services: SSH","T1021.004"],
+ ["Collection","Archive Collected Data","T1560"],
+ ["Collection","Data from Configuration Repository: SNMP (MIB Dump)","T1602.001"],
+ ["Collection","Data from Configuration Repository: Network Device Config Dump","T1602.002"],
+ ["Collection","Data from Local System (PCAP from customer networks)","T1005"],
+ ["Command & Control","Proxy (VPS for C2)","T1090"],
+ ["Command & Control","Proxy: Multi-hop Proxy (STOWAWAY)","T1090.003"],
+ ["Command & Control","Application Layer Protocol (SSH/SFTP/RDP/FTP/HTTP(S))","T1071"],
+ ["Command & Control","Non-Standard Port","T1571"],
+ ["Command & Control","Protocol Tunneling (GRE / mGRE / IPsec)","T1572"],
+ ["Command & Control","Non-Application Layer Protocol (GRE/IPsec)","T1095"],
+ ["Exfiltration","Exfiltration Over Alternative Protocol (IPsec/GRE tunnels)","T1048.003"]
 ];
 
 const READING=[
@@ -732,7 +760,7 @@ function fieldNotes(){
  o+="- Guest Shell enable + packet capture on a PRODUCTION core device = LOTL collection\n";
  o+="- alt sshd on a high port (e.g. :57722), rogue /etc/passwd users, authorized_keys = persistence\n";
  o+="- ERADICATION: remove rogue accounts/keys/tunnels/AAA entries + ROTATE ALL device creds + TACACS/RADIUS secrets + SNMP strings + reimage where in doubt (staged, no outage)\n\n";
- o+="ATT&CK MAP (ANALYST-MAPPED from reported behaviors; sources reviewed did not publish a table \u2014 verify against AA25-239A)\n"+"-".repeat(72)+"\n";ATTACK.forEach(r=>o+="- ["+r[2]+"] "+r[1]+" ("+r[0]+")\n");
+ o+="ATT&CK MAP (from AA25-239A Appendix A \u2014 verified against the advisory)\n"+"-".repeat(72)+"\n";ATTACK.forEach(r=>o+="- ["+r[2]+"] "+r[1]+" ("+r[0]+")\n");
  return o;
 }
 function loopSvg(){return `<svg viewBox="0 0 680 230" width="100%" style="max-width:680px;margin:6px 0" font-family="monospace" font-size="11"><defs><marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#4ea3ff"/></marker><marker id="aw" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#ffb454"/></marker></defs><text x="10" y="16" fill="#8aa0b4">Nested investigation loops</text>${['Prepare','Detect / Analyze','Contain / Eradicate / Recover','Lessons'].map((t,n)=>{const x=20+n*160;return `<rect x="${x}" y="40" width="140" height="34" rx="7" fill="#111a24" stroke="#2a3a4c"/><text x="${x+70}" y="61" fill="#e7edf3" text-anchor="middle">${t}</text>`;}).join('')}${[0,1,2].map(n=>{const x=20+n*160;return `<line x1="${x+140}" y1="57" x2="${x+160}" y2="57" stroke="#4ea3ff" stroke-width="2" marker-end="url(#ar)"/>`;}).join('')}<path d="M650,74 C650,120 90,120 90,74" fill="none" stroke="#ffb454" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#aw)"/><text x="330" y="112" fill="#ffb454" text-anchor="middle">lessons learned feed the next Prepare (never truly closes)</text><rect x="60" y="150" width="240" height="60" rx="8" fill="#0d141d" stroke="#1f6b47"/><text x="180" y="170" fill="#51d88a" text-anchor="middle">PEAK hunt loop</text><text x="180" y="188" fill="#8aa0b4" text-anchor="middle">hypothesis -> execute -> finding</text><text x="180" y="202" fill="#8aa0b4" text-anchor="middle">-> NEW hypothesis</text><rect x="380" y="150" width="240" height="60" rx="8" fill="#0d141d" stroke="#244a6e"/><text x="500" y="170" fill="#4ea3ff" text-anchor="middle">F3EAD intel loop</text><text x="500" y="188" fill="#8aa0b4" text-anchor="middle">find·fix·finish·exploit</text><text x="500" y="202" fill="#8aa0b4" text-anchor="middle">·analyze·disseminate</text><line x1="300" y1="180" x2="380" y2="180" stroke="#8aa0b4" stroke-width="1.5" marker-end="url(#ar)"/></svg>`;}
@@ -749,7 +777,7 @@ function renderDebrief(){
   <div class="sechead">Field notes — editable, copy to your log</div><textarea id="notesArea" spellcheck="false" style="min-height:320px">${fieldNotes().replace(/</g,'&lt;')}</textarea>
   <div class="copyrow"><button class="btn" id="copyBtn">Copy field notes</button><span class="copied" id="copied">Copied ✓</span></div>
   <div class="sechead">Reading room</div><ul class="reading">${read}</ul>
-  <div class="disc"><b>Sources &amp; accuracy:</b> Salt Typhoon facts are drawn from and fact-checked against primary reporting: Cisco Talos (20 Feb 2025), the CISA/NSA/FBI + international partners joint guidance (3 Dec 2024), and the Aug 2025 joint advisory (AA25-239A). This is a network-device case with no endpoint telemetry, so the public host-level record is thinner than an endpoint investigation: attacker-view reasoning and attribution are labeled as inference and stated in calibrated, source-dated, evolving terms (Talos declined to name a country and did not confirm the IOS XE CVEs; CISA called the actor “PRC-affiliated”; the Aug 2025 advisory named three PRC companies). The ATT&amp;CK IDs shown are <b>analyst-mapped from the reported behaviors</b> — the reviewed sources did not publish an ATT&amp;CK table here — and should be verified against AA25-239A. Console panels use synthetic device names and RFC 5737 documentation IPs; report-sourced technique artifacts (GRE tunnels, loopback-as-SSH-source, port 57722, JumbledPath, TFTP/FTP config exfil) are technique facts from the reports, not IOCs. Generator scenarios paraphrase public reporting — verify before operational use. No fabricated IOC is presented as genuine; pull real IOCs from the Reading Room. This is an independent educational reconstruction and is not affiliated with or endorsed by Cisco Talos, CISA, the NSA, the FBI, or any other party named here.</div></div>`;
+  <div class="disc"><b>Sources &amp; accuracy:</b> Salt Typhoon facts are drawn from and fact-checked against primary reporting: Cisco Talos (20 Feb 2025), the CISA/NSA/FBI + international partners joint guidance (3 Dec 2024), and the Aug 2025 joint advisory (AA25-239A). This is a network-device case with no endpoint telemetry, so the public host-level record is thinner than an endpoint investigation: attacker-view reasoning and attribution are labeled as inference and stated in calibrated, source-dated, evolving terms (Talos declined to name a country and did not confirm the IOS XE CVEs; CISA called the actor “PRC-affiliated”; the Aug 2025 advisory named three PRC companies). The ATT&amp;CK IDs shown are <b>taken from AA25-239A Appendix A</b> and have been verified against the advisory (which also confirms, in Appendix B, the Cisco IOS XE CVEs — CVE-2023-20198 and CVE-2023-20273 — that Talos had not confirmed in Feb 2025). Console panels use synthetic device names and RFC 5737 documentation IPs; report-sourced technique artifacts (GRE tunnels, loopback-as-SSH-source, port 57722, JumbledPath, TFTP/FTP config exfil) are technique facts from the reports, not IOCs. Generator scenarios paraphrase public reporting — verify before operational use. No fabricated IOC is presented as genuine; pull real IOCs from the Reading Room. This is an independent educational reconstruction and is not affiliated with or endorsed by Cisco Talos, CISA, the NSA, the FBI, or any other party named here.</div></div>`;
 }
 
 let toastStep=-1;
@@ -844,7 +872,7 @@ function renderLogTable(){const host=document.getElementById('logTableHost');if(
 function matchEntry(e,field,val){val=(val||'').toLowerCase();if(!val)return false;if(field==='c2')return (e.f_c2||'').toLowerCase().includes(val);if(field==='vector')return (e.f_vector||'').toLowerCase().includes(val);if(field==='attack')return (e.f_attack||'').toLowerCase().includes(val);if(field==='fprint')return (e.f_fprint||'').toLowerCase().includes(val);return false;}
 document.getElementById('addEntry').addEventListener('click',()=>{const e=readForm();if(!e.f_name){alert('Give the entry an incident name/alias first.');return;}LOG.push(e);lastFind=null;renderLogTable();window.scrollTo({top:document.getElementById('logTableHost').offsetTop-80,behavior:'smooth'});});
 document.getElementById('clearForm').addEventListener('click',()=>{FORM_IDS.forEach(id=>{const el=document.getElementById(id);if(el.tagName==='SELECT')el.selectedIndex=(id==='f_conf'?1:0);else el.value='';});});
-document.getElementById('loadDemo').addEventListener('click',()=>{const d={f_name:'HUNT-NET-CORE (Salt Typhoon)',f_date:'2026-10-16',f_vector:VECTORS[5],f_c2:C2S[7],f_exec:'LOTL on network devices (Guest Shell/Bash, tcpdump/EPC); JumbledPath (Go/ELF) capture-and-pivot',f_persist:PERSISTS[4],f_sector:SECTORS[2],f_region:'multi-national telecom carriers; cross-org/vendor pivoting',f_conf:'Moderate',f_source:'internal IR + Cisco Talos (Feb 2025) + CISA/FBI/NSA (Dec 2024) + AA25-239A (Aug 2025)',f_attack:'T1078, T1190, T1040, T1602.002, T1602.001, T1556, T1136.001, T1098.004, T1021.004, T1572, T1090.001, T1070.002',f_dA:'consistent with Salt Typhoon (aliases: GhostEmperor, RedMike, Operator Panda, UNC5807); PRC-affiliated per govt advisories',f_dC:'valid-credential access + LOTL + JumbledPath capture-and-pivot + GRE/loopback transit',f_dI:'rogue AAA/TACACS+ servers; jump-host chain; GRE tunnels; alt sshd :57722',f_dV:'carrier core routers/switches (telecom), cross-vendor; cross-company pivoting',f_files:'running-config exfil via TFTP/FTP; /etc/passwd + /etc/shadow new users; SSH authorized_keys; guestshell ELF',f_cmds:'guestshell enable; tcpdump -w cap.pcap; SSH src=Loopback0 -> peer devices; config pull via TFTP/FTP',f_fprint:'loopback-as-SSH-source to bypass ACLs; rogue AAA server; GRE tunnel; capture-and-pivot (JumbledPath); routine log clearing',f_ach:'ruled out: insider/misconfig (rogue AAA + capture tooling); false positive (un-ticketed GRE + account + JumbledPath); kept alive (calibrated): another infra-living APT',f_notes:'NO EDR on devices -> evidence is config diffs/NetFlow/syslog IF centralized; attribution EVOLVED (Talos declined a country Feb25 -> CISA PRC-affiliated Dec24 -> 3 named PRC firms Aug25); eradication = rotate the ENTIRE trust fabric (creds, TACACS/RADIUS secrets, SNMP strings)'};FORM_IDS.forEach(id=>{const el=document.getElementById(id);if(el.tagName==='SELECT'){const idx=[...el.options].findIndex(o=>o.textContent===d[id]);el.selectedIndex=idx>=0?idx:0;}else el.value=d[id]||'';});});
+document.getElementById('loadDemo').addEventListener('click',()=>{const d={f_name:'HUNT-NET-CORE (Salt Typhoon)',f_date:'2026-10-16',f_vector:VECTORS[5],f_c2:C2S[7],f_exec:'LOTL on network devices (Guest Shell/Bash, tcpdump/EPC); JumbledPath (Go/ELF) capture-and-pivot',f_persist:PERSISTS[4],f_sector:SECTORS[2],f_region:'multi-national telecom carriers; cross-org/vendor pivoting',f_conf:'Moderate',f_source:'internal IR + Cisco Talos (Feb 2025) + CISA/FBI/NSA (Dec 2024) + AA25-239A (Aug 2025)',f_attack:'T1190, T1199, T1040, T1602.001, T1602.002, T1556, T1136.001, T1098.004, T1021.004, T1572, T1090.003, T1070.009, T1599',f_dA:'consistent with Salt Typhoon (aliases: GhostEmperor, RedMike, Operator Panda, UNC5807); PRC-affiliated per govt advisories',f_dC:'valid-credential access + LOTL + JumbledPath capture-and-pivot + GRE/loopback transit',f_dI:'rogue AAA/TACACS+ servers; jump-host chain; GRE tunnels; alt sshd :57722',f_dV:'carrier core routers/switches (telecom), cross-vendor; cross-company pivoting',f_files:'running-config exfil via TFTP/FTP; /etc/passwd + /etc/shadow new users; SSH authorized_keys; guestshell ELF',f_cmds:'guestshell enable; tcpdump -w cap.pcap; SSH src=Loopback0 -> peer devices; config pull via TFTP/FTP',f_fprint:'loopback-as-SSH-source to bypass ACLs; rogue AAA server; GRE tunnel; capture-and-pivot (JumbledPath); routine log clearing',f_ach:'ruled out: insider/misconfig (rogue AAA + capture tooling); false positive (un-ticketed GRE + account + JumbledPath); kept alive (calibrated): another infra-living APT',f_notes:'NO EDR on devices -> evidence is config diffs/NetFlow/syslog IF centralized; attribution EVOLVED (Talos declined a country Feb25 -> CISA PRC-affiliated Dec24 -> 3 named PRC firms Aug25); eradication = rotate the ENTIRE trust fabric (creds, TACACS/RADIUS secrets, SNMP strings)'};FORM_IDS.forEach(id=>{const el=document.getElementById(id);if(el.tagName==='SELECT'){const idx=[...el.options].findIndex(o=>o.textContent===d[id]);el.selectedIndex=idx>=0?idx:0;}else el.value=d[id]||'';});});
 document.getElementById('findBtn').addEventListener('click',()=>{lastFind={field:document.getElementById('findField').value,val:document.getElementById('findVal').value};renderLogTable();});
 document.getElementById('clearFind').addEventListener('click',()=>{lastFind=null;document.getElementById('findVal').value='';renderLogTable();});
 function copyText(txt,el){(async()=>{try{await navigator.clipboard.writeText(txt);}catch(e){}const c=document.getElementById('logCopied');c.classList.add('show');setTimeout(()=>c.classList.remove('show'),1800);})();}

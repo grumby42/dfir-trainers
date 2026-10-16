@@ -67,7 +67,7 @@ alert when a diff adds any of:
 ```
 
 **Real anchors.** Talos (GRE tunnel creation; AAA/TACACS+ server IP changes; unexpected local
-accounts; loopback changes). ATT&CK (analyst-mapped) T1572, T1556, T1136.001.
+accounts; loopback changes). ATT&CK (AA25-239A Appendix A) T1572, T1556, T1136.001.
 
 **Evolve it.** Join each diff to your change-management system automatically; the signal is the
 *un-ticketed* change with campaign shape, not any change.
@@ -98,7 +98,7 @@ flag SSH (tcp/22, or alt port per Card 5) where:
 ```
 
 **Real anchors.** Talos (repeatedly changed a switch loopback and used it as the SSH source to bypass
-ACLs; machine-to-machine pivoting across companies/vendors). ATT&CK (analyst-mapped) T1090.001,
+ACLs; machine-to-machine pivoting across companies/vendors). ATT&CK (AA25-239A Appendix A) T1090.003,
 T1021.004.
 
 **Evolve it.** Baseline which devices *ever* legitimately SSH to which — a small, stable set. Anything
@@ -129,7 +129,7 @@ flag when:
 ```
 
 **Real anchors.** Talos (configs exfiltrated over TFTP/FTP; contained SNMP community strings and
-weak-crypto local accounts). ATT&CK (analyst-mapped) T1602.002.
+weak-crypto local accounts). ATT&CK (AA25-239A Appendix A) T1602.002.
 
 **Evolve it.** Allowlist your real backup servers; everything else pulling configs is suspect. Treat a
 config pull as a **credential-exposure** event, not just data movement.
@@ -158,7 +158,7 @@ flag:
 ```
 
 **Real anchors.** Talos (LOTL hallmark; Guest Shell + Bash; tcpdump/Tpacap/EPC; JumbledPath Go/ELF run
-from Guest Shell on Nexus, captures via jump hosts, clears logs). ATT&CK (analyst-mapped) T1040.
+from Guest Shell on Nexus, captures via jump hosts, clears logs). ATT&CK (AA25-239A Appendix A) T1040.
 
 **Evolve it.** A capture tool that pivots via jump hosts means **network-wide collection** — scope by
 the jump-host chain, not the one device. Capture command-accounting (AAA) so you see shell activity
@@ -189,7 +189,7 @@ flag:
 ```
 
 **Real anchors.** Talos (alternate SSH daemon on high ports e.g. 57722; new users via /etc/passwd +
-/etc/shadow; authorized_keys). ATT&CK (analyst-mapped) T1098.004, T1136.001, T1021.004.
+/etc/shadow; authorized_keys). ATT&CK (AA25-239A Appendix A) T1098.004, T1136.001, T1021.004.
 
 **Evolve it.** Enumerate ALL persistence layers before acting — a rogue **AAA server** (Card 1) lets
 the actor back in even after you delete local accounts. Partial removal invites return.
@@ -250,11 +250,11 @@ server.
 6. **Scope by the pivot chain**, not the first device — capture-and-pivot tooling implies multi-device.
 7. **Name the telemetry gap.** Where local-only logs were cleared, say so; the control is instrumentation,
    not a doomed rule.
-8. **Map to ATT&CK** (verify against AA25-239A), log it in the case schema, and record what you *can't*
+8. **Map to ATT&CK** (AA25-239A Appendix A), log it in the case schema, and record what you *can't*
    see — so the next analyst starts where you left off.
 
 ---
 
-*Generated 2026-10-16T02:42Z · accompanies trainer build HUNT-20261016-0242Z · ATT&CK IDs are
-analyst-mapped from reported behaviors (verify against AA25-239A) · no fabricated IOCs (report-sourced
+*Generated 2026-10-16T03:06Z · accompanies trainer build HUNT-20261016-0306Z · ATT&CK IDs verified
+against AA25-239A Appendix A · no fabricated IOCs (report-sourced
 technique artifacts are technique facts; pull real IOCs from the cited reports).*

@@ -38,8 +38,9 @@ Splunk SURGe), the **Diamond Model** (Caltagirone, Pendergast, Betz), **Pyramid 
 > declined to name a country and did **not** confirm the IOS XE CVEs; CISA (Dec 2024) called the actor
 > **"PRC-affiliated"**; the Aug 2025 advisory named **three PRC companies**. The trainer teaches you to
 > state attribution by **source and date**, and to update as the record firms up. The **ATT&CK IDs are
-> analyst-mapped** from reported behaviors (the reviewed sources did not publish a table) — verify them
-> against AA25-239A.
+> taken from AA25-239A Appendix A** and verified against the advisory. (The Sept 2025 advisory also confirms,
+> in Appendix B, the Cisco IOS XE CVEs — CVE-2023-20198 and CVE-2023-20273 — that Talos had not confirmed in
+> Feb 2025, which is the evolving-attribution lesson borne out by the primary source.)
 
 **This project is not affiliated with, sponsored by, or endorsed by Cisco Talos, CISA, the NSA, the
 FBI, SANS, or any other party named here.**
@@ -116,8 +117,7 @@ Keyboard: `←` / `→` to navigate the walkthrough.
   `57722`, `JumbledPath`, TFTP/FTP config exfil) are **technique facts from the reports**, not IOCs.
   **Pull real IOCs from the Talos report and the advisories.**
 - Attribution is stated in **calibrated, source-dated** terms and explicitly noted as **evolving**.
-- **ATT&CK IDs are analyst-mapped** from reported behaviors and labeled as such — verify against
-  AA25-239A.
+- **ATT&CK IDs are taken from AA25-239A Appendix A** and verified against the advisory.
 - Attacker-view reasoning is **plausible inference from observed behavior**, not a confession, and is
   weighted more cautiously here than in the endpoint trainers.
 
@@ -127,7 +127,7 @@ If you spot an inaccuracy, please open an issue — accuracy matters more than p
 
 ## Build / provenance
 
-- Build ID: `HUNT-20261016-0242Z` (fact-checked)
+- Build ID: `HUNT-20261016-0306Z` (fact-checked; ATT&CK verified vs AA25-239A Appendix A)
 - Single file, offline, no external dependencies.
 - Built to the repo's [`TRAINER_SPEC.md`](../TRAINER_SPEC.md); all research credit belongs to the
   teams named above.
