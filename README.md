@@ -40,7 +40,7 @@ These teach **how to think** through an investigation — relevance and sufficie
 calls, framework reasoning, bias discipline, and turning findings into
 detections. They are **not** hands-on labs; pair them with a real range
 (DetectionLab, Atomic Red Team, CyberDefenders, your own VMs) for execution
-against live tools and data.
+against live tools and data. Each trainer now also ships a **`RANGE.md`** — a free, mostly-local build-a-range guide that reproduces that case's own artifacts hands-on, with honest fidelity tiers and a clear emulation boundary.
 
 ---
 
