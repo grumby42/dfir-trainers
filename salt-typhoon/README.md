@@ -1,4 +1,5 @@
 # Salt Typhoon DFIR Hunt & IR Trainer
+*Network-infrastructure LOTL — Salt Typhoon vs. telecom carriers: routers/switches with no EDR; evidence lives in configs, NetFlow, syslog, and AAA.*
 
 An interactive, **single-file, fully-offline** training tool that walks you through a
 **network-infrastructure** intrusion in the shape of the **Salt Typhoon** campaign against
