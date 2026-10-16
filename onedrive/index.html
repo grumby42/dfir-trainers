@@ -353,7 +353,7 @@
    PROVES, and what it does NOT.
    ============================================================ */
 const BUILD_ID="HUNT-20261016-0318Z (fact-checked) · design-rev 2026-10-16";
-const STAMP_UTC="2026-10-16T10:45Z";
+const STAMP_UTC="2026-10-16T16:47Z";
 const LEAD_NAME="Dana R.",LEAD_INIT="DR",LEAD_ROLE="Hunt Lead";
 
 const GAPS=[{id:"personal",text:"Confirm a PERSONAL OneDrive is signed in on this managed host"},{id:"namespace",text:"Determine whether CORPORATE files are in that namespace"},{id:"local",text:"Establish local availability (downloaded vs online-only placeholder)"},{id:"upload",text:"Find log evidence the files actually synced/uploaded"},{id:"version",text:"Match the parser/field assumptions to the OneDrive client version"},{id:"deleted",text:"Recover deleted/previous namespace state"},{id:"scope",text:"Corroborate beyond OneDrive (browser, USB, email, file bytes)"}];
@@ -862,7 +862,7 @@ mWalk.addEventListener('click',()=>switchMode('walk'));
 mGen.addEventListener('click',()=>switchMode('gen'));
 mLog.addEventListener('click',()=>switchMode('log'));
 
-document.getElementById('footer').innerHTML=`<div>Build <span class="mono">${BUILD_ID}</span> · generated <span class="mono">${STAMP_UTC}</span> · single-file offline HTML · no external dependencies · no fabricated IOCs.</div><div style="margin-top:6px">Case: OneDrive data-exfil (insider). Analyst + insider lanes · bias drills · structured case log. Hunt Lead: ${LEAD_NAME}. Keyboard ← → in walkthrough.</div>`;
+document.getElementById('footer').innerHTML=`<div>Build <span class="mono">${BUILD_ID}</span> · generated <span class="mono">${STAMP_UTC}</span> · single-file offline HTML · no external dependencies · no fabricated IOCs.</div><div style="margin-top:6px">Case: OneDrive data-exfil (insider). Analyst + insider lanes · bias drills · structured case log. Hunt Lead: ${LEAD_NAME}. Keyboard ← → in walkthrough.</div><div style="margin-top:6px">Built by Theodore &quot;Ted&quot; Gransbury · <a href="https://github.com/grumby42" style="color:inherit">github.com/grumby42</a> · <a href="https://grumbylearns.io" style="color:inherit">grumbylearns.io</a> · independent educational reconstruction, assembled with AI assistance (Claude); research credit to the teams in the Reading Room.</div>`;
 buildSteps();render();
 </script>
 </body>
