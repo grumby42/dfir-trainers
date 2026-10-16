@@ -349,7 +349,7 @@
    PLAUSIBLE INFERENCE from observed behavior, not a confession.
    ============================================================ */
 const BUILD_ID="HUNT-20261015-2250Z (provisional · fact-checked rev.) · design-rev 2026-10-16";
-const STAMP_UTC="2026-10-16T10:45Z";
+const STAMP_UTC="2026-10-16T16:47Z";
 const LEAD_NAME="Dana R.",LEAD_INIT="DR",LEAD_ROLE="Hunt Lead";
 
 const GAPS=[{id:"ident",text:"Confirm the odd process's true identity"},{id:"payload",text:"Recover & decode the in-memory payload"},{id:"c2",text:"Identify every C2 channel in use"},{id:"scope",text:"Map full scope (hosts, regions, sectors)"},{id:"siblings",text:"Find sibling samples / variants"},{id:"attrib",text:"Attribute the activity to an actor"},{id:"persist",text:"Enumerate all persistence & egress nodes"}];
@@ -956,7 +956,7 @@ mWalk.addEventListener('click',()=>switchMode('walk'));
 mGen.addEventListener('click',()=>switchMode('gen'));
 mLog.addEventListener('click',()=>switchMode('log'));
 
-document.getElementById('footer').innerHTML=`<div>Build <span class="mono">${BUILD_ID}</span> · generated <span class="mono">${STAMP_UTC}</span> · single-file offline HTML · no external dependencies · no fabricated IOCs.</div><div style="margin-top:6px">Case: Squidoor/FinalDraft (CL-STA-0049). Defender + attacker lanes · bias drills · structured case log. Hunt Lead: ${LEAD_NAME}. Keyboard ← → in walkthrough.</div>`;
+document.getElementById('footer').innerHTML=`<div>Build <span class="mono">${BUILD_ID}</span> · generated <span class="mono">${STAMP_UTC}</span> · single-file offline HTML · no external dependencies · no fabricated IOCs.</div><div style="margin-top:6px">Case: Squidoor/FinalDraft (CL-STA-0049). Defender + attacker lanes · bias drills · structured case log. Hunt Lead: ${LEAD_NAME}. Keyboard ← → in walkthrough.</div><div style="margin-top:6px">Built by Theodore &quot;Ted&quot; Gransbury · <a href="https://github.com/grumby42" style="color:inherit">github.com/grumby42</a> · <a href="https://grumbylearns.io" style="color:inherit">grumbylearns.io</a> · independent educational reconstruction, assembled with AI assistance (Claude); research credit to the teams in the Reading Room.</div>`;
 buildSteps();render();
 </script>
 </body>
