@@ -77,7 +77,7 @@ Every trainer MUST contain:
 - [ ] Zero real IOCs in-app; all indicators synthetic and marked
 - [ ] Attacker-view framed as inference, not confession
 - [ ] Credits-first README + non-affiliation statement present
-- [ ] `DETECTIONS.md` present (pseudocode, evolve-it, baseline/tune, trends)
+- [ ] `DETECTIONS.md` present — detections authored as **plays** (objective / hypothesis / data source / logic / known false positives / response / maintenance+trend); pseudocode, evolve-it, baseline/tune, trends
 - [ ] `BUILD_ID` + `STAMP_UTC` set and consistent between app and README
 - [ ] JS validated (`node --check` on the extracted script) and opens from `file://`
 - [ ] Adversary-review pass done
@@ -92,7 +92,7 @@ Every trainer MUST contain:
   endorsed by …").
 - **MIT `LICENSE`**, `Copyright (c) <year> Theodore "Ted" Gransbury` (the repo
   LICENSE at root covers all trainers unless a trainer adds its own).
-- **A `DETECTIONS.md` appendix per trainer**: starter detections as tool-agnostic
+- **A `DETECTIONS.md` appendix per trainer**, with detections authored as reusable **plays** (objective / hypothesis / data source / logic / known false positives / response / maintenance+trend — per *Crafting the InfoSec Playbook* and *Blue Team Handbook*): starter detections as tool-agnostic
   **pseudocode**, with the real published rules to anchor against, then — for each
   — *how to evolve it, how to baseline and tune it, and the trend signals to
   watch* (spike / drop-off / first-seen / beacon). Teach authoring; don't ship
