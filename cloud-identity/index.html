@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DFIR Cloud-Identity Trainer — Midnight Blizzard / OAuth app abuse</title>
+<style>
+  :root{
+    /* case-dossier palette: warm-neutral charcoal, bone text, one restrained brass accent */
+    --bg:#191a1c;--panel:#232528;--panel2:#1d1f21;--ink:#e8e3d7;--muted:#a19a8a;--faint:#6f6a5e;
+    --line:#2d2c2a;--line2:#3c3a36;--accent:#c89b3c;--accent2:#8c96a8;--warn:#cf9f52;--bad:#b45a5d;
+    --good:#7f9d6a;--purple:#9c86b8;--chip:#26272a;--evid:#111215;--evidink:#cbc4b2;--shadow:none;--winbar:#1b1d20;--lead:#1f2228;--atk:#241617;--atkln:#4d2f30;--atkink:#e7cbc9;
+    --serif:Georgia,"Hoefler Text",Cambria,"Times New Roman",serif;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background-color:var(--bg);background-image:linear-gradient(rgba(255,255,255,.016) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.016) 1px,transparent 1px);background-size:32px 32px;background-position:center top;color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased}
+  code,.mono{font-family:"SF Mono",SFMono-Regular,ui-monospace,"Cascadia Code",Consolas,Menlo,monospace}
+  .wrap{max-width:1180px;margin:0 auto;padding:16px 14px 90px}
+  header.top{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:12px}
+  header.top h1{font-size:18px;margin:0;letter-spacing:.3px}
+  header.top .sub{color:var(--muted);font-size:12.5px}
+  .badge{font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--accent);border:1px solid var(--line2);border-radius:999px;padding:3px 10px;background:var(--chip)}
+  .modebar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+  .modebtn{background:var(--panel2);border:1px solid var(--line2);color:var(--muted);border-radius:9px;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:600}
+  .modebtn.on{background:var(--chip);color:var(--ink);border-color:var(--accent)}
+
+  .viewtoggle{display:inline-flex;border:1px solid var(--line2);border-radius:9px;overflow:hidden;margin-bottom:12px}
+  .viewtoggle button{background:var(--panel2);border:none;color:var(--muted);padding:7px 14px;cursor:pointer;font-size:12.5px;font-weight:700}
+  .viewtoggle button.on.def{background:#0f1e2c;color:var(--accent2)}
+  .viewtoggle button.on.atk{background:var(--atk);color:#ff8f8a}
+
+  .fwstrip{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px}
+  @media(max-width:760px){.fwstrip{grid-template-columns:repeat(2,1fr)}}
+  .fw{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+  .fw .k{font-size:9.5px;text-transform:uppercase;letter-spacing:.7px;color:var(--faint)}
+  .fw .v{font-size:12.5px;font-weight:600;margin-top:2px}
+  .fw.changed{border-color:var(--accent);box-shadow:0 0 0 1px rgba(55,208,168,.25)}
+  .diamond{display:flex;gap:5px;margin-top:4px}
+  .dv{width:16px;height:16px;border-radius:4px;border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--faint);background:#0a121b}
+  .dv.on{background:#10251a;border-color:var(--good);color:var(--good)}
+  .layout{display:grid;grid-template-columns:1fr 310px;gap:16px}
+  @media(max-width:980px){.layout{grid-template-columns:1fr}}
+  .progress{height:5px;background:var(--panel);border-radius:999px;overflow:hidden;margin:2px 0 12px}
+  .progress>i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0;transition:width .35s}
+  .phase{font-size:10.5px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+  h2.title{margin:3px 0 4px;font-size:19px}
+  .loopbadge{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#1a1024;background:var(--warn);border-radius:999px;padding:3px 10px;font-weight:700;margin:6px 0}
+  .atkbanner{display:inline-flex;align-items:center;gap:7px;font-size:11px;color:#ffd2cf;background:var(--atk);border:1px solid var(--atkln);border-radius:999px;padding:3px 11px;font-weight:700;margin:6px 0}
+
+  .lead{display:flex;gap:10px;align-items:flex-start;background:var(--lead);border:1px solid #2b4360;border-radius:12px;padding:11px 13px;margin:12px 0}
+  .lead .ava{flex:0 0 34px;width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#4ea3ff,#b48cff);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#06101c}
+  .lead .who{font-size:11px;color:#9fc2e6;font-weight:700;margin-bottom:2px}.lead .who .role{color:var(--faint);font-weight:500}
+  .lead .msg{font-size:13.5px;color:#e4eefb}
+  .lead .tag{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--warn);border:1px solid #5a4a22;border-radius:5px;padding:1px 6px;margin-left:6px}
+
+  .newconcept{border:1px solid #33314a;background:#161327;border-radius:10px;padding:10px 12px;margin:10px 0}
+  .newconcept .lbl{font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--purple);font-weight:700}
+  .newconcept b{color:#e9e2ff}
+  .scene{margin:10px 0}.scene p{margin:8px 0}.scene strong{color:#fff}
+
+  .workspace{display:grid;gap:12px;margin:14px 0}.ws2{grid-template-columns:1fr 1fr}@media(max-width:720px){.ws2{grid-template-columns:1fr}}
+  .win{background:var(--evid);border:1px solid var(--line2);border-radius:10px;overflow:hidden;box-shadow:var(--shadow)}
+  .win .bar{display:flex;align-items:center;gap:8px;background:var(--winbar);border-bottom:1px solid var(--line);padding:7px 11px}
+  .win .bar .dots{display:flex;gap:5px}.win .bar .dots i{width:9px;height:9px;border-radius:50%}
+  .dr{background:#ff5f56}.dy{background:#ffbd2e}.dg{background:#27c93f}
+  .win .bar .app{font-size:11px;color:var(--muted);letter-spacing:.4px;text-transform:uppercase}.win .bar .app b{color:var(--accent2);font-weight:700}
+  .win pre{margin:0;padding:11px 13px;overflow-x:auto;font-size:12px;color:var(--evidink);line-height:1.5;font-family:ui-monospace,Menlo,Consolas,monospace}
+  .win pre .c{color:#56708a}.win pre .hi{color:var(--warn);font-weight:600}.win pre .r{color:var(--bad);font-weight:600}.win pre .g{color:var(--good)}.win pre .b{color:var(--accent2)}.win pre .p{color:var(--purple)}
+  .win.note pre{color:#cfe8dd}
+
+  .reason{border:1px solid var(--line2);border-radius:12px;overflow:hidden;margin:14px 0;background:var(--panel2)}
+  .reason .rh{background:#0c1622;padding:8px 12px;font-size:11px;letter-spacing:.7px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line)}
+  .reason .rb{padding:4px 12px 12px}
+  .rrow{padding:10px 0;border-bottom:1px dashed #1b2735}.rrow:last-child{border-bottom:none}
+  .rrow .lbl{font-size:10px;letter-spacing:.8px;text-transform:uppercase;font-weight:700;margin-bottom:3px}
+  .lbl.obs{color:var(--accent2)}.lbl.ori{color:var(--purple)}.lbl.rel{color:var(--warn)}.lbl.suf{color:var(--accent)}
+  .rrow .txt{font-size:13px;color:#d4e2ee}
+  .verdict{display:inline-block;font-size:10.5px;font-weight:700;border-radius:5px;padding:1px 7px;margin-left:6px;vertical-align:middle}
+  .verdict.linked{background:#10251a;color:var(--good);border:1px solid #1f6b47}.verdict.unknown{background:#2a2410;color:var(--warn);border:1px solid #6b561f}.verdict.unrelated{background:#241315;color:var(--bad);border:1px solid #6b2630}
+  .meter{height:8px;background:#0a121b;border-radius:999px;overflow:hidden;margin:6px 0;border:1px solid var(--line)}.meter>i{display:block;height:100%;background:linear-gradient(90deg,var(--bad),var(--warn),var(--good));transition:width .4s}
+  .move{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;border-radius:6px;padding:3px 9px;margin-top:4px}
+  .move.PIVOT{background:#12243a;color:var(--accent2);border:1px solid #244a6e}.move.COLLECT{background:#2a2410;color:var(--warn);border:1px solid #6b561f}.move.CONTAIN{background:#241315;color:var(--bad);border:1px solid #6b2630}.move.ADVANCE{background:#10251a;color:var(--good);border:1px solid #1f6b47}.move.LOOP{background:#2a1410;color:#ff9f6b;border:1px solid #7a3b1f}
+
+  /* attacker panel */
+  .atkpanel{border:1px solid var(--atkln);border-radius:12px;overflow:hidden;margin:14px 0;background:#160b0c}
+  .atkpanel .ah{background:#20100f;padding:8px 12px;font-size:11px;letter-spacing:.7px;text-transform:uppercase;color:#ff9f9a;border-bottom:1px solid var(--atkln)}
+  .atkpanel .ab{padding:4px 12px 12px}
+  .arow{padding:9px 0;border-bottom:1px dashed #3a2020}.arow:last-child{border-bottom:none}
+  .arow .lbl{font-size:10px;letter-spacing:.8px;text-transform:uppercase;font-weight:700;margin-bottom:3px;color:#ff8f8a}
+  .arow .txt{font-size:13px;color:var(--atkink)}
+  .arow.nextmv{background:#1c0d0e;margin:6px -12px -12px;padding:10px 12px}
+  .arow.nextmv .lbl{color:#ffb454}
+
+  .bias{border-left:3px solid #d98cff;background:#17121f;padding:9px 13px;border-radius:0 8px 8px 0;margin:13px 0}
+  .bias h4{margin:0 0 5px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#c9a6ff}
+  .bias p{margin:3px 0;font-size:13px;color:#e3d7f5}
+  .bias .ct{color:#9fe6c9}
+
+  .decision{border:1px solid #2a3a2f;background:#0f1a14;border-radius:10px;padding:13px;margin:14px 0}
+  .decision .q{font-weight:600;margin-bottom:9px}
+  .opt{display:block;width:100%;text-align:left;background:var(--panel2);color:var(--ink);border:1px solid var(--line2);border-radius:8px;padding:10px 12px;margin:6px 0;cursor:pointer;font-size:13.5px;transition:.12s}
+  .opt:hover{border-color:var(--accent)}.opt.correct{border-color:var(--good);background:#10251a}.opt.wrong{border-color:var(--bad);background:#261213}
+  .opt .mk{float:right;font-weight:700}
+  .fb{display:none;margin-top:9px;padding:10px 12px;border-radius:8px;font-size:13px}.fb.show{display:block}.fb.ok{background:#10251a;border:1px solid #1f6b47}.fb.no{background:#241317;border:1px solid #7a2b33}
+  .crit{border-left:3px solid var(--warn);background:#1c1710;padding:9px 13px;border-radius:0 8px 8px 0;margin:13px 0}
+  .crit h4,.kp h4,.take h4{margin:0 0 5px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+  .crit p{margin:3px 0;font-size:13.5px}
+  .kp{margin:13px 0 4px}.kp ul{margin:0;padding-left:18px}.kp li{margin:4px 0;font-size:13.5px}
+  .take{border-left:3px solid var(--accent);background:#0e1a18;padding:9px 13px;border-radius:0 8px 8px 0;margin:13px 0}.take p{margin:3px 0;color:#d7f3ea;font-size:13.5px}
+  .refs{font-size:12px;color:var(--muted);margin:12px 0 2px}.refs a{color:var(--accent2);text-decoration:none}.refs a:hover{text-decoration:underline}
+  .nav{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:16px}
+  .btn{background:var(--accent);color:#04231b;border:none;border-radius:9px;padding:11px 18px;font-weight:700;cursor:pointer;font-size:14px}.btn:hover{filter:brightness(1.08)}
+  .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line2);font-weight:600}.btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn.sm{padding:7px 12px;font-size:12.5px}
+
+  .rail .box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px;margin-bottom:12px}
+  .rail h3{margin:0 0 9px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+  .confnum{font-size:26px;font-weight:800;color:var(--accent)}.confsub{font-size:11px;color:var(--faint)}
+  .gaps{list-style:none;margin:8px 0 0;padding:0;font-size:12px}
+  .gaps li{padding:5px 8px;border-radius:6px;background:#1a1409;border:1px solid #3a2e12;color:var(--warn);margin:4px 0;display:flex;gap:7px}
+  .gaps li.closed{background:#0e1a14;border-color:#1f4a37;color:var(--good);text-decoration:line-through;opacity:.75}
+  .steps{list-style:none;margin:0;padding:0;font-size:12px;max-height:250px;overflow:auto}
+  .steps li{padding:5px 7px;border-radius:6px;color:var(--muted);cursor:pointer;display:flex;gap:8px;align-items:center}
+  .steps li .n{font-size:10px;width:16px;text-align:center;color:#3f5467}
+  .steps li.active{background:var(--chip);color:var(--ink)}.steps li.done{color:var(--accent)}.steps li.done .n::before{content:"✓"}.steps li.done .n{color:var(--accent)}
+  .steps li .lp{color:var(--warn);font-size:10px}
+  .biaswatch{font-size:11.5px;color:#c9a6ff;line-height:1.5}
+
+  .gl{font-size:12.5px}.gl dt{color:var(--accent);font-weight:700;margin-top:9px}.gl dd{margin:2px 0 0;color:#cdd9e5}
+  table.map{width:100%;border-collapse:collapse;font-size:12px;margin:10px 0}
+  table.map th,table.map td{border:1px solid var(--line2);padding:6px 8px;text-align:left;vertical-align:top}
+  table.map th{background:var(--chip);color:var(--muted);text-transform:uppercase;font-size:10px;letter-spacing:.5px}
+  table.map td code{color:var(--accent)}
+  textarea{width:100%;background:var(--evid);color:var(--evidink);border:1px solid var(--line2);border-radius:10px;padding:11px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;resize:vertical}
+  .copyrow{display:flex;gap:10px;align-items:center;margin-top:8px}
+  .copied{color:var(--good);font-size:13px;display:none}.copied.show{display:inline}
+  .reading a,.kit a{color:var(--accent2);text-decoration:none}.reading a:hover,.kit a:hover{text-decoration:underline}
+  .reading li,.kit li{margin:6px 0;font-size:13px}
+  .tag{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--faint);border:1px solid var(--line2);border-radius:4px;padding:1px 6px;margin-right:6px}
+  .tag.must{color:#06101c;background:var(--good);border-color:var(--good);font-weight:700}.tag.good{color:var(--warn);border-color:#5a4a22}
+  .disc{font-size:11.5px;color:#6a7f91;background:#0e141d;border:1px dashed var(--line2);border-radius:8px;padding:10px 12px;margin:14px 0}
+  .sechead{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:18px 0 6px;border-top:1px solid var(--line);padding-top:12px}
+  footer.stamp{margin-top:24px;border-top:1px solid var(--line);padding-top:12px;color:var(--faint);font-size:11px}footer.stamp .mono{color:#7fd8bd}
+
+  /* generator */
+  .gen{max-width:900px}.genctl{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+  .genctl select{background:var(--panel2);color:var(--ink);border:1px solid var(--line2);border-radius:8px;padding:9px 11px;font-size:13px}
+  .genctl label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-right:4px}
+  .promptcard{background:var(--panel);border:1px solid var(--line2);border-radius:14px;overflow:hidden;box-shadow:var(--shadow)}
+  .pc-head{background:var(--winbar);border-bottom:1px solid var(--line);padding:11px 15px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .pc-type{font-size:12px;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:.6px}.pc-pack{font-size:11px;color:var(--muted)}
+  .pc-body{padding:15px}.pc-sect{margin:0 0 14px}
+  .pc-sect .h{font-size:10.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--faint);margin-bottom:4px;font-weight:700}
+  .pc-sect .t{font-size:14px;color:#e6eef6}
+  .pc-input{background:var(--evid);border:1px solid var(--line2);border-radius:9px;padding:12px;font-size:13px;color:var(--evidink);font-family:ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap}
+  .pc-lead{display:flex;gap:10px;align-items:flex-start;background:var(--lead);border:1px solid #2b4360;border-radius:10px;padding:10px 12px}
+  .pc-lead .ava{flex:0 0 30px;width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#4ea3ff,#b48cff);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;color:#06101c}
+  .pc-twist{font-size:12.5px;color:var(--warn);background:#1c1710;border:1px solid #5a4a22;border-radius:8px;padding:8px 11px}
+  .approach{display:none;margin-top:12px;border-top:1px dashed var(--line2);padding-top:12px}.approach.show{display:block}
+  .approach h4{margin:0 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--good)}
+  .approach ol{margin:0;padding-left:18px}.approach li{margin:4px 0;font-size:13px}
+  .genrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+
+  /* case log */
+  .clog{max-width:1000px}
+  .guidebar{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+  @media(max-width:760px){.guidebar{grid-template-columns:1fr}}
+  .guide{background:var(--panel2);border:1px solid var(--line2);border-radius:10px;padding:10px 12px;font-size:12px}
+  .guide b{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px}
+  .guide.create b{color:var(--good)}.guide.update b{color:var(--warn)}.guide.ref b{color:var(--accent2)}
+  .form{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .fg{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}
+  @media(max-width:720px){.fg{grid-template-columns:1fr}}
+  .field label{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:3px}
+  .field input,.field select,.field textarea{width:100%;background:var(--panel2);color:var(--ink);border:1px solid var(--line2);border-radius:7px;padding:8px 9px;font-size:13px;font-family:inherit}
+  .field textarea{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;min-height:46px}
+  .field.full{grid-column:1 / -1}
+  .diamondgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;grid-column:1/-1}
+  .logtable{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:10px}
+  .logtable th,.logtable td{border:1px solid var(--line2);padding:5px 7px;text-align:left;vertical-align:top}
+  .logtable th{background:var(--chip);color:var(--muted);text-transform:uppercase;font-size:9.5px;letter-spacing:.4px}
+  .logtable tr.match{background:#10251a}
+  .findrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0 4px}
+  .findrow input,.findrow select{background:var(--panel2);color:var(--ink);border:1px solid var(--line2);border-radius:7px;padding:7px 9px;font-size:12.5px}
+  .emptyrow{color:var(--faint);font-size:12.5px;padding:8px 2px}
+
+  /* toast */
+  #toast{position:fixed;right:16px;bottom:16px;max-width:330px;background:#13202e;border:1px solid var(--accent2);border-radius:12px;box-shadow:var(--shadow);padding:12px 14px;z-index:50;display:none}
+  #toast.show{display:block;animation:slidein .25s ease}
+  @keyframes slidein{from{transform:translateY(12px);opacity:0}to{transform:none;opacity:1}}
+  #toast .tt{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--accent2);font-weight:700;margin-bottom:4px}
+  #toast .tm{font-size:13px;color:#dbe8f4;margin-bottom:9px}
+  #toast .tr{display:flex;gap:8px}
+  #toast .x{position:absolute;top:8px;right:11px;color:var(--faint);cursor:pointer;font-size:14px}
+
+  /* ============================================================
+     Case-dossier design pass (2026-10-16) — deliberate, non-templated.
+     Serif document headings; warm charcoal + a single brass accent;
+     graph-paper texture; hairline edges instead of soft shadows.
+     ============================================================ */
+  h1, h2.title{ font-family:var(--serif); font-weight:600; letter-spacing:0; }
+  header.top h1{ font-size:20px; }
+  h2.title{ font-size:23px; line-height:1.24; margin:4px 0 6px; }
+  .phase{ text-transform:none; letter-spacing:.2px; font-style:italic; color:var(--muted); font-size:12.5px; }
+  .sechead{ font-family:var(--serif); font-style:italic; text-transform:none; letter-spacing:0; font-size:14px; color:var(--ink); border-top:1px solid var(--line2); }
+  /* crisper document edges; vary radius by role instead of one bubble everywhere */
+  .fw,.box,.newconcept,.reason,.atkpanel,.decision,.promptcard,.lead,.form,.guide,.bias,.crit,.take{ border-radius:5px; }
+  .win,.pc-input,textarea,.opt,.fb,.logtable,table.map{ border-radius:4px; }
+  .btn,.modebtn,.badge,.tag,.move,.verdict,.loopbadge,.atkbanner{ border-radius:3px; }
+  .viewtoggle{ border-radius:4px; }
+  /* no soft drop-shadows anywhere; use hairline borders */
+  .win,.promptcard,#toast{ box-shadow:none; border:1px solid var(--line2); }
+  header.top{ border-bottom:1px solid var(--line2); padding-bottom:14px; }
+  /* badge as a stamped case marker, not a SaaS pill */
+  .badge{ text-transform:none; letter-spacing:.5px; color:var(--accent); border:1px solid var(--line2); background:transparent; font-family:var(--mono); font-size:10px; padding:3px 8px; }
+  .sub{ color:var(--muted); font-style:italic; }
+  /* quiet the uppercase eyebrows: lighter tracking (kept as small structural labels, not shouting) */
+  .fw .k,.rail h3,.reason .rh,.atkpanel .ah,.rrow .lbl,.arow .lbl,.crit h4,.kp h4,.take h4,.bias h4,.guide b,.pc-type,.pc-sect .h,.field label,.logtable th,table.map th,.disc b{ letter-spacing:.3px; }
+  /* buttons + accents in brass (readable dark text on brass) */
+  .btn{ background:var(--accent); color:#1b1710; font-weight:700; }
+  .btn:hover{ filter:brightness(1.06); }
+  .btn.ghost{ background:transparent; color:var(--ink); }
+  .progress>i{ background:var(--accent); }
+  .confnum{ color:var(--accent); font-family:var(--serif); }
+  /* flat persona avatars, not a blue->purple gradient */
+  .lead .ava,.pc-lead .ava{ background:var(--accent2); color:#17181b; }
+  .modebtn.on{ border-color:var(--accent); color:var(--ink); }
+  .viewtoggle button.on.def{ background:var(--panel); color:var(--accent2); }
+  .steps li.active{ background:var(--chip); }
+  /* links underline on hover only; brass, no arrow glyphs */
+  .refs a,.reading a,.kit a{ color:var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <span class="badge">DFIR Trainer v4</span>
+    <h1>Hunt &amp; IR Trainer — defender + attacker lanes, bias drills, case log</h1>
+    <span class="sub">Cloud identity case (Midnight Blizzard / APT29) · think like the attacker · fight confirmation bias · log structured intel</span>
+  </header>
+
+  <div class="modebar">
+    <button class="modebtn on" id="mWalk">Case walkthrough</button>
+    <button class="modebtn" id="mGen">Exercise generator</button>
+    <button class="modebtn" id="mLog">Case log</button>
+  </div>
+
+  <!-- WALKTHROUGH -->
+  <div id="walkMode">
+    <div class="viewtoggle"><button class="def on" id="vDef">Defender view</button><button class="atk" id="vAtk">Attacker view</button></div>
+    <div class="fwstrip" id="fwstrip"></div>
+    <div class="progress"><i id="bar"></i></div>
+    <div class="layout">
+      <main><div id="card"></div>
+        <div class="nav"><button class="btn ghost" id="prev">Back</button><div class="confsub" id="counter"></div><button class="btn" id="next">Advance</button></div>
+      </main>
+      <aside class="rail">
+        <div class="box"><h3>Case confidence</h3><div class="confnum" id="confNum">5%</div><div class="confsub">closeness to a defensible, actionable conclusion</div><div class="meter" style="margin-top:8px"><i id="confBar" style="width:5%"></i></div></div>
+        <div class="box"><h3>Open collection gaps</h3><ul class="gaps" id="gaps"></ul></div>
+        <div class="box"><h3>Bias watch</h3><div class="biaswatch">At every step ask: am I <b>seeking disconfirming evidence</b>, or just evidence that fits my favored story? Note the bias, don't lean on it.</div></div>
+        <div class="box"><h3>Investigation phases</h3><ul class="steps" id="steps"></ul></div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- GENERATOR -->
+  <div id="genMode" style="display:none">
+    <div class="gen">
+      <p class="confsub" style="font-size:13px;color:var(--muted);margin-top:0">A "prompt book" of reps. Includes behavioral-inference and bias-spotting drills. Lock a type/scenario or leave random. Work it in your notebook, then reveal a model approach.</p>
+      <div class="genctl">
+        <div><label>Exercise</label><select id="selType"><option value="">Random</option></select></div>
+        <div><label>Scenario</label><select id="selPack"><option value="">Random</option></select></div>
+        <div><label>Difficulty</label><select id="selDiff"><option value="">Any</option><option>Foundational</option><option>Intermediate</option><option>Advanced</option></select></div>
+        <button class="btn" id="genBtn">Generate rep</button>
+      </div>
+      <div id="promptHost"></div>
+    </div>
+  </div>
+
+  <!-- CASE LOG -->
+  <div id="logMode" style="display:none">
+    <div class="clog">
+      <div class="guidebar">
+        <div class="guide create"><b>Create an entry when…</b>you've confirmed a distinct incident/campaign — enough to fill the durable fields with evidence, not guesses.</div>
+        <div class="guide update"><b>Update an entry when…</b>new evidence changes a field, a rival hypothesis is ruled out, confidence shifts, or a sibling sample is found.</div>
+        <div class="guide ref"><b>Reference an entry when…</b>a new case shares a durable field (C2 method, naming convention, LOLBin). Search BEFORE you attribute — a match is a hypothesis, not a verdict.</div>
+      </div>
+      <div class="disc" style="margin-top:0"><b>Why the fixed schema:</b> this form IS your controlled vocabulary. Your "column B vs. column XA" problem is schema drift — if everyone free-texts, nothing correlates and nobody can clean it later. Enumerated fields + ATT&amp;CK IDs + Diamond vertices force alignment at entry time; that's exactly what shared standards (STIX, MISP, OpenCTI) do at scale by mapping everyone's data to one model. Trade-off: fixed fields can't capture every nuance — that's what <b>Notes</b> is for. Keep structured data structured; keep prose in Notes.</div>
+
+      <div class="form">
+        <div class="fg">
+          <div class="field"><label>Incident / alias</label><input id="f_name" placeholder="HUNT-CLD-ID / Midnight Blizzard"></div>
+          <div class="field"><label>Date (first seen)</label><input id="f_date" placeholder="2026-10-15"></div>
+          <div class="field"><label>Initial access vector</label><select id="f_vector"></select></div>
+          <div class="field"><label>C2 method</label><select id="f_c2"></select></div>
+          <div class="field"><label>Execution / notable binary (LOLBin?)</label><input id="f_exec" placeholder="malicious OAuth app / service principal (app-only EWS)"></div>
+          <div class="field"><label>Persistence</label><select id="f_persist"></select></div>
+          <div class="field"><label>Victim sector</label><select id="f_sector"></select></div>
+          <div class="field"><label>Victim region</label><input id="f_region" placeholder="Global (cloud tenant)"></div>
+          <div class="field"><label>Confidence (calibrated)</label><select id="f_conf"><option>Low</option><option selected>Moderate</option><option>High</option></select></div>
+          <div class="field"><label>Source</label><input id="f_source" placeholder="internal IR / MSTIC / CISA"></div>
+          <div class="field full"><label>ATT&amp;CK technique IDs (comma-separated — the shared vocabulary)</label><input id="f_attack" placeholder="T1110.003, T1078.004, T1098.001, T1098.003, T1550.001, T1114.002"></div>
+          <div class="diamondgrid">
+            <div class="field"><label>Diamond — Adversary</label><input id="f_dA" placeholder="consistent with: Midnight Blizzard / APT29"></div>
+            <div class="field"><label>Diamond — Capability</label><input id="f_dC" placeholder="malicious OAuth apps / service principals"></div>
+            <div class="field"><label>Diamond — Infrastructure</label><input id="f_dI" placeholder="residential-proxy IPs; rogue app registrations"></div>
+            <div class="field"><label>Diamond — Victim</label><input id="f_dV" placeholder="corporate M365 mailboxes"></div>
+          </div>
+          <div class="field full"><label>Files / processes / paths touched</label><textarea id="f_files" placeholder="Entra SignInLogs; AuditLogs (consent / app-role); EXO MailItemsAccessed"></textarea></div>
+          <div class="field full"><label>Commands / patterns</label><textarea id="f_cmds" placeholder="spray 50126 -> success on no-MFA acct; full_access_as_app via admin consent; SP -> EWS mail read"></textarea></div>
+          <div class="field full"><label>Naming conventions / durable fingerprints (the stuff that survives tool swaps)</label><input id="f_fprint" placeholder="app self-grants full_access_as_app then reads mail; new SP credential; consent user created"></div>
+          <div class="field full"><label>Hypotheses ruled out (ACH residue — your anti-bias record)</label><textarea id="f_ach" placeholder="ruled out: single pw reset; routine app onboarding; held BEC vs APT29 at 'consistent with'"></textarea></div>
+          <div class="field full"><label>Notes (nuance that doesn't fit a field)</label><textarea id="f_notes" placeholder="no malware; residential proxies defeat IOC detection; check exfiltrated mail for secrets (CISA)"></textarea></div>
+        </div>
+        <div class="genrow">
+          <button class="btn" id="addEntry">Add entry to log</button>
+          <button class="btn ghost" id="loadDemo">Load Midnight Blizzard as example</button>
+          <button class="btn ghost" id="clearForm">Clear form</button>
+        </div>
+      </div>
+
+      <div class="findrow">
+        <b style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Find matches (\"I see X → who else did X?\")</b>
+        <select id="findField"><option value="c2">C2 method</option><option value="vector">Initial access</option><option value="attack">ATT&amp;CK ID contains</option><option value="fprint">Fingerprint contains</option></select>
+        <input id="findVal" placeholder="value to match…">
+        <button class="btn ghost sm" id="findBtn">Highlight matches</button>
+        <button class="btn ghost sm" id="clearFind">Clear</button>
+      </div>
+      <div id="logTableHost"></div>
+      <div class="copyrow"><button class="btn ghost sm" id="exportJson">Copy log as JSON</button><button class="btn ghost sm" id="exportTsv">Copy log as TSV</button><span class="copied" id="logCopied">Copied ✓</span></div>
+      <div class="disc">Entries live in this browser session only (nothing leaves your machine). Export to carry them into MISP/OpenCTI or a spreadsheet. Remember: a shared field match is a <b>lead to test</b> — borrowed TTPs, RaaS affiliates, and copycats mean "same technique" ≠ "same actor." Weight by how rare and specific the overlap is, and seek independent corroboration.</div>
+    </div>
+  </div>
+
+  <div id="toast"><span class="x" id="toastX">✕</span><div class="tt" id="toastTitle">Case-log cue</div><div class="tm" id="toastMsg"></div><div class="tr"><button class="btn sm" id="toastGo">Open Case Log</button><button class="btn ghost sm" id="toastDismiss">Later</button></div></div>
+
+  <footer class="stamp" id="footer"></footer>
+</div>
+
+<script>
+/* ============================================================
+   DFIR HUNT & IR TRAINER v4
+   Case truth: Microsoft MSTIC "Midnight Blizzard: guidance for responders"
+   (25 Jan 2024) + CISA Emergency Directive 24-02; ATT&CK IDs verified against
+   MITRE ATT&CK APT29 (G0016). Generator scenarios paraphrase public reporting
+   (see Reading Room). All in-tool consoles are
+   ILLUSTRATIVE/synthetic; pull real IOCs from the linked repos. No
+   fabricated IOC is presented as genuine. Attacker-view reasoning is
+   PLAUSIBLE INFERENCE from observed behavior, not a confession.
+   ============================================================ */
+const BUILD_ID="HUNT-20261016-1650Z · design-rev 2026-10-16";
+const STAMP_UTC="2026-10-16T16:50Z";
+const LEAD_NAME="Dana R.",LEAD_INIT="DR",LEAD_ROLE="Hunt Lead";
+
+const GAPS=[{id:"ident",text:"Confirm which identity/app actually authenticated"},{id:"consent",text:"Enumerate every OAuth app & consent grant"},{id:"roles",text:"Find all elevated app roles/permissions granted"},{id:"mailboxes",text:"Determine which mailboxes were accessed"},{id:"scope",text:"Map full scope (identities, apps, tenants)"},{id:"persist",text:"Enumerate all identity persistence (apps, creds, users)"},{id:"attrib",text:"Attribute the activity to an actor"}];
+
+const GLOSS=[
+ ["Confirmation bias","Seeking, weighting, or remembering evidence that fits your favored hypothesis while discounting the rest. The #1 analyst failure mode. Counter: actively hunt DISCONFIRMING evidence and run ACH."],
+ ["Anchoring bias","Over-weighting the first impression (first alert, first theory). Counter: generate alternatives before committing; re-derive from the evidence, not the first guess."],
+ ["Availability bias","The case you just read colors everything — 'I saw Outlook C2 last week so this must be that actor.' Dangerous precisely where pattern-matching is useful. Counter: consider base rates and borrowed-TTP explanations; demand independent corroborators."],
+ ["Base-rate neglect","Ignoring how common the benign explanation is. A rare-looking artifact may still be mundane at scale. Counter: ask 'how often is this benign here?' before escalating."],
+ ["Structured analytic techniques (SATs)","Methods (ACH, devil's advocate, key-assumptions check, red-teaming your own conclusion) that force rigor and expose bias. From Heuer's 'Psychology of Intelligence Analysis.'"],
+ ["Analysis of Competing Hypotheses (ACH)","List plausible explanations, then seek evidence that DISPROVES each. You're 'done enough' when one survives the decision's evidence need — not when you've piled up confirmation."],
+ ["Think-like-the-attacker","Reasoning from the adversary's goal backward: given what I want and what the recon showed, which weakness would I pivot off next? Used to anticipate and pre-position detections — a hypothesis engine, not a certainty."],
+ ["Where leads come from","Intel/advisories, closed incidents, a hypothesis backlog (HEARTH), ATT&CK gaps, crown-jewel assurance, leadership asks, and your own ideas. A Hunt Lead owns the queue; scope every lead regardless."],
+ ["Distillation","Turning prose (a report or an exec's sentence) into a queryable hunt: behavior (not IOC) → hypothesis → data source → scope → hit/miss."],
+ ["Structured threat intel","Recording incidents in a FIXED schema (ATT&CK IDs, Diamond vertices, enumerated fields) so they correlate across cases and teams. Free-text spreadsheets don't scale; standards (STIX/MISP/OpenCTI) exist to map everyone's data to one model."],
+ ["Attack Flow","MITRE/CTID project modelling incidents as ordered sequences of actions + conditions — captures the SHAPE of movement, better for anticipating next steps than a flat IOC list."],
+ ["PEAK","Prepare → Execute → Act. Splunk/SURGe (Bianco & Fetterman). Hunt types: Flames (hypothesis), Embers (baseline), Alchemy (model-assisted)."],
+ ["Diamond Model","Adversary, Capability, Infrastructure, Victim — pivot across edges to find related events; predictive when 3 vertices are known."],
+ ["Pyramid of Pain","Indicators ranked by pain-to-adversary: hashes/IPs → domains → network/host artifacts → tools → TTPs (max pain, most durable — what you profile and detect on)."],
+ ["F3EAD","Find, Fix, Finish, Exploit, Analyze, Disseminate — the loop that turns findings into intel that feeds the next Find."],
+ ["LOLBAS / LOLBin","A trusted, signed, pre-installed binary (cdb.exe) abused so no obviously-malicious tool is dropped."]
+];
+
+const ATTACK=[
+ ["Credential Access / Initial Access","Brute Force: Password Spraying","T1110.003"],
+ ["Initial Access / Persistence","Valid Accounts: Cloud Accounts","T1078.004"],
+ ["Command & Control","Proxy: External Proxy (residential)","T1090.002"],
+ ["Persistence / Priv. Esc.","Account Manipulation: Additional Cloud Credentials (malicious OAuth app)","T1098.001"],
+ ["Privilege Escalation","Account Manipulation: Additional Cloud Roles (full_access_as_app)","T1098.003"],
+ ["Persistence","Create Account: Cloud Account (consent user)","T1136.003"],
+ ["Defense Evasion / Lateral","Use Alternate Authentication Material: Application Access Token","T1550.001"],
+ ["Collection","Email Collection: Remote Email Collection (EWS)","T1114.002"]
+];
+const READING=[
+ ["Primary","Microsoft MSTIC — Midnight Blizzard: guidance for responders (25 Jan 2024)","https://www.microsoft.com/en-us/security/blog/2024/01/25/midnight-blizzard-guidance-for-responders-on-nation-state-attack/"],
+ ["Primary","CISA — Emergency Directive 24-02 (Midnight Blizzard / Microsoft email)","https://www.cisa.gov/news-events/directives/ed-24-02-mitigating-significant-risk-nation-state-compromise-microsoft-corporate-email-system"],
+ ["ATT&CK group","MITRE ATT&CK — APT29 (G0016) — verify every technique ID here","https://attack.mitre.org/groups/G0016/"],
+ ["Bias","Heuer — Psychology of Intelligence Analysis (CIA, free)","https://www.cia.gov/resources/csi/books-monographs/psychology-of-intelligence-analysis/"],
+ ["Intel model","OASIS STIX","https://oasis-open.github.io/cti-documentation/stix/intro"],
+ ["Intel platform","MISP","https://www.misp-project.org/"],
+ ["Intel model","MITRE/CTID Attack Flow","https://center-for-threat-informed-defense.github.io/attack-flow/"],
+ ["Detections","Microsoft Sentinel (Entra / AuditLogs analytics)","https://github.com/Azure/Azure-Sentinel"],
+ ["Rules","SigmaHQ","https://github.com/SigmaHQ/sigma"],
+ ["Hardening","CISA SCuBA — M365 secure configuration baselines","https://www.cisa.gov/resources-tools/services/secure-cloud-business-applications-scuba-project"],
+ ["Framework","PEAK","https://www.splunk.com/en_us/blog/security/peak-threat-hunting-framework.html"],
+ ["Framework","Diamond Model (paper)","https://apps.dtic.mil/sti/pdfs/ADA586960.pdf"],
+ ["Framework","Pyramid of Pain","https://detect-respond.blogspot.com/2013/03/the-pyramid-of-pain.html"],
+ ["Framework","MITRE ATT&CK","https://attack.mitre.org/"],
+ ["Standard","NIST SP 800-61 Rev.3","https://csrc.nist.gov/pubs/sp/800/61/r3/final"]
+];
+const KIT=[
+ ["must","HEARTH (hypothesis bank)","A community-curated library of PEAK-categorized hunt hypotheses; paste a CTI link, get a drafted hunt.","https://github.com/THORCollective/HEARTH"],
+ ["must","MITRE ATT&CK","Shared language for TTPs; tag every hunt and log entry.","https://attack.mitre.org/"],
+ ["must","CISA KEV","Authoritative 'exploited right now' list; drives priority.","https://www.cisa.gov/known-exploited-vulnerabilities-catalog"],
+ ["must","Sigma (SigmaHQ)","Portable detection rules / ready-made hunts.","https://github.com/SigmaHQ/sigma"],
+ ["must","LOLBAS / GTFOBins","Abusable built-in Windows / Unix binaries.","https://lolbas-project.github.io/"],
+ ["must","MISP or OpenCTI","Structured threat-intel DB — where your case log grows up.","https://www.misp-project.org/"],
+ ["good","Attack Flow (CTID)","Model incidents as action sequences — anticipate next steps.","https://center-for-threat-informed-defense.github.io/attack-flow/"],
+ ["good","Atomic Red Team","Safe ATT&CK-mapped tests to generate telemetry + validate detections.","https://github.com/redcanaryco/atomic-red-team"],
+ ["good","LOLDrivers","Known vulnerable/malicious drivers (BYOVD).","https://www.loldrivers.io/"],
+ ["good","abuse.ch (MalwareBazaar/ThreatFox/URLhaus)","Free community IOC + sample feeds.","https://bazaar.abuse.ch/"],
+ ["good","The DFIR Report + vendor blogs","Your lead pipeline — detailed public case studies.","https://thedfirreport.com/"],
+ ["good","Heuer — Psychology of Intelligence Analysis","The bias/SAT bible; free from CIA.","https://www.cia.gov/resources/csi/books-monographs/psychology-of-intelligence-analysis/"]
+];
+
+/* ---------- walkthrough steps (with attacker + bias + logcue) ---------- */
+const S=[
+{ phase:"Mission Brief · PEAK Prepare", title:"You sit down at the hunt desk",
+  fw:{kill:"Reconnaissance",nist:"Preparation",peak:"Prepare",pyramid:"Behaviors",diamond:[]}, conf:5, gapsOpen:["scope"],
+  lead:{tag:"tasking",msg:`"Morning. A peer org got hit — Russian state actor (Midnight Blizzard) password-sprayed a <b>legacy account with no MFA</b>, abused an OAuth app to mint <b>more apps</b>, granted itself mailbox rights, and read corporate email. <b>No malware anywhere.</b> Sweep our M365 tenant for the same identity pattern and SITREP me before you touch anything. Go."`},
+  newConcept:{term:"Identity-first hunting",def:"In a cloud intrusion the first (and often only) witness is <b>identity and audit telemetry</b> — Entra sign-in logs, consent/app-role AuditLogs, Exchange mailbox-access logs — not an endpoint. 'Check the EDR' is the wrong first move here."},
+  scene:`<p>You run intelligence-driven, hypothesis-based hunts. Flip the <strong>Attacker view</strong> on any phase to see the operator's likely reasoning — a hypothesis engine for anticipating the next move, never a certainty.</p>`,
+  panes:[{app:"case notebook",cls:"note",dr:1,body:`CASE HUNT-CLD-ID  lead: cloud OAuth abuse (Midnight Blizzard report via ${LEAD_NAME})\nhypothesis backlog: identity TTPs + ATT&CK gaps (G0016)\nstatus: PREPARE`}],
+  attacker:{goal:"Quiet, durable access to a strategic target's email — espionage, not disruption.",why:"Identity is the new perimeter; a forgotten cloud account is cheaper than any exploit.",recon:"Enumerate the tenant's accounts; find ones excluded from MFA / conditional access.",next:"Spray a weak, unmonitored legacy account."},
+  reason:{obs:"A tasked lead, no victim yet.",ori:"PEAK Prepare: research the TTP, form queryable hypotheses.",rel:{v:"unknown",b:"Nothing observed — relevance calls begin once data lands."},suf:{lvl:5,gap:"No evidence. You can only hunt.",move:"ADVANCE",mv:"Distill the report into a hunt."}},
+  keypoints:["Cloud-identity intrusions leave no malware — the endpoint is the wrong place to look first.","Attacker view is a hypothesis engine, not a mind-reading claim."],
+  take:"Treat identity telemetry as the primary evidence domain. Scope the lead (hypothesis+source+timebox) before burning a shift.",
+  refs:[["PEAK","https://www.splunk.com/en_us/blog/security/peak-threat-hunting-framework.html"],["ATT&CK APT29 (G0016)","https://attack.mitre.org/groups/G0016/"]]
+},
+{ phase:"Phase 0 · Distillation", title:"From report (or exec quote) to a hunt you can run",
+  fw:{kill:"Reconnaissance",nist:"Preparation",peak:"Prepare",pyramid:"Behaviors",diamond:[]}, conf:6, gapsOpen:[],
+  lead:{tag:"question",msg:`"Before the SIEM — give me the one-line hunt you'll actually run. Not the headline. The behavior."`},
+  newConcept:{term:"Distillation (core skill)",def:"Strip prose to a <b>behavior you can query</b>: (1) behavior not IOC; (2) testable hypothesis; (3) data source; (4) scope; (5) hit/miss. The actor used high-churn residential proxies, so an IP list is useless — you must distill to behavior."},
+  scene:`<p>'Russia abused OAuth to read Microsoft's email' → 'an app/service principal recently granted high mailbox rights, then reading many mailboxes.' You'll do this from report text AND exec/client verbiage.</p>`,
+  panes:[{app:"intel excerpt (paraphrased)",cls:"",dr:1,body:`"Actor compromised a legacy OAuth app, created more\n malicious apps + a consent user, granted Exchange\n full_access_as_app, and read mail over EWS from\n residential proxies."`},{app:"exec what-if",cls:"note",dr:1,body:`CFO: "The news says Russia read Microsoft's email\n through OAuth. Are WE exposed in our tenant?"`}],
+  attacker:{why:"Defenders rarely baseline WHICH service principals legitimately read mail, or who can grant app roles.",weakness:"App-only access is invisible to 'is the user compromised?' thinking.",next:"Hide inside sanctioned app-to-Exchange traffic."},
+  decision:{prompt:"Best-distilled hunt from that excerpt?",options:[
+    {text:"Block logins from the reported residential IPs",correct:false,feedback:"The proxies churn constantly and are shared with real users — MSTIC says IOC-based detection is infeasible here. You stopped at an IP, not a behavior."},
+    {text:"Alert on every OAuth token issued",correct:false,feedback:"Every app does this all day — no baseline, unusable volume."},
+    {text:"An app/service principal RECENTLY granted high mailbox rights (full_access_as_app / EWS.AccessAsUser.All) AND then reading mail",correct:true,feedback:"Yes — a behavior, queryable in Entra AuditLogs + Exchange mailbox-access logs, scoped to the anomaly. The exec question distills to the same hunt."}]},
+  crit:"Distillation fails at an IOC ('block the IP') or too broad ('all tokens'). Aim for a behavior that's rare-when-malicious AND baseline-able.",
+  keypoints:["Report text and exec verbiage distill to the same hunt.","When IOCs are known-useless, distilling to behavior isn't optional — it's the only path."],
+  take:"Recipe: behavior → hypothesis → data source → scope → hit/miss. Here the behavior is 'app newly granted mailbox rights, then reading mail.'",
+  refs:[["Attack Flow","https://center-for-threat-informed-defense.github.io/attack-flow/"]]
+},
+{ phase:"Phase 1 · PEAK Execute", title:"Describe the threat before you can find it",
+  fw:{kill:"Reconnaissance",nist:"Detection & Analysis",peak:"Execute",pyramid:"Identity artifacts / behaviors",diamond:[]}, conf:8, gapsOpen:[],
+  newConcept:{term:"Hypothesis-driven hunting",def:"Turn the lead into testable statements about <b>sign-ins, consent, and mailbox access</b>, each with a data source."},
+  scene:`<p>Three concrete, queryable hypotheses across the identity fabric.</p>`,
+  panes:[{app:"hunt console — hypotheses",cls:"",dr:1,body:`<span class="c"># H1 spray</span> many <span class="r">50126</span> failures low-and-slow across accounts -> a <span class="hi">success on a no-MFA / CA-excluded</span> acct  [Entra SignInLogs]\n<span class="c"># H2 consent</span> new app / <span class="hi">admin consent to full_access_as_app</span> or EWS.AccessAsUser.All  [AuditLogs]\n<span class="c"># H3 collection</span> service principal auth to <span class="b">Exchange/EWS</span> reading many mailboxes  [MailItemsAccessed]`}],
+  attacker:{why:"Keep volume low to dodge lockout and smart-lockout thresholds; use native cloud features so there's no malware verdict.",weakness:"Defenders may watch user sign-ins but not SERVICE-PRINCIPAL sign-ins or app-role grants.",next:"Spray quietly, then pivot to apps."},
+  reason:{obs:"Three queryable hypotheses with sources.",ori:"PEAK Execute begins. Pyramid: behaviors (high pain).",rel:{v:"unknown",b:"Pre-data. Note linkage keys: account, app/service-principal id, IP/ASN, time window.",},suf:{lvl:8,gap:"Untested — run them.",move:"ADVANCE",mv:"Execute across the tenant."}},
+  decision:{prompt:"Which hypothesis flags the EARLIEST stage?",options:[
+    {text:"H1 — password spray success on a weak account",correct:true,feedback:"Right — the canary for initial access; everything else follows from it."},
+    {text:"H3 — mailbox collection",correct:false,feedback:"That's the objective, late in the chain."},
+    {text:"Wait for an EDR alert",correct:false,feedback:"There is no endpoint in this chain. EDR will stay green."}]},
+  keypoints:["Service-principal sign-ins are a distinct log stream from user sign-ins — hunt both.","Write the data source next to every hypothesis."],
+  take:"Core identity set: spray success on weak account; high-priv app-role consent; service principal reading mail.",
+  refs:[["Pyramid of Pain","https://detect-respond.blogspot.com/2013/03/the-pyramid-of-pain.html"]]
+},
+{ phase:"Phase 2 · Triage", title:"One account lights up",
+  fw:{kill:"Delivery / Exploitation",nist:"Detection & Analysis",peak:"Execute",pyramid:"Identity artifacts",diamond:["V"]}, conf:20, gapsOpen:["persist"],
+  lead:{tag:"reporting up",msg:`"You flagged svc-legacy-test over everything else. Why that one? One line."`},
+  newConcept:{term:"Cognitive bias in investigations",def:"You just read the Midnight Blizzard report — so everything will <i>look</i> like APT29 (<b>availability bias</b>), and once you pick a theory you'll over-weight evidence that fits it (<b>confirmation bias</b>). Notice it, note it, seek DISCONFIRMING evidence."},
+  scene:`<p>Lots of failed-login noise; one stands out — a <strong>legacy, non-production test account with no MFA</strong> succeeded after a burst of failures, from a residential IP. ${LEAD_NAME} wants your reasoning in a sentence.</p>`,
+  panes:[{app:"Entra SignInLogs — results",cls:"",dr:1,body:`user=<span class="b">svc-legacy-test@example.com</span> fails=<span class="r">50126 x many (low-and-slow)</span> -> <span class="hi">success 0</span> MFA=<span class="r">not required</span> CA=<span class="r">excluded</span> ip=203.0.113.47 (residential)\n<span class="c"># other noise: normal users with MFA satisfied, a scanner, a locked-out intern</span>`}],
+  attacker:{why:"They picked a legacy/non-prod account deliberately — unwatched and often exempt from MFA/CA.",weakness:"'Non-production' accounts still live in the production identity tenant.",next:"Use this foothold to reach an OAuth app, not to grab mail directly."},
+  bias:{risk:"Availability + confirmation: 'I read about Midnight Blizzard, so this IS APT29' — before you've seen a single OAuth grant.",counter:"Hold the actor label. Right now you have 'spray succeeded on a weak account,' which fits countless intrusions (incl. criminal BEC). Let the evidence name it."},
+  reason:{obs:"A spray success on a sensitive-but-weak account, amid benign noise.",ori:"NIST Detection & Analysis.",rel:{v:"linked",b:"Matches H1: low-and-slow failures then success, MFA not required, CA excluded — that's your one-line answer. The locked-out intern and MFA-satisfied users are unrelated.",},suf:{lvl:20,gap:"One account, one success. Not what it was used FOR.",move:"PIVOT",mv:"Reconstruct exactly how access was gained, then where it went."}},
+  keypoints:["Prioritize by weakness + consequence, not by count of hits.","Separate true hit from noise by MFA/CA state and follow-on activity."],
+  take:"Triage by exposure: a CA-excluded, no-MFA account that just succeeded after a spray is the one that jumps the queue.",
+  refs:[["Heuer (bias/SATs)","https://www.cia.gov/resources/csi/books-monographs/psychology-of-intelligence-analysis/"]]
+},
+{ phase:"Phase 3 · Initial Access", title:"The spray that slipped under lockout",
+  fw:{kill:"Exploitation",nist:"Detection & Analysis",peak:"Execute",pyramid:"Identity artifacts",diamond:["V"]}, conf:30, gapsOpen:[],
+  newConcept:{term:"Order of volatility (cloud edition)",def:"Cloud logs age out on a clock: Entra sign-in/audit logs retain ~30 days by default (longer with P1/P2, longest only if exported to a SIEM/Log Analytics). <b>Export the window now</b> — you can't collect what's already rolled off."},
+  scene:`<p>The spray targeted many accounts with only a few attempts each (to stay under smart-lockout), and landed on the one legacy account without MFA and excluded from conditional access.</p>`,
+  panes:[{app:"Entra SignInLogs — spray pattern",cls:"",dr:1,body:`03:02Z..04:40Z  <span class="r">50126</span> across ~180 accounts, <=3 tries each (under lockout)\n04:41Z  <span class="hi">resultType 0</span>  user=svc-legacy-test  app=Office365 Exchange Online  ip=203.0.113.47\nconditionalAccessStatus=<span class="r">notApplied</span>  authenticationRequirement=<span class="r">singleFactor</span>`}],
+  attacker:{why:"Many hosts, few tries each — you only need one account that was never brought under MFA/CA.",recon:"Earlier enumeration told them which accounts were legacy / likely exempt.",weakness:"Inventory ('we're 100% MFA') rarely matches reality for service and legacy accounts.",next:"Find what this account can reach — ideally an app with standing rights."},
+  reason:{obs:"Low-and-slow failures across many accounts, one success on a CA-excluded no-MFA account.",ori:"Exploitation confirmed via identity logs.",rel:{v:"linked",b:"Failure pattern + the single success share the same IP and tight window — convergence promotes 'maybe' to 'related'. No second data source needed; the identity log IS the authoritative record here.",},suf:{lvl:30,gap:"Entry known; not what the account was used for next.",move:"PIVOT",mv:"Follow the account's actions, not just its logins."}},
+  crit:"Reconcile the MFA/CA claim against reality — the gap is almost always legacy/service/excluded accounts and legacy auth protocols.",
+  keypoints:["Smart-lockout evasion looks like broad low-volume failures, not a brute-force spike.","'100% MFA' is a claim to reconcile, not a fact to trust."],
+  take:"Confirm initial access from Entra sign-in logs: spray pattern + success on a no-MFA/CA-excluded account. Export the log window before it ages out.",
+  refs:[["ATT&CK T1110.003","https://attack.mitre.org/techniques/T1110/003/"]]
+},
+{ phase:"Phase 4 · The pivot you didn't expect", title:"The account wasn't the prize — the app was",
+  fw:{kill:"Installation",nist:"Detection & Analysis",peak:"Execute",pyramid:"Tools / behaviors",diamond:["V","C","I"]}, conf:40, gapsOpen:["consent"],
+  newConcept:{term:"OAuth consent abuse & service principals",def:"An <b>OAuth application</b> (service principal) authenticates as ITSELF with its own secret/cert — app-only. The actor used the sprayed account to reach a <b>legacy OAuth app with elevated access</b>, then created <b>new malicious apps and a consent user</b> to approve them. That access survives losing the original account."},
+  scene:`<p>The compromised account could access a dormant, over-privileged legacy OAuth app. From there the actor registered new apps and a user whose only job was to consent to them.</p>`,
+  panes:[{app:"Entra AuditLogs — app activity",cls:"",dr:1,body:`<span class="hi">Add service principal</span>  app="Mail Reporting Connector" (new)  by=svc-legacy-test\n<span class="hi">Add owner to application</span>  +new app  \n<span class="hi">Add user</span>  consent-svc@example.com (new)  -> used only to <span class="r">Consent to application</span>\n<span class="c"># app ids illustrative: 1a2b3c4d-... (synthetic)</span>`}],
+  attacker:{why:"An app with its own credentials is better persistence than a user — no MFA prompt, no password to reset.",weakness:"Few orgs baseline who can register apps or grant consent.",next:"Give an app standing rights to all mailboxes."},
+  reason:{obs:"New apps + a single-purpose consent user, created by the sprayed account.",ori:"Pyramid: Tools — the actor is building capability/infrastructure inside your tenant.",rel:{v:"linked",b:"The new apps and consent user trace by actor + tight time window back to svc-legacy-test — lineage links them into one incident. New apps = new Capability + Infrastructure vertices.",},suf:{lvl:40,gap:"Apps created; what rights do they hold, and what did they touch?",move:"PIVOT",mv:"Check the permissions the apps were granted."}},
+  keypoints:["App-only access is persistence that survives account resets — resetting the password is NOT eradication.","A freshly created user that does nothing but consent to apps is a bright red flag."],
+  take:"The real objective of the account compromise was an OAuth app. Enumerate app registrations, owners, and consent grants tied to the actor.",
+  refs:[["ATT&CK T1098.001","https://attack.mitre.org/techniques/T1098/001/"],["ATT&CK T1136.003","https://attack.mitre.org/techniques/T1136/003/"]]
+},
+{ phase:"Phase 5 · Privilege grant", title:"An app that grants itself the mailroom keys",
+  fw:{kill:"Installation",nist:"Detection & Analysis",peak:"Execute (baseline)",pyramid:"Tools",diamond:["V","C","I"]}, conf:50, gapsOpen:["roles"],
+  newConcept:{term:"Baseline deviation — app roles",def:"'Know normal, catch abnormal.' Normal apps request narrow, task-scoped permissions. Here an app is granted <b>Exchange Online full_access_as_app</b> via admin consent — tenant-wide, app-only access to <i>every</i> mailbox."},
+  scene:`<p>One of the new apps receives the Office 365 Exchange Online <code>full_access_as_app</code> role through admin consent — the deviation that turns a foothold into a mail-collection platform.</p>`,
+  panes:[{app:"Entra AuditLogs — consent",cls:"",dr:1,body:`<span class="r">Consent to application</span>  app="Mail Reporting Connector"\npermission=<span class="hi">Office 365 Exchange Online / full_access_as_app</span> (Application)\nconsentType=<span class="r">AllPrincipals (admin consent)</span>  grantedBy=consent-svc@example.com`},{app:"baseline",cls:"",dr:1,body:`SHOULD: <span class="g">narrow, delegated, task-scoped perms</span>\nIS: <span class="r">app-only full_access_as_app, tenant-wide</span>`}],
+  attacker:{why:"full_access_as_app = read any mailbox with one app credential, no user context, no MFA.",weakness:"Admin-consent events are logged but rarely alerted on.",next:"Authenticate the app to Exchange and start reading."},
+  decision:{prompt:"An app granted full_access_as_app via admin consent — your read?",options:[
+    {text:"Routine connector onboarding — connectors need broad access",correct:false,feedback:"The cover they're counting on. full_access_as_app is tenant-wide access to EVERY mailbox; legitimate connectors should be scoped to specific mailboxes via Exchange RBAC for Applications."},
+    {text:"Baseline deviation — treat as hostile until proven otherwise; capture the grant, grantor, and app",correct:true,feedback:"Yes. Who granted it, which app, and when — and does the app then read mail? That chain is the case."}]},
+  reason:{obs:"An app self-granted tenant-wide mailbox access via a just-created consent user.",ori:"PEAK baseline hunt; Pyramid: Tools.",rel:{v:"linked",b:"Same app lineage from Phase 4; the grantor is the actor's consent user — content + lineage linkage, not coincidence.",},suf:{lvl:50,gap:"Rights proven; actual mailbox access not yet confirmed.",move:"PIVOT",mv:"Did the app USE the grant? Check mailbox-access telemetry."}},
+  keypoints:["full_access_as_app, ApplicationImpersonation, and EWS.AccessAsUser.All are the permissions to audit first.","A grant is motive and means; mailbox access is the act — prove both."],
+  take:"Flag any app-only grant of full_access_as_app (esp. via admin consent by a new/odd principal). Scope real connectors to named mailboxes with Exchange RBAC for Applications.",
+  refs:[["ATT&CK T1098.003","https://attack.mitre.org/techniques/T1098/003/"]]
+},
+{ phase:"Phase 6 · Collection", title:"Clean endpoints, bleeding mailboxes",
+  fw:{kill:"Actions on Objectives",nist:"Detection & Analysis",peak:"Execute",pyramid:"TTPs",diamond:["V","C","I"]}, conf:62, gapsOpen:["mailboxes"],
+  newConcept:{term:"App access tokens + remote email collection",def:"The malicious apps authenticate to Exchange with their own tokens (<b>T1550.001</b>) and read mail over <b>EWS</b> (<b>T1114.002</b>). There is no user login to each mailbox and no malware — the access is app-to-service."},
+  scene:`<p>The app authenticates to Exchange Online and begins reading targeted corporate mailboxes — exec, security, and legal — over Exchange Web Services.</p>`,
+  panes:[{app:"EXO — MailItemsAccessed / SP sign-ins",cls:"",dr:1,body:`appId=1a2b3c4d-... (Mail Reporting Connector) auth=<span class="hi">app-only</span> protocol=<span class="b">EWS</span>\n<span class="hi">MailItemsAccessed</span> across mailboxes: ceo@, ciso@, legal@, ir-team@  (bulk)\nservicePrincipal sign-ins from 198.51.100.23 / 203.0.113.0/24 (residential)`},{app:"EDR console",cls:"note",dr:1,body:`endpoints: <span class="g">all green</span>  threats: <span class="g">0</span>\n<span class="c"># the breach isn't on any endpoint</span>`}],
+  attacker:{why:"Read the people who coordinate the response — security, legal, leadership — to stay ahead of detection.",weakness:"Bulk app-only EWS reads across unrelated mailboxes are abnormal and loggable.",next:"Keep reading; harvest secrets mentioned in email to reach downstream systems."},
+  bias:{risk:"'Every endpoint is clean and EDR is green, so there's no incident.'",counter:"EDR has no visibility into app-to-Exchange access. Green EDR is EXPECTED in this attack — absence of endpoint evidence is not evidence of absence."},
+  reason:{obs:"An app-only identity reading many mailboxes over EWS; endpoints untouched.",ori:"Kill chain Actions on Objectives.",rel:{v:"linked",b:"The reading principal is the SAME app granted full_access_as_app in Phase 5 — direct lineage. Mailboxes + residential IPs are new Victim/Infrastructure detail.",},suf:{lvl:62,gap:"Collection confirmed; full mailbox set + persistence breadth unknown.",move:"PIVOT",mv:"Understand why the IPs defeat your usual detection."}},
+  keypoints:["'Clean EDR' is the signature of a cloud-identity intrusion, not an all-clear.","Bulk app-only mailbox reads across unrelated boxes = collection, not a connector doing its job."],
+  take:"Hunt app-only EWS/Graph mail reads that span many unrelated mailboxes. Correlate the reading appId back to the consent grant.",
+  refs:[["ATT&CK T1114.002","https://attack.mitre.org/techniques/T1114/002/"],["ATT&CK T1550.001","https://attack.mitre.org/techniques/T1550/001/"]]
+},
+{ phase:"Phase 7 · The residential-proxy wall", title:"Why your IP blocklist is useless here",
+  fw:{kill:"Command & Control",nist:"Detection & Analysis",peak:"Execute",pyramid:"TTPs (apex)",diamond:["V","C","I"]}, conf:66, gapsOpen:[],
+  newConcept:{term:"Climb the Pyramid when IOCs die",def:"The actor routes through <b>residential proxies</b> whose IPs are shared with legitimate users and churn constantly — MSTIC states IOC-based detection is <i>infeasible</i>. You must detect at the top of the Pyramid: the <b>TTP</b> (app granted full_access_as_app, then reading mail), not the IP."},
+  scene:`<p>The sign-ins come from residential IP space reused by real customers. Blocking them breaks legitimate users and still misses the actor tomorrow.</p>`,
+  panes:[{app:"proxy analysis",cls:"",dr:1,body:`src IPs: <span class="r">high churn</span>, residential ASNs, <span class="r">shared with legit users</span>\nIOC value: <span class="r">~none</span> (per MSTIC)\ndurable signal: <span class="g">app-only EWS mail read by an app recently granted full_access_as_app</span>`}],
+  attacker:{why:"Blend source traffic into normal user noise so IP/geo rules never fire.",weakness:"The app-role grant + bulk mail read is the same no matter which proxy they use.",next:"Rely on defenders chasing IPs instead of behavior."},
+  reason:{obs:"Source infrastructure is deliberately un-pin-downable.",ori:"Kill chain C2 / anti-attribution.",rel:{v:"linked",b:"Infrastructure vertex is intentionally low-value; the durable linkage is the capability (the app + its grant), which doesn't change with the proxy.",},suf:{lvl:66,gap:"Detection must move up-pyramid; scope + persistence still open.",move:"ADVANCE",mv:"Decide: contain now or keep scoping?"}},
+  keypoints:["When a vendor says 'IOC detection is infeasible,' that's a directive to detect on TTPs.","Durable detections key on the app-role grant + mail-read behavior, which survive proxy churn."],
+  take:"Residential-proxy infrastructure (T1090.002) neutralizes IP/geo detection by design — build the detection on the behavior, not the address.",
+  refs:[["ATT&CK T1090.002","https://attack.mitre.org/techniques/T1090/002/"],["Pyramid of Pain","https://detect-respond.blogspot.com/2013/03/the-pyramid-of-pain.html"]]
+},
+{ phase:"Phase 8 · Sufficiency gate", title:"Contain now, or keep digging?",
+  fw:{kill:"Actions on Objectives",nist:"Containment / Eradication",peak:"Act",pyramid:"TTPs",diamond:["V","C","I"]}, conf:72, gapsOpen:["scope","persist"],
+  lead:{tag:"SITREP",msg:`"SITREP — contain now or need more? Three lines. I brief the CISO in ten."`},
+  newConcept:{term:"Per-decision sufficiency",def:"Sufficiency is judged per DECISION, not once. You have enough to <b>contain the known identity persistence</b> now, in parallel with scoping — you do NOT yet have enough to declare full scope or attribute."},
+  scene:`<p>You can prove: spray success, malicious apps, a self-granted full_access_as_app, and bulk mailbox reads. ${LEAD_NAME} needs the call in three lines.</p>`,
+  panes:[{app:"containment plan (parallel)",cls:"note",dr:1,body:`CUT (coordinated, near-simultaneous):\n- disable svc-legacy-test + <span class="hi">revoke its sessions</span>\n- disable malicious apps + <span class="hi">revoke app tokens/refresh tokens</span>\n- block consent-svc user\nSCOPE continues in parallel.`}],
+  attacker:{why:"A slow or partial cut lets them re-consent a new app and continue.",weakness:"If you revoke tokens AND remove the apps together, the app-only access dies.",next:"Re-establish via any app or credential you missed — so your cut must be complete."},
+  reason:{obs:"One hypothesis survives; some decisions are ready, others aren't.",ori:"NIST pivot Analysis→Containment. Sufficiency is per-decision.",rel:{v:"linked",b:"Core chain (spray→app→grant→read) settled by lineage; unproven = full breadth + attribution.",},suf:{lvl:72,gap:"OPEN: every app/consent/credential and every mailbox. Enough to CONTAIN, not to close.",move:"CONTAIN",mv:"Cut known persistence in parallel with scoping. Give ${LEAD_NAME} the 3-line call."}},
+  keypoints:["Containment of identity persistence must be coordinated — revoke tokens AND remove apps together.","You can act on what's proven while scope is still open."],
+  take:"Contain the known identity persistence now (disable account, revoke sessions, remove apps, revoke tokens) while scoping continues. Don't wait for 100%.",
+  refs:[["NIST SP 800-61 Rev.3","https://csrc.nist.gov/pubs/sp/800/61/r3/final"]]
+},
+{ phase:"Phase 9 · Scope", title:"Every app, every consent, every mailbox",
+  fw:{kill:"Actions on Objectives",nist:"Containment / Eradication",peak:"Act / F3EAD",pyramid:"TTPs",diamond:["V","C","I"]}, conf:80, gapsOpen:["attrib"],
+  newConcept:{term:"Scope the whole identity fabric",def:"One app is never the whole story. Enumerate ALL service principals with recent credential additions, ALL consent grants and app-role assignments (especially high-privilege mail perms), and WHICH mailboxes were accessed — across every tenant and B2B trust."},
+  scene:`<p>You pull the full picture: credential additions to service principals, every high-privilege consent, and the mailbox-access set.</p>`,
+  panes:[{app:"tenant-wide enumeration",cls:"",dr:1,body:`service principals w/ <span class="hi">new secrets/certs</span> (last 60d): 3\napps w/ <span class="r">full_access_as_app / ApplicationImpersonation / EWS.AccessAsUser.All</span>: 2 (both actor)\nmailboxes with app-only <span class="hi">MailItemsAccessed</span>: ceo@, ciso@, legal@, ir-team@ (+2)\nother tenants / B2B: <span class="g">none observed</span>`}],
+  attacker:{why:"Spread rights across a couple of apps so losing one doesn't end access.",weakness:"All of it is enumerable from AuditLogs + app role assignments if you look tenant-wide.",next:"Use anything missed to persist."},
+  reason:{obs:"Full set of actor apps, grants, and accessed mailboxes.",ori:"CTI synthesis; Diamond V/C/I filled.",rel:{v:"linked",b:"Scope artifacts linked by credential-addition events + the same app-role grant signature; no second independent actor observed.",},suf:{lvl:80,gap:"Scope settled enough to eradicate; attribution still open.",move:"PIVOT",mv:"Weigh attribution — carefully."}},
+  keypoints:["Enumerate credentials ADDED to existing service principals — a common, quiet persistence spot.","'Which mailboxes' drives the breach-notification and secrets-exposure analysis."],
+  take:"Scope = all apps/credentials/consents + the exact mailbox set. Enumerate tenant-wide, not just the first app you found.",
+  refs:[["ATT&CK APT29 (G0016)","https://attack.mitre.org/groups/G0016/"]]
+},
+{ phase:"Phase 10 · Attribution (hold the line)", title:"Consistent with — not confirmed",
+  fw:{kill:"Actions on Objectives",nist:"Containment / Eradication",peak:"Act",pyramid:"TTPs",diamond:["A","C","I","V"]}, conf:86, gapsOpen:[],
+  newConcept:{term:"ACH on attribution",def:"The chain (spray → OAuth consent abuse → full_access_as_app → EWS mail read → residential proxies) maps cleanly to <b>APT29 / Midnight Blizzard</b> per ATT&CK G0016. But run the competing hypotheses: criminal <b>BEC</b> crews use the same OAuth-consent playbook. Weight by how rare and specific the overlap is."},
+  scene:`<p>The behavior matches a documented nation-state pattern — and also a common criminal one. State your confidence as 'consistent with,' not 'confirmed,' unless independent evidence narrows it.</p>`,
+  panes:[{app:"ACH — competing hypotheses",cls:"",dr:1,body:`H-espionage (APT29): fits — targeted exec/security/legal mail, long-game, G0016 TTPs\nH-BEC (criminal): <span class="hi">also fits</span> the OAuth-consent mechanics; usually chases finance/payment mail\ndisconfirm: no payment-fraud attempts, no mailbox rules for invoice redirection => leans espionage, <span class="r">not proof</span>`}],
+  attacker:{why:"Shared TTPs are camouflage — many actors now abuse OAuth consent.",weakness:"Targeting choice (whose mail) is a weak-but-useful discriminator.",next:"Rely on defenders over-attributing and mis-scoping the response."},
+  reason:{obs:"Behavior consistent with G0016; a criminal alternative also fits.",ori:"CTI synthesis under ACH.",rel:{v:"linked",b:"Attribution rests on TTP overlap + victimology. TTP overlap alone is a lead, not a verdict — borrowed playbooks are common.",},suf:{lvl:86,gap:"Enough to say 'consistent with APT29' and drive eradication; not enough for a hard verdict.",move:"ADVANCE",mv:"Turn the confirmed behavior into detections."}},
+  bias:{risk:"Confirmation: the report said APT29, so you call it APT29 and stop looking.",counter:"Record what you ruled out (ACH residue). 'Consistent with' is an honest, defensible call; 'confirmed' needs corroboration you don't have."},
+  keypoints:["Per CISA ED 24-02, this actor used secrets found in stolen email to reach downstream customers — scope must include 'what was IN the mail.'","Attribution via shared TTPs is a hypothesis; hold it loosely."],
+  take:"State attribution as calibrated confidence ('consistent with Midnight Blizzard / APT29'), record the ruled-out alternatives, and let eradication proceed regardless.",
+  refs:[["CISA ED 24-02","https://www.cisa.gov/news-events/directives/ed-24-02-mitigating-significant-risk-nation-state-compromise-microsoft-corporate-email-system"],["Heuer (ACH)","https://www.cia.gov/resources/csi/books-monographs/psychology-of-intelligence-analysis/"]]
+},
+{ phase:"Phase 11 · Detection engineering", title:"Turn the case into standing analytics",
+  fw:{kill:"—",nist:"Containment / Eradication",peak:"Act",pyramid:"TTPs",diamond:["V","C","I"]}, conf:90, gapsOpen:[],
+  newConcept:{term:"Detections from confirmed behavior",def:"Build on what you proved in-case. These four are exactly MSTIC's recommended detections — behavior-based, proxy-proof."},
+  scene:`<p>Four analytics, each keyed on a step the actor cannot avoid.</p>`,
+  panes:[{app:"detection backlog (pseudocode)",cls:"",dr:1,body:`<span class="c"># D1</span> AuditLogs: <span class="hi">full_access_as_app granted via admin consent</span>\n<span class="c"># D2</span> AuditLogs: <span class="hi">new secret/cert added to an existing service principal</span>\n<span class="c"># D3</span> an app reading mail via <span class="hi">BOTH Graph AND EWS</span>\n<span class="c"># D4</span> consent to an <span class="hi">unknown app with offline_access + mail scopes</span>`}],
+  attacker:{why:"Each step (grant, credential-add, mail-read, consent) is necessary — they can't skip them.",weakness:"Necessary steps make durable detections.",next:"Hope these alerts aren't wired up."},
+  reason:{obs:"Four behavior-based analytics from in-case TTPs.",ori:"PEAK Act / detection engineering.",rel:{v:"linked",b:"Built from confirmed in-case behavior; any new hit still earns its own relevance test.",},suf:{lvl:90,gap:"Detections ready; eradication + hardening remain.",move:"CONTAIN",mv:"Execute coordinated eradication."}},
+  keypoints:["Behavior-based detections survive the residential-proxy problem; IP rules don't.","Alert on credentials ADDED to existing principals, not just new app registrations."],
+  take:"Ship MSTIC's four detections: full_access_as_app admin consent; new SP credential; app reading via Graph+EWS; offline_access/mail consent to unknown apps. See DETECTIONS.md to evolve them.",
+  refs:[["Microsoft Sentinel","https://github.com/Azure/Azure-Sentinel"],["SigmaHQ","https://github.com/SigmaHQ/sigma"]]
+},
+{ phase:"Phase 12 · Containment / Eradication", title:"Reset the identity fabric, not just the password",
+  fw:{kill:"Actions on Objectives",nist:"Containment / Eradication",peak:"Act",pyramid:"TTPs",diamond:["A","C","I","V"]}, conf:95, gapsOpen:[],
+  newConcept:{term:"Eradicate app-only persistence",def:"Resetting the sprayed account does nothing to the apps. Eradication = remove the malicious apps and their credentials, revoke tokens, rotate affected app secrets, strip over-privileged app roles, and close the door the spray walked through."},
+  scene:`<p>A coordinated reset across accounts, apps, and credentials — then check what the stolen mail exposed.</p>`,
+  panes:[{app:"eradication runbook",cls:"note",dr:1,body:`1 reset svc-legacy-test; <span class="hi">revoke sessions</span>; remove from any exempt groups\n2 delete malicious apps + <span class="hi">their secrets/certs</span>; remove consent user\n3 <span class="hi">revoke app refresh/access tokens</span>; rotate secrets on any legacy app touched\n4 strip full_access_as_app / ApplicationImpersonation / EWS.AccessAsUser.All where not needed; scope real connectors via <span class="hi">Exchange RBAC for Applications</span>\n5 enforce MFA + risk-based CA on <span class="r">ALL</span> accounts incl. legacy; disable legacy auth; Entra Password Protection\n6 <span class="r">analyze exfiltrated mail for secrets</span> and rotate them (CISA ED 24-02)`}],
+  attacker:{why:"Any missed app, credential, or exempt account is a way back in.",weakness:"A complete, coordinated cut ends app-only access permanently.",next:"Nothing — if the cut is complete."},
+  reason:{obs:"A coordinated takedown that targets identity persistence, not endpoints.",ori:"NIST Containment/Eradication/Recovery.",rel:{v:"linked",b:"Every runbook item traces to a confirmed artifact — nothing on a hunch.",},suf:{lvl:95,gap:"Residual: secrets-in-mail exposure + long-tail monitoring. Never 100%.",move:"ADVANCE",mv:"Close out; stand up the loops."}},
+  keypoints:["Password reset ≠ eradication when persistence is app-only.","CISA's hard lesson: stolen email can contain secrets — rotate anything that appeared in accessed mailboxes."],
+  take:"Eradicate the fabric: remove apps+credentials, revoke tokens, rotate secrets, strip app roles, enforce MFA/CA everywhere, kill legacy auth, and rotate any secrets exposed in stolen mail.",
+  refs:[["CISA ED 24-02","https://www.cisa.gov/news-events/directives/ed-24-02-mitigating-significant-risk-nation-state-compromise-microsoft-corporate-email-system"],["MSTIC guidance","https://www.microsoft.com/en-us/security/blog/2024/01/25/midnight-blizzard-guidance-for-responders-on-nation-state-attack/"]]
+},
+{ phase:"Phase 13 · Post-incident · loops", title:"Make the tenant hard to do this to again",
+  fw:{kill:"—",nist:"Post-Incident Activity",peak:"Act / F3EAD",pyramid:"TTPs",diamond:["A","C","I","V"]}, conf:97, gapsOpen:[],
+  newConcept:{term:"Harden + keep hunting",def:"Bake the lessons in: baseline who can register apps and grant consent, monitor app governance continuously, and run the four detections as standing hunts. Feed indicators back into the next Find (F3EAD)."},
+  scene:`<p>The incident closes; the loops keep running.</p>`,
+  panes:[{app:"post-incident actions",cls:"note",dr:1,body:`- adopt <span class="hi">CISA SCuBA</span> M365 secure-config baselines\n- restrict app registration + <span class="hi">admin-consent workflow</span>; require review\n- continuous <span class="hi">app governance</span> + anomaly policies on OAuth apps\n- standing hunts: D1–D4; review high-priv app roles quarterly\n- tabletop this exact scenario with IT help desk + identity admins`}],
+  attacker:{why:"A hardened consent/app-registration process removes the cheapest path back.",weakness:"Continuous app-governance monitoring catches the next attempt early.",next:"Find a softer target."},
+  reason:{obs:"A hardening program + standing detections + a feedback step.",ori:"NIST Post-Incident → PEAK Act / F3EAD.",rel:{v:"linked",b:"Every control maps to a confirmed step in this case.",},suf:{lvl:97,gap:"Residual: long-tail monitoring. Never 100%.",move:"ADVANCE",mv:"Close the incident; the loops keep running."}},
+  keypoints:["SCuBA baselines + consent governance remove the cheapest re-entry path.","A tabletop of this scenario is a deliverable in its own right — exercise it."],
+  take:"Harden app registration/consent, adopt SCuBA, run D1–D4 as standing hunts, and feed findings back into the hunt loop.",
+  refs:[["CISA SCuBA","https://www.cisa.gov/resources-tools/services/secure-cloud-business-applications-scuba-project"],["PEAK","https://www.splunk.com/en_us/blog/security/peak-threat-hunting-framework.html"]]
+}
+];
+
+const EX_TYPES=[
+ {id:"distill",name:"Distill the direction",diff:"Foundational",task:"Turn the input into ONE queryable hunt: behavior, hypothesis, data source, scope, hit-vs-miss.",
+  approach:["Strip to the BEHAVIOR, not the IOC.","State a testable hypothesis ('a NON-X process does Y').","Name the data source that confirms/refutes.","Scope it: time window + host/user set.","Define hit vs. miss.","Check it's rare-when-malicious AND baseline-able."]},
+ {id:"relevance",name:"Relevance call",diff:"Foundational",task:"Two artifacts — linked, unknown, or unrelated? State the BASIS and what would disprove it.",
+  approach:["List linkage keys present: host·user·lineage·time·hash·config-infra·capability signature·rare TTP.","One match = lead; several INDEPENDENT = linked.","Name what would DISPROVE the link.","Verdict + basis in one sentence."]},
+ {id:"sufficiency",name:"Sufficiency gate (ACH)",diff:"Intermediate",task:"Given partial evidence: enough to CONTAIN? ERADICATE? ATTRIBUTE? Justify.",
+  approach:["List rival hypotheses (espionage/crime/pentest/FP).","Seek evidence that DISPROVES each.","Judge PER DECISION, not once.","Name the gap + next move.","Avoid early action AND paralysis."]},
+ {id:"infer",name:"Infer the intent (behavioral inference)",diff:"Intermediate",task:"From the evidence, infer the attacker's likely goal and NEXT move — disciplined, not a guess.",
+  approach:["State the inference as a hypothesis ('they likely want X, next they'd do Y').","CITE the specific behavior it rests on (not a vibe).","Assign a CALIBRATED confidence (low/moderate/high) + why.","Name what would DISPROVE it.","Flag availability bias: am I pattern-matching to a case I just read? Could a benign/different actor explain this?","Turn it into action: which detection would you pre-position for that next move?"]},
+ {id:"bias",name:"Spot the bias",diff:"Intermediate",task:"A colleague states the conclusion below. Identify which bias(es) may be at play and the counter-move.",
+  approach:["Name the bias (confirmation / anchoring / availability / base-rate neglect).","Explain WHY the conclusion overreaches the evidence.","Prescribe the counter: seek disconfirming evidence, run ACH, consider base rates, demand independent corroboration.","Rewrite the conclusion with calibrated confidence."]},
+ {id:"sitrep",name:"SITREP to the Hunt Lead",diff:"Foundational",task:`3 lines to ${LEAD_NAME}: (1) what you know + confidence, (2) what you're doing, (3) decision needed / ETA.`,
+  approach:["Line 1 — what we know, calibrated confidence word.","Line 2 — current action.","Line 3 — decision needed or ETA. Bottom line first, no jargon dump."]},
+ {id:"scope",name:"Scope & data sources",diff:"Intermediate",task:"For the key hypothesis, list telemetry that PROVES/REFUTES it — and the gaps you can't see.",
+  approach:["Map hypothesis → source: EDR/Sysmon, IIS/web, proxy/DNS, identity, netflow, edge/appliance, cloud audit.","Call out what you CAN'T see + how you'd get it.","Name the single most decisive query first.","Set a timebox."]},
+ {id:"pyramid",name:"Climb the Pyramid",diff:"Advanced",task:"A fragile IOC is handed to you. Raise the hunt to a durable TTP-level detection.",
+  approach:["Ask what BEHAVIOR produced the IOC.","Write the detection on the behavior/TTP.","Key on the most evasion-resistant field.","State one way they could still evade — accept it or not."]},
+ {id:"logit",name:"Log it (structured intel)",diff:"Foundational",task:"Decompose the scenario into the case-log schema: vector, execution/LOLBin, C2, persistence, ATT&CK IDs, Diamond vertices, durable fingerprint, confidence, ruled-out hypotheses. Then say which PRIOR entry you'd reference.",
+  approach:["Fill the fixed fields (enumerated where possible) — not free text.","Tag ATT&CK IDs and the four Diamond vertices.","Record the DURABLE fingerprint (the thing that survives tool swaps).","Record what you RULED OUT (ACH residue).","Say which existing entry shares a durable field — then treat the match as a lead to test, not a verdict."]}
+];
+const EX_PACKS=[
+ {id:"midnightblizzard",name:"Midnight Blizzard / APT29 (cloud identity + OAuth)",diff:"Advanced",
+  intel:'"A Russian state actor password-sprays a legacy no-MFA account, abuses a legacy OAuth app to mint new malicious apps + a consent user, grants itself Exchange full_access_as_app, and reads corporate mailboxes over EWS — all from residential-proxy IPs."',
+  exec:'"The news says Russia read Microsoft\'s own email through OAuth. Are WE exposed in our tenant?"',
+  vector:"Password spray on a legacy no-MFA cloud account",c2:"OAuth app / service principal to Exchange (EWS)",twist:"No malware anywhere — the breach lives entirely in identity + consent logs; residential proxies defeat IOC-based detection.",
+  hash:"n/a (identity-layer)",ip:"residential-proxy sign-in (illustrative, 203.0.113.0/24)",
+  biasclaim:'"Every endpoint is clean and EDR is green, so there\'s no incident."',
+  src:"Microsoft MSTIC / CISA ED 24-02 / MITRE ATT&CK G0016 (2024)"},
+ {id:"squidoor",name:"Squidoor / FinalDraft (CL-STA-0049)",diff:"Intermediate",
+  intel:'"A suspected Chinese APT exploits unpatched IIS, drops a web shell, and runs a renamed cdb.exe that reflectively loads an in-memory backdoor using Outlook/Graph Drafts for C2."',
+  exec:'"Are our web servers and our Microsoft 365 exposed to this Squidoor thing?"',
+  vector:"Unpatched public IIS → web shell",c2:"Outlook/Graph dead-drop + 10-channel mesh",twist:"Most implants are internal-only; one unpatched host carried it.",
+  hash:"fake-sha256 of config.ini (illustrative)",ip:"203.0.113.44 (illustrative)",
+  biasclaim:'"This is definitely the APT from that report I read last week — the Outlook C2 trick is their signature, so it\'s the same group."',
+  src:"Unit 42 / Elastic (REF7707)"},
+ {id:"salttyphoon",name:"Salt Typhoon (telecom / edge routers)",diff:"Advanced",
+  intel:'"A PRC actor exploits known Cisco IOS XE flaws on provider edge routers, lives off the land on the device, and builds GRE tunnels for years-long covert collection."',
+  exec:'"The news says China is in the phone companies. Could something be living in our routers?"',
+  vector:"Edge router N-day (e.g. CVE-2023-20198)",c2:"Multi-hop pivots / GRE tunneling",twist:"No EDR on the router — evidence is in device configs, NetFlow, syslog.",
+  hash:"n/a (network-layer)",ip:"malicious GRE peer (illustrative)",
+  biasclaim:'"Our NetFlow looks normal, so we\'re clean."',
+  src:"CISA/NSA/FBI AA25-239A (Aug 2025)"},
+ {id:"scatteredspider",name:"Scattered Spider (help-desk social engineering)",diff:"Intermediate",
+  intel:'"Actors phone the IT help desk impersonating an employee, get an MFA/password reset, take over an SSO account, use legit RMM tools to move, and deploy ransomware on ESXi."',
+  exec:'"Our help desk got a weird call about a password reset. Should we worry?"',
+  vector:"Help-desk social engineering + SIM swap",c2:"Legit RMM / tunneling tools",twist:"Initial access is a phone call — endpoint tools miss it; identity logs are the witness.",
+  hash:"n/a (LOTL)",ip:"RMM tunnel endpoint (illustrative)",
+  biasclaim:'"No malware fired on any endpoint, so this was just a user forgetting their password."',
+  src:"CISA/FBI advisory (updated Jul 2025)"},
+ {id:"akira",name:"Akira ransomware (SonicWall SSLVPN)",diff:"Intermediate",
+  intel:'"Akira affiliates log into SonicWall SSL VPN (CVE-2024-40766), recon fast, and exfil ~2GB over SSH to a rare external IP hours before encryption."',
+  exec:'"Our VPN had a CVE. How fast could they hit us, and would we see data leaving?"',
+  vector:"SonicWall SSLVPN (CVE-2024-40766)",c2:"RDP/VPN + SSH exfil to rare IP",twist:"Exfil happens BEFORE encryption, in hours — byte-counts say data left, not what.",
+  hash:"fake-sha256 of encryptor (illustrative)",ip:"rare SSH exfil IP (illustrative)",
+  biasclaim:'"They encrypted us Friday night, so the breach started Friday night."',
+  src:"S-RM / Darktrace / Rapid7 (2025)"},
+ {id:"toolshell",name:"ToolShell (SharePoint RCE chain)",diff:"Advanced",
+  intel:'"Unauth RCE (CVE-2025-53770/53771) on on-prem SharePoint: w3wp.exe spawns cmd→powershell, drops spinstall0.aspx in LAYOUTS, steals the MachineKey for fileless re-entry even after the shell is removed."',
+  exec:'"We patched SharePoint. Are we actually safe now?"',
+  vector:"SharePoint ToolShell (CVE-2025-53770)",c2:"Web shell + stolen MachineKey",twist:"Patching isn\'t enough — rotate MachineKeys or they re-enter fileless.",
+  hash:"publicly-reported compiled shell (verify in source)",ip:"exploit source (illustrative)",
+  biasclaim:'"We removed spinstall0.aspx and patched, so eradication is complete."',
+  src:"MSRC / Eye Security / Unit 42 (Jul 2025)"},
+ {id:"dprkdev",name:"DPRK 'Contagious Interview' (developer supply chain)",diff:"Advanced",
+  intel:'"North Korean actors lure developers with fake coding tests / trojanized npm packages, steal credentials and GitHub identities, and propagate through trusted developer workflows."',
+  exec:'"An engineer got a suspicious take-home coding test. Could that risk our source code?"',
+  vector:"Trojanized dev package / fake interview",c2:"Attacker infra via dev tooling",twist:"The victim is a trusted developer identity — risk propagates downstream to everyone who trusts their commits.",
+  hash:"fake-sha256 of malicious package (illustrative)",ip:"npm-staged C2 (illustrative)",
+  biasclaim:'"It\'s just one developer\'s laptop — contained to them."',
+  src:"DPRK IT-worker / Contagious Interview reporting (2025–26)"},
+ {id:"clickfix",name:"ClickFix → infostealer",diff:"Foundational",
+  intel:'"A fake CAPTCHA tells the user to paste a command to \'verify\'; the clipboard payload runs PowerShell that installs an infostealer harvesting browser creds and wallets."',
+  exec:'"An employee says a website asked them to copy-paste something into a run box. Is that bad?"',
+  vector:"Fake CAPTCHA / clipboard social engineering",c2:"Infostealer exfil",twist:"The user self-executes — evidence is in clipboard, RunMRU, PowerShell logs.",
+  hash:"fake-sha256 of stealer (illustrative)",ip:"stealer exfil (illustrative)",
+  biasclaim:'"The AV is clean, so nothing happened."',
+  src:"Multiple vendors (ClickFix wave, 2025–26)"}
+];
+const COMPLICATIONS=["You're remote with limited tooling — logs only, no console on the host.","The exec is anxious from a headline — manage expectations while you work.","No EDR on the affected asset; only network + appliance logs.","It's 4:55pm Friday — containment windows matter.","Logs only go back 14 days; part of the timeline is gone.","The client insists it's a false positive.","Another team already 'cleaned it' — verify eradication.","One decisive query's budget before standup. Spend it well."];
+const LEAD_TASKS={distill:["\"The one-line hunt, not the headline.\"","\"What will you actually query? Behavior.\""],relevance:["\"Same incident or two things? Basis?\"","\"Linked or coincidence? One sentence.\""],sufficiency:["\"Contain now or keep digging?\"","\"Enough to brief the CISO? Justify.\""],infer:["\"Where do they go next? And how sure are you?\"","\"Get ahead of them — what do we pre-position?\""],bias:["\"Gut-check that conclusion before I repeat it upstairs.\"","\"Is that evidence, or is that a story we like?\""],sitrep:["\"SITREP in three lines — I brief up in ten.\"","\"Bottom line first.\""],scope:["\"What proves this, and what can't we see?\"","\"Your most decisive query?\""],pyramid:["\"This hash changes tomorrow — give me durable.\"","\"Take it up the pyramid.\""],logit:["\"Log it properly so the next shift can match it.\"","\"Which past case does this rhyme with?\""]};
+
+/* ================= CASE LOG DATA ================= */
+const VECTORS=["Public-facing app exploit (web/IIS/SharePoint)","VPN / edge appliance exploit","Phishing / malicious attachment","Help-desk social engineering / SIM swap","Trojanized package / supply chain","Valid accounts / stolen credentials","Drive-by / fake CAPTCHA (ClickFix)","Other / unknown"];
+const C2S=["HTTP(S)","DNS tunneling","ICMP tunneling","Cloud/SaaS dead-drop (Outlook/Graph)","Paste-site dead-drop","Reverse TCP/UDP","Legitimate RMM tool","SSH / custom tunnel","Other / unknown"];
+const PERSISTS=["Web shell","Scheduled task","Service / driver","Registry Run key","Valid accounts","Stolen token / machine key","Rogue VM / cloud resource","Other / none observed"];
+const SECTORS=["Government","Defense","Telecommunications","Aviation","Education","Financial","Healthcare","Manufacturing","Technology / software","Energy / critical infra","Other"];
+let LOG=[]; let lastFind=null;
+
+/* ================= RENDER: WALKTHROUGH ================= */
+let i=0, view='def'; const seen=new Set(); const openGaps=new Set(),closedGaps=new Set(); let prevFw=null;
+const card=document.getElementById('card'),fwstrip=document.getElementById('fwstrip'),bar=document.getElementById('bar'),counter=document.getElementById('counter'),prevBtn=document.getElementById('prev'),nextBtn=document.getElementById('next'),stepsEl=document.getElementById('steps'),confNum=document.getElementById('confNum'),confBar=document.getElementById('confBar'),gapsEl=document.getElementById('gaps');
+
+function buildSteps(){stepsEl.innerHTML=S.map((t,idx)=>{const lp=/↻/.test(t.phase)?'<span class="lp">↻</span>':'';const nm=t.phase.replace(/^Phase [\d0]+ · /,'').replace(/ *↻/,'').replace(/^Mission Brief · .*/,'Mission Brief');return `<li data-idx="${idx}"><span class="n">${idx+1}</span><span>${nm}</span>${lp}</li>`;}).join('');stepsEl.querySelectorAll('li').forEach(li=>li.addEventListener('click',()=>{i=+li.dataset.idx;render();}));}
+function recomputeGaps(){openGaps.clear();closedGaps.clear();for(let k=0;k<=i;k++){(S[k].gapsOpen||[]).forEach(g=>openGaps.add(g));(S[k].gapsClose||[]).forEach(g=>{closedGaps.add(g);openGaps.delete(g);});}}
+function renderGaps(){const all=[...openGaps].map(id=>({id,c:0})).concat([...closedGaps].map(id=>({id,c:1})));if(!all.length){gapsEl.innerHTML='<li class="closed">None open — case closed</li>';return;}gapsEl.innerHTML=all.map(g=>{const d=GAPS.find(x=>x.id===g.id);return `<li class="${g.c?'closed':''}"><span>${g.c?'✓':'●'}</span><span>${d?d.text:g.id}</span></li>`;}).join('');}
+function renderFw(t){const d=t.fw.diamond||[];const dv=['A','C','I','V'].map(x=>`<span class="dv ${d.includes(x)?'on':''}">${x}</span>`).join('');const cells=[['Kill Chain',t.fw.kill],['NIST IR',t.fw.nist],['PEAK',t.fw.peak],['Pyramid of Pain',t.fw.pyramid]];let h=cells.map(c=>{const ch=prevFw&&prevFw[c[0]]!==c[1];return `<div class="fw ${ch?'changed':''}"><div class="k">${c[0]}</div><div class="v">${c[1]}</div></div>`;}).join('');h+=`<div class="fw"><div class="k">Diamond (A·C·I·V)</div><div class="diamond">${dv}</div></div>`;fwstrip.innerHTML=h;prevFw={'Kill Chain':t.fw.kill,'NIST IR':t.fw.nist,'PEAK':t.fw.peak,'Pyramid of Pain':t.fw.pyramid};}
+function paneHTML(p){return `<div class="win ${p.cls||''}"><div class="bar"><div class="dots"><i class="dr"></i><i class="dy"></i><i class="dg"></i></div><div class="app"><b>${p.app}</b></div></div><pre>${p.body}</pre></div>`;}
+function leadHTML(l){return `<div class="lead"><div class="ava">${LEAD_INIT}</div><div class="body"><div class="who">${LEAD_NAME} <span class="role">· ${LEAD_ROLE}</span>${l.tag?`<span class="tag">${l.tag}</span>`:''}</div><div class="msg">${l.msg}</div></div></div>`;}
+function atkHTML(a){let r='';if(a.goal)r+=`<div class="arow"><div class="lbl">Operator goal</div><div class="txt">${a.goal}</div></div>`;if(a.why)r+=`<div class="arow"><div class="lbl">Why this move / method</div><div class="txt">${a.why}</div></div>`;if(a.recon)r+=`<div class="arow"><div class="lbl">What recon told them</div><div class="txt">${a.recon}</div></div>`;if(a.weakness)r+=`<div class="arow"><div class="lbl">Weakness they rely on</div><div class="txt">${a.weakness}</div></div>`;if(a.next)r+=`<div class="arow nextmv"><div class="lbl">Next move — what YOU pre-empt</div><div class="txt">${a.next}</div></div>`;return `<div class="atkpanel"><div class="ah">Attacker's-eye view — plausible operator reasoning (inference, not a confession)</div><div class="ab">${r}</div></div>`;}
+function reasonHTML(r){return `<div class="reason"><div class="rh">Analyst reasoning — Observe · Orient · Relevance · Sufficiency</div><div class="rb">
+   <div class="rrow"><div class="lbl obs">Observe</div><div class="txt">${r.obs}</div></div>
+   <div class="rrow"><div class="lbl ori">Orient</div><div class="txt">${r.ori}</div></div>
+   <div class="rrow"><div class="lbl rel">Relevance — is this related?<span class="verdict ${r.rel.v}">${r.rel.v}</span></div><div class="txt">${r.rel.b}</div></div>
+   <div class="rrow"><div class="lbl suf">Sufficiency — do I have enough?</div><div class="meter"><i style="width:${r.suf.lvl}%"></i></div><div class="txt">${r.suf.gap}</div><div class="move ${r.suf.move}">${r.suf.move}</div> <span class="txt" style="font-size:12.5px">${r.suf.mv}</span></div></div></div>`;}
+
+function fieldNotes(){
+ let o="MIDNIGHT BLIZZARD / APT29 — CLOUD IDENTITY DFIR FIELD NOTES\nBuild "+BUILD_ID+" | generated "+STAMP_UTC+"\n";
+ o+="Sources: Microsoft MSTIC + CISA ED 24-02; ATT&CK IDs verified vs MITRE ATT&CK APT29 (G0016). Artifacts illustrative; residential proxies make IOCs low-value — hunt behavior.\n"+"=".repeat(72)+"\n\n";
+ o+="TAKEAWAYS\n"+"-".repeat(72)+"\n";S.forEach((t,idx)=>{if(t.take)o+=idx+". "+t.title+"\n   -> "+t.take+"\n\n";});
+ o+="BIAS WATCHLIST (notice it, note it, never lean on it)\n"+"-".repeat(72)+"\n";
+ o+="- Confirmation: seeking only evidence that fits your favored story. -> hunt DISCONFIRMING evidence; run ACH.\n";
+ o+="- Availability: 'I just read about actor X so this is X.' -> consider base rates + borrowed-TTP/copycat; demand independent corroborators.\n";
+ o+="- Anchoring: first theory sticks. -> generate alternatives before committing; re-derive from evidence.\n";
+ o+="- Base-rate neglect: forgetting how common the benign case is. -> ask 'how often is this benign here?'\n";
+ o+="- Attribution overconfidence: naming a group feels tidy. -> stay calibrated (suspected/likely/high); state what would move confidence.\n";
+ o+="Rule: separate OBSERVATION from INFERENCE; tag each; write 'I may be pattern-matching to X; need corroboration.'\n\n";
+ o+="THINK-LIKE-THE-ATTACKER (hypothesis engine, not certainty)\n"+"-".repeat(72)+"\n";
+ o+="Reason from the goal backward: given what they want + what recon showed, which weakness would they pivot off next?\n";
+ o+="Use it to PRE-POSITION detection for the next stage. Cite the behavior, calibrate confidence, keep a rival explanation alive.\n\n";
+ o+="DISTILLATION: behavior (not IOC) -> hypothesis -> data source -> scope -> hit/miss. rare-when-malicious AND baseline-able.\n\n";
+ o+="RELEVANCE: shared host/user/lineage/time/hash/config-infra/capability-sig/rare-TTP. one=lead, several INDEPENDENT=linked.\n\n";
+ o+="SUFFICIENCY: per-decision (contain!=eradicate!=attribute). ACH: disprove rivals; record what killed each.\n\n";
+ o+="STRUCTURED INTEL LOGGING: fixed schema (vector/exec/C2/persistence/ATT&CK IDs/Diamond/fingerprint/confidence/ruled-out).\n";
+ o+="Why fixed fields: free-text 'column B vs XA' never correlates. STIX/MISP/OpenCTI map everyone to one model. A field\n";
+ o+="match is a LEAD to test (copycats/RaaS/shared toolkits), weighted by how rare+specific the overlap is.\n\n";
+ o+="DETECTION CHEAT-SHEET\n"+"-".repeat(72)+"\n";
+ o+="- password spray = many 50126 failures low-and-slow -> a success on a no-MFA / CA-excluded account\n- full_access_as_app granted via ADMIN CONSENT = app-only access to every mailbox\n";
+ o+="- new secret/cert ADDED to an existing service principal = quiet persistence\n- a freshly created user that ONLY consents to apps = red flag\n";
+ o+="- a service principal reading mail via EWS AND Graph = collection, not a connector\n- residential-proxy sign-ins => IOC detection infeasible (MSTIC); detect on the TTP\n";
+ o+="- ERADICATION: remove malicious apps + their creds, REVOKE tokens, rotate affected secrets, strip over-privileged app roles, MFA/CA everywhere, kill legacy auth; rotate any secrets found in exfiltrated mail (CISA)\n\n";
+ o+="ATT&CK MAP\n"+"-".repeat(72)+"\n";ATTACK.forEach(r=>o+="- ["+r[2]+"] "+r[1]+" ("+r[0]+")\n");
+ return o;
+}
+function loopSvg(){return `<svg viewBox="0 0 680 230" width="100%" style="max-width:680px;margin:6px 0" font-family="monospace" font-size="11"><defs><marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#4ea3ff"/></marker><marker id="aw" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#ffb454"/></marker></defs><text x="10" y="16" fill="#8aa0b4">Nested investigation loops</text>${['Prepare','Detect / Analyze','Contain / Eradicate / Recover','Lessons'].map((t,n)=>{const x=20+n*160;return `<rect x="${x}" y="40" width="140" height="34" rx="7" fill="#111a24" stroke="#2a3a4c"/><text x="${x+70}" y="61" fill="#e7edf3" text-anchor="middle">${t}</text>`;}).join('')}${[0,1,2].map(n=>{const x=20+n*160;return `<line x1="${x+140}" y1="57" x2="${x+160}" y2="57" stroke="#4ea3ff" stroke-width="2" marker-end="url(#ar)"/>`;}).join('')}<path d="M650,74 C650,120 90,120 90,74" fill="none" stroke="#ffb454" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#aw)"/><text x="330" y="112" fill="#ffb454" text-anchor="middle">lessons learned feed the next Prepare (never truly closes)</text><rect x="60" y="150" width="240" height="60" rx="8" fill="#0d141d" stroke="#1f6b47"/><text x="180" y="170" fill="#51d88a" text-anchor="middle">PEAK hunt loop</text><text x="180" y="188" fill="#8aa0b4" text-anchor="middle">hypothesis -> execute -> finding</text><text x="180" y="202" fill="#8aa0b4" text-anchor="middle">-> NEW hypothesis</text><rect x="380" y="150" width="240" height="60" rx="8" fill="#0d141d" stroke="#244a6e"/><text x="500" y="170" fill="#4ea3ff" text-anchor="middle">F3EAD intel loop</text><text x="500" y="188" fill="#8aa0b4" text-anchor="middle">find·fix·finish·exploit</text><text x="500" y="202" fill="#8aa0b4" text-anchor="middle">·analyze·disseminate</text><line x1="300" y1="180" x2="380" y2="180" stroke="#8aa0b4" stroke-width="1.5" marker-end="url(#ar)"/></svg>`;}
+function renderDebrief(){
+ const gl=GLOSS.map(g=>`<dt>${g[0]}</dt><dd>${g[1]}</dd>`).join('');
+ const amap=ATTACK.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td><code>${r[2]}</code></td></tr>`).join('');
+ const read=READING.map(r=>`<li><span class="tag">${r[0]}</span><a href="${r[2]}" target="_blank" rel="noopener">${r[1]}</a></li>`).join('');
+ const kit=KIT.map(k=>`<li><span class="tag ${k[0]}">${k[0]==='must'?'must-have':'good'}</span><a href="${k[3]}" target="_blank" rel="noopener">${k[1]}</a> — <span style="color:#cdd9e5">${k[2]}</span></li>`).join('');
+ return `<div><div class="take"><h4>Methodology in one line</h4><p>Lead → distill to a behavior → triage by victimology → pivot on durable fingerprints → fight bias with ACH + calibrated confidence → read the attacker to get ahead → <b>log it structured so the next case matches instantly.</b></p></div>
+  <div class="sechead">Loop map</div>${loopSvg()}
+  <div class="sechead">Analyst's kit — must-have vs. good-to-have</div><ul class="kit">${kit}</ul>
+  <div class="sechead">Glossary (frameworks, biases, SATs, structured intel)</div><dl class="gl">${gl}</dl>
+  <div class="sechead">ATT&amp;CK map</div><table class="map"><tr><th>Tactic</th><th>Technique</th><th>ID</th></tr>${amap}</table>
+  <div class="sechead">Field notes — editable, copy to your log</div><textarea id="notesArea" spellcheck="false" style="min-height:320px">${fieldNotes().replace(/</g,'&lt;')}</textarea>
+  <div class="copyrow"><button class="btn" id="copyBtn">Copy field notes</button><span class="copied" id="copied">Copied ✓</span></div>
+  <div class="sechead">Reading room</div><ul class="reading">${read}</ul>
+  <div class="disc"><b>Sources &amp; accuracy:</b> Technical facts are drawn from Microsoft MSTIC's "Midnight Blizzard: guidance for responders on nation-state attack" (25 Jan 2024) and CISA Emergency Directive 24-02 (Apr 2024), and were fact-checked against both. MITRE ATT&amp;CK technique IDs were verified against the ATT&amp;CK APT29 group page (G0016); the specific ID-to-step mapping shown here is analyst-mapped from the reported behavior and labeled as such. Console panels use synthetic tenants / accounts / app IDs / documentation-range IPs for teaching and are labeled illustrative; per MSTIC the real actor used high-churn residential proxies, so no real IOCs are implied. Attacker-view reasoning is plausible inference from observed behavior, not a confession. Attribution is stated as &quot;consistent with Midnight Blizzard / APT29,&quot; not confirmed. Generator scenarios paraphrase public reporting — verify against the cited sources before operational use. This is an independent educational reconstruction and is not affiliated with or endorsed by Microsoft, MSTIC, CISA, or MITRE.</div></div>`;
+}
+
+let toastStep=-1;
+function showToast(msg){const t=document.getElementById('toast');document.getElementById('toastMsg').textContent=msg;t.classList.add('show');}
+function hideToast(){document.getElementById('toast').classList.remove('show');}
+
+function render(){
+ const t=S[i];seen.add(i);recomputeGaps();renderFw(t);
+ let h=`<div class="phase">${t.phase.replace(/↻/,'<span style="color:var(--warn)">↻</span>')}</div><h2 class="title">${t.title}</h2>`;
+ if(view==='atk')h+=`<div class="atkbanner">Attacker view — toggle back to Defender any time</div>`;
+ if(t.loop)h+=`<div class="loopbadge">↻ ${t.loop.type}</div>`;
+ if(t.lead)h+=leadHTML(t.lead);
+ if(t.newConcept)h+=`<div class="newconcept"><div class="lbl">New concept · ${t.newConcept.term}</div>${t.newConcept.def}</div>`;
+ h+=`<div class="scene">${t.scene||''}</div>`;
+ if(t.panes&&t.panes.length)h+=`<div class="workspace ${t.panes.length>1?'ws2':''}">${t.panes.map(paneHTML).join('')}</div>`;
+ if(t.loop)h+=`<div class="crit"><h4>Loop — why this isn't linear</h4><p>${t.loop.text}</p></div>`;
+ // reasoning OR attacker panel depending on view
+ if(view==='atk'&&t.attacker)h+=atkHTML(t.attacker);
+ else if(t.reason)h+=reasonHTML(t.reason);
+ if(view==='atk'&&t.reason)h+=`<details style="margin:10px 0"><summary style="cursor:pointer;color:var(--accent2);font-size:12.5px">Show defender reasoning too</summary>${reasonHTML(t.reason)}</details>`;
+ if(t.bias)h+=`<div class="bias"><h4>Bias check</h4><p><b>Risk:</b> ${t.bias.risk}</p><p class="ct"><b>Counter:</b> ${t.bias.counter}</p></div>`;
+ if(t.decision){h+=`<div class="decision"><div class="q">${t.decision.prompt}</div>`;t.decision.options.forEach((o,idx)=>h+=`<button class="opt" data-opt="${idx}">${o.text}<span class="mk"></span></button>`);h+=`<div class="fb" id="fb"></div></div>`;}
+ if(t.crit)h+=`<div class="crit"><h4>Critical detail</h4><p>${t.crit}</p></div>`;
+ if(t.keypoints&&t.keypoints.length)h+=`<div class="kp"><h4>Key points</h4><ul>${t.keypoints.map(k=>`<li>${k}</li>`).join('')}</ul></div>`;
+ if(t.take)h+=`<div class="take"><h4>Actionable takeaway → notes</h4><p>${t.take}</p></div>`;
+ if(t.refs&&t.refs.length)h+=`<div class="refs">Reference: ${t.refs.map(r=>`<a href="${r[1]}" target="_blank" rel="noopener">${r[0]}</a>`).join(' · ')}</div>`;
+ if(t.debrief)h+=renderDebrief();
+ card.innerHTML=h;
+ if(t.decision){const fb=card.querySelector('#fb');card.querySelectorAll('.opt').forEach(btn=>btn.addEventListener('click',()=>{const ch=t.decision.options[+btn.dataset.opt];card.querySelectorAll('.opt').forEach((b,idx)=>{b.disabled=true;const o=t.decision.options[idx];if(o.correct){b.classList.add('correct');b.querySelector('.mk').textContent='✓';}if(b===btn&&!o.correct){b.classList.add('wrong');b.querySelector('.mk').textContent='✕';}});fb.className='fb show '+(ch.correct?'ok':'no');fb.innerHTML=(ch.correct?'<b>Correct. </b>':'<b>Not quite. </b>')+ch.feedback;}));}
+ if(t.debrief){const ta=card.querySelector('#notesArea'),cp=card.querySelector('#copyBtn'),dn=card.querySelector('#copied');cp.addEventListener('click',async()=>{ta.select();try{await navigator.clipboard.writeText(ta.value);}catch(e){try{document.execCommand('copy');}catch(_){}}dn.classList.add('show');setTimeout(()=>dn.classList.remove('show'),2200);});}
+ bar.style.width=(i/(S.length-1)*100)+'%';counter.textContent=`Turn ${i+1} / ${S.length}`;prevBtn.disabled=(i===0);nextBtn.textContent=(i===S.length-1)?'Done':'Advance';
+ const c=t.conf||0;confNum.textContent=c+'%';confBar.style.width=c+'%';renderGaps();
+ stepsEl.querySelectorAll('li').forEach((li,idx)=>{li.classList.toggle('active',idx===i);li.classList.toggle('done',seen.has(idx)&&idx!==i);});
+ // log-cue toast
+ if(t.logcue && toastStep!==i){toastStep=i;showToast(t.logcue);} else if(!t.logcue){hideToast();}
+ window.scrollTo({top:0,behavior:'smooth'});
+}
+prevBtn.addEventListener('click',()=>{if(i>0){i--;render();}});
+nextBtn.addEventListener('click',()=>{if(i<S.length-1){i++;render();}});
+document.addEventListener('keydown',e=>{if(document.getElementById('walkMode').style.display==='none')return;if(e.key==='ArrowRight'&&i<S.length-1){i++;render();}if(e.key==='ArrowLeft'&&i>0){i--;render();}});
+document.getElementById('vDef').addEventListener('click',()=>{view='def';document.getElementById('vDef').classList.add('on');document.getElementById('vAtk').classList.remove('on');render();});
+document.getElementById('vAtk').addEventListener('click',()=>{view='atk';document.getElementById('vAtk').classList.add('on');document.getElementById('vDef').classList.remove('on');render();});
+
+/* toast wiring */
+document.getElementById('toastX').addEventListener('click',hideToast);
+document.getElementById('toastDismiss').addEventListener('click',hideToast);
+document.getElementById('toastGo').addEventListener('click',()=>{hideToast();switchMode('log');});
+
+/* ================= GENERATOR ================= */
+const promptHost=document.getElementById('promptHost'),selType=document.getElementById('selType'),selPack=document.getElementById('selPack'),selDiff=document.getElementById('selDiff');
+EX_TYPES.forEach(t=>{const o=document.createElement('option');o.value=t.id;o.textContent=t.name;selType.appendChild(o);});
+EX_PACKS.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.name;selPack.appendChild(o);});
+function pick(a){return a[Math.floor(Math.random()*a.length)];}
+function pickF(arr,diff){const f=diff?arr.filter(x=>x.diff===diff):arr;return pick(f.length?f:arr);}
+function genRep(){
+ const type=selType.value?EX_TYPES.find(t=>t.id===selType.value):pickF(EX_TYPES,selDiff.value);
+ const pack=selPack.value?EX_PACKS.find(p=>p.id===selPack.value):pickF(EX_PACKS,selDiff.value);
+ const comp=pick(COMPLICATIONS); const leadLine=pick(LEAD_TASKS[type.id]||["\"Walk me through it.\""]);
+ let inputLabel,inputText;
+ if(type.id==="distill"){if(Math.random()<0.5){inputLabel="Intel excerpt";inputText=pack.intel;}else{inputLabel="Exec / client what-if";inputText=pack.exec;}}
+ else if(type.id==="bias"){inputLabel="Colleague's conclusion";inputText=pack.biasclaim;}
+ else if(type.id==="infer"){inputLabel="What you've observed";inputText=pack.intel+"\n\nTwist: "+pack.twist;}
+ else if(type.id==="relevance"){inputLabel="Two artifacts";inputText="A) "+pack.vector+" (first seen on HOST-A)\nB) "+pack.c2+" (from a process on HOST-A, same day)\n\nTwist: "+pack.twist;}
+ else if(type.id==="pyramid"){inputLabel="Fragile IOC";inputText="hash: "+pack.hash+"\nip:   "+pack.ip+"\ncontext: "+pack.vector;}
+ else if(type.id==="scope"){inputLabel="Hypothesis to prove/refute";inputText=pack.intel;}
+ else if(type.id==="logit"){inputLabel="Incident to decompose";inputText=pack.intel+"\nVector: "+pack.vector+"\nC2: "+pack.c2+"\nTwist: "+pack.twist;}
+ else {inputLabel="Situation";inputText=pack.intel;}
+ promptHost.innerHTML=`<div class="promptcard"><div class="pc-head"><span class="pc-type">${type.name}</span><span class="pc-pack">· ${pack.name}</span><span class="tag" style="margin-left:auto">${type.diff}</span></div><div class="pc-body">
+   <div class="pc-sect"><div class="h">Your task</div><div class="t">${type.task}</div></div>
+   <div class="pc-sect"><div class="h">${inputLabel}</div><div class="pc-input">${inputText}</div></div>
+   <div class="pc-sect"><div class="h">Hunt Lead</div><div class="pc-lead"><div class="ava">${LEAD_INIT}</div><div><div style="font-size:11px;color:#9fc2e6;font-weight:700">${LEAD_NAME} · ${LEAD_ROLE}</div><div style="font-size:13.5px;color:#e4eefb">${leadLine}</div></div></div></div>
+   <div class="pc-sect"><div class="h">Complication</div><div class="pc-twist">⚠ ${comp}</div></div>
+   <div class="pc-sect" style="font-size:11.5px;color:var(--faint)">Grounded in: ${pack.src} — paraphrased for training; verify before operational use.</div>
+   <div class="approach" id="approach"><h4>Model approach (one good way — not the only way)</h4><ol>${type.approach.map(a=>`<li>${a}</li>`).join('')}</ol></div>
+   <div class="genrow"><button class="btn ghost" id="revealBtn">Reveal model approach</button><button class="btn ghost" id="copyPromptBtn">Copy prompt</button><button class="btn" id="againBtn">New rep</button></div>
+ </div></div>`;
+ document.getElementById('revealBtn').addEventListener('click',()=>document.getElementById('approach').classList.add('show'));
+ document.getElementById('againBtn').addEventListener('click',genRep);
+ document.getElementById('copyPromptBtn').addEventListener('click',async()=>{const txt=`EXERCISE: ${type.name} (${type.diff})\nScenario: ${pack.name}\n\nTASK: ${type.task}\n\n${inputLabel}:\n${inputText}\n\nHunt Lead: ${leadLine}\nComplication: ${comp}\nSource: ${pack.src}`;try{await navigator.clipboard.writeText(txt);}catch(e){}const b=document.getElementById('copyPromptBtn');b.textContent='Copied ✓';setTimeout(()=>b.textContent='Copy prompt',1600);});
+ window.scrollTo({top:0,behavior:'smooth'});
+}
+document.getElementById('genBtn').addEventListener('click',genRep);
+
+/* ================= CASE LOG ================= */
+function fillSelect(id,arr){const s=document.getElementById(id);arr.forEach(v=>{const o=document.createElement('option');o.textContent=v;s.appendChild(o);});}
+fillSelect('f_vector',VECTORS);fillSelect('f_c2',C2S);fillSelect('f_persist',PERSISTS);fillSelect('f_sector',SECTORS);
+const FORM_IDS=['f_name','f_date','f_vector','f_c2','f_exec','f_persist','f_sector','f_region','f_conf','f_source','f_attack','f_dA','f_dC','f_dI','f_dV','f_files','f_cmds','f_fprint','f_ach','f_notes'];
+function readForm(){const o={};FORM_IDS.forEach(id=>o[id]=document.getElementById(id).value.trim());return o;}
+function renderLogTable(){const host=document.getElementById('logTableHost');if(!LOG.length){host.innerHTML='<div class="emptyrow">No entries yet. Add one above, or load the Midnight Blizzard example.</div>';return;}
+ const rows=LOG.map((e,idx)=>{const m=lastFind&&matchEntry(e,lastFind.field,lastFind.val);return `<tr class="${m?'match':''}"><td>${e.f_name||'—'}</td><td>${e.f_vector||''}</td><td>${e.f_c2||''}</td><td>${e.f_exec||''}</td><td>${e.f_fprint||''}</td><td>${e.f_attack||''}</td><td>${e.f_dA||''}</td><td>${e.f_conf||''}</td></tr>`;}).join('');
+ host.innerHTML=`<table class="logtable"><tr><th>Incident</th><th>Vector</th><th>C2</th><th>Execution</th><th>Fingerprint</th><th>ATT&CK</th><th>Adversary</th><th>Conf</th></tr>${rows}</table>`;}
+function matchEntry(e,field,val){val=(val||'').toLowerCase();if(!val)return false;if(field==='c2')return (e.f_c2||'').toLowerCase().includes(val);if(field==='vector')return (e.f_vector||'').toLowerCase().includes(val);if(field==='attack')return (e.f_attack||'').toLowerCase().includes(val);if(field==='fprint')return (e.f_fprint||'').toLowerCase().includes(val);return false;}
+document.getElementById('addEntry').addEventListener('click',()=>{const e=readForm();if(!e.f_name){alert('Give the entry an incident name/alias first.');return;}LOG.push(e);lastFind=null;renderLogTable();window.scrollTo({top:document.getElementById('logTableHost').offsetTop-80,behavior:'smooth'});});
+document.getElementById('clearForm').addEventListener('click',()=>{FORM_IDS.forEach(id=>{const el=document.getElementById(id);if(el.tagName==='SELECT')el.selectedIndex=(id==='f_conf'?1:0);else el.value='';});});
+document.getElementById('loadDemo').addEventListener('click',()=>{const d={f_name:'HUNT-CLD-ID (Midnight Blizzard-style)',f_date:'2026-10-16',f_vector:VECTORS[5],f_c2:C2S[3],f_exec:'malicious OAuth app / service principal (app-only EWS mail read)',f_persist:PERSISTS[6],f_sector:SECTORS[8],f_region:'Global (cloud tenant)',f_conf:'Moderate',f_source:'internal IR + Microsoft MSTIC / CISA ED 24-02',f_attack:'T1110.003, T1078.004, T1090.002, T1098.001, T1098.003, T1136.003, T1550.001, T1114.002',f_dA:'consistent with Midnight Blizzard / APT29 (ATT&CK G0016) — not confirmed',f_dC:'malicious OAuth apps / service principals (app-only EWS access)',f_dI:'residential-proxy sign-in IPs; attacker-controlled app registrations',f_dV:'corporate M365 mailboxes (exec / security / legal / IR)',f_files:'(no files) Entra SignInLogs; AuditLogs (Add app role assignment / Consent to application); EXO MailItemsAccessed; service-principal sign-ins',f_cmds:'spray: many 50126 failures -> one success on legacy no-MFA acct; app granted full_access_as_app via admin consent; SP auth to EWS reading mail',f_fprint:'app self-grants full_access_as_app then reads mail via EWS+Graph; new SP credential added; consent user created to approve apps; residential-proxy sign-ins (IOC-resistant)',f_ach:'ruled out: single-user password reset (no OAuth grants); routine app onboarding (no mail read, no self-granted full_access_as_app); held BEC vs APT29 at \'consistent with\'',f_notes:'No malware; endpoints clean. Per MSTIC, residential proxies defeat IOC detection — detect on behavior. Per CISA ED 24-02, analyze exfiltrated mail for secrets and rotate them.'};FORM_IDS.forEach(id=>{const el=document.getElementById(id);if(el.tagName==='SELECT'){const idx=[...el.options].findIndex(o=>o.textContent===d[id]);el.selectedIndex=idx>=0?idx:0;}else el.value=d[id]||'';});});
+document.getElementById('findBtn').addEventListener('click',()=>{lastFind={field:document.getElementById('findField').value,val:document.getElementById('findVal').value};renderLogTable();});
+document.getElementById('clearFind').addEventListener('click',()=>{lastFind=null;document.getElementById('findVal').value='';renderLogTable();});
+function copyText(txt,el){(async()=>{try{await navigator.clipboard.writeText(txt);}catch(e){}const c=document.getElementById('logCopied');c.classList.add('show');setTimeout(()=>c.classList.remove('show'),1800);})();}
+document.getElementById('exportJson').addEventListener('click',()=>copyText(JSON.stringify(LOG,null,2)));
+document.getElementById('exportTsv').addEventListener('click',()=>{const cols=FORM_IDS;const head=cols.join('\t');const body=LOG.map(e=>cols.map(c=>(e[c]||'').replace(/\t/g,' ').replace(/\n/g,'; ')).join('\t')).join('\n');copyText(head+'\n'+body);});
+renderLogTable();
+
+/* ================= MODE SWITCH ================= */
+const mWalk=document.getElementById('mWalk'),mGen=document.getElementById('mGen'),mLog=document.getElementById('mLog'),walkMode=document.getElementById('walkMode'),genModeEl=document.getElementById('genMode'),logModeEl=document.getElementById('logMode');
+function switchMode(m){
+ [mWalk,mGen,mLog].forEach(b=>b.classList.remove('on'));
+ walkMode.style.display='none';genModeEl.style.display='none';logModeEl.style.display='none';
+ if(m==='walk'){mWalk.classList.add('on');walkMode.style.display='';}
+ if(m==='gen'){mGen.classList.add('on');genModeEl.style.display='';if(!promptHost.innerHTML)genRep();}
+ if(m==='log'){mLog.classList.add('on');logModeEl.style.display='';}
+}
+mWalk.addEventListener('click',()=>switchMode('walk'));
+mGen.addEventListener('click',()=>switchMode('gen'));
+mLog.addEventListener('click',()=>switchMode('log'));
+
+document.getElementById('footer').innerHTML=`<div>Build <span class="mono">${BUILD_ID}</span> · generated <span class="mono">${STAMP_UTC}</span> · single-file offline HTML · no external dependencies · no fabricated IOCs.</div><div style="margin-top:6px">Case: Midnight Blizzard / APT29 — cloud identity + OAuth app abuse. Defender + attacker lanes · bias drills · structured case log. Hunt Lead: ${LEAD_NAME}. Keyboard ← → in walkthrough.</div><div style="margin-top:6px">Built by Theodore &quot;Ted&quot; Gransbury · <a href="https://github.com/grumby42" style="color:inherit">github.com/grumby42</a> · <a href="https://grumbylearns.io" style="color:inherit">grumbylearns.io</a> · <a href="https://www.linkedin.com/in/tgransbury" style="color:inherit">linkedin.com/in/tgransbury</a> · independent educational reconstruction, assembled with AI assistance (Claude); research credit to the teams in the Reading Room.</div>`;
+buildSteps();render();
+</script>
+</body>
+</html>
