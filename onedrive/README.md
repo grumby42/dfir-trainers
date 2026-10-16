@@ -96,6 +96,16 @@ are obfuscated + rolling; online-only placeholders hide local presence).
 
 ---
 
+## Build a range (hands-on next step)
+
+The trainer builds the reasoning; **[`RANGE.md`](RANGE.md)** builds the hands-on. It's a free, fully-local
+lab where you drive the real OneDrive client, generate **real** settings-DB + ODL-log artifacts (synthetic
+by construction — every file is one you made), and parse them with OneDriveExplorer / `odl.py` to check your
+findings against ground truth. This case is the easiest of the five to reproduce at **100% fidelity — no
+emulation required.**
+
+---
+
 ## How to use
 
 - **Locally:** download the repo (or just `index.html`) and open it in a browser.
