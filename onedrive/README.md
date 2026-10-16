@@ -1,4 +1,5 @@
 # OneDrive Data-Exfil DFIR Trainer
+*Insider data-exfil — Microsoft OneDrive forensics: reconstruct what left from the settings database and ODL logs, disciplined on what each artifact proves.*
 
 An interactive, **single-file, fully-offline** training tool that walks you through a **data-exfiltration
 investigation** built on **Microsoft OneDrive forensic artifacts** — a departing insider syncs corporate
