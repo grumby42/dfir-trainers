@@ -16,7 +16,7 @@ Open any trainer's `index.html` in a modern browser — no install, no
 dependencies, no network calls, no telemetry.
 
 **Built by Theodore "Ted" Gransbury** — an independent portfolio of educational DFIR reconstructions, **assembled with AI assistance (Claude)** and fact-checked line-by-line against primary vendor and researcher reporting. The research credit belongs entirely to the teams cited in each trainer; this is reconstruction and teaching, not original threat research.
-[github.com/grumby42](https://github.com/grumby42) · [grumbylearns.io](https://grumbylearns.io)
+[github.com/grumby42](https://github.com/grumby42) · [grumbylearns.io](https://grumbylearns.io) · [linkedin.com/in/tgransbury](https://www.linkedin.com/in/tgransbury)
 
 ---
 
