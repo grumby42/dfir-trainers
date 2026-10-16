@@ -126,6 +126,9 @@ If you spot an inaccuracy, please open an issue — accuracy matters more than p
 
 ## Build / provenance
 
+- **Author:** Theodore "Ted" Gransbury — [github.com/grumby42](https://github.com/grumby42) · [grumbylearns.io](https://grumbylearns.io). Independent educational reconstruction, **assembled with AI assistance (Claude)** and fact-checked line-by-line against the primary sources below.
+- **Primary sources:** listed above under *Credit where it’s due* and in-app under the *Reading Room* — every technical claim traces to them; all research credit belongs to those teams.
+
 - Build ID: `HUNT-20261016-0337Z` · design-rev 2026-10-16 (fact-checked)
 - Single file, offline, no external dependencies.
 - Built to the repo's [`TRAINER_SPEC.md`](../TRAINER_SPEC.md); all research credit belongs to the teams named

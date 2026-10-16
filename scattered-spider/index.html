@@ -351,7 +351,7 @@
    real IOCs. The attacker lane is PLAUSIBLE INFERENCE, not a confession.
    ============================================================ */
 const BUILD_ID="HUNT-20261016-0337Z (fact-checked) · design-rev 2026-10-16";
-const STAMP_UTC="2026-10-16T10:45Z";
+const STAMP_UTC="2026-10-16T16:47Z";
 const LEAD_NAME="Dana R.",LEAD_INIT="DR",LEAD_ROLE="Hunt Lead";
 
 const GAPS=[{id:"access",text:"Reconstruct initial access (the help-desk call)"},{id:"identity",text:"Map the identity takeover (MFA, federation, hybrid)"},{id:"tools",text:"Enumerate the remote-access / LOTL tooling"},{id:"hypervisor",text:"Determine whether they reached vCenter / ESXi"},{id:"exfil",text:"Determine what data left, and how"},{id:"impact",text:"Assess backups + ransomware staging"},{id:"attrib",text:"Attribute the activity (calibrated)"}];
@@ -890,7 +890,7 @@ mWalk.addEventListener('click',()=>switchMode('walk'));
 mGen.addEventListener('click',()=>switchMode('gen'));
 mLog.addEventListener('click',()=>switchMode('log'));
 
-document.getElementById('footer').innerHTML=`<div>Build <span class="mono">${BUILD_ID}</span> · generated <span class="mono">${STAMP_UTC}</span> · single-file offline HTML · no external dependencies · no fabricated IOCs.</div><div style="margin-top:6px">Case: Scattered Spider / UNC3944 / Octo Tempest (identity-first intrusion). Defender + attacker lanes · bias drills · structured case log. Hunt Lead: ${LEAD_NAME}. Keyboard ← → in walkthrough.</div>`;
+document.getElementById('footer').innerHTML=`<div>Build <span class="mono">${BUILD_ID}</span> · generated <span class="mono">${STAMP_UTC}</span> · single-file offline HTML · no external dependencies · no fabricated IOCs.</div><div style="margin-top:6px">Case: Scattered Spider / UNC3944 / Octo Tempest (identity-first intrusion). Defender + attacker lanes · bias drills · structured case log. Hunt Lead: ${LEAD_NAME}. Keyboard ← → in walkthrough.</div><div style="margin-top:6px">Built by Theodore &quot;Ted&quot; Gransbury · <a href="https://github.com/grumby42" style="color:inherit">github.com/grumby42</a> · <a href="https://grumbylearns.io" style="color:inherit">grumbylearns.io</a> · independent educational reconstruction, assembled with AI assistance (Claude); research credit to the teams in the Reading Room.</div>`;
 buildSteps();render();
 </script>
 </body>
