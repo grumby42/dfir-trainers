@@ -1,4 +1,5 @@
 # ToolShell DFIR Hunt & IR Trainer
+*Web-app RCE — ToolShell SharePoint (CVE-2025-49704/49706, bypasses -53770/53771): the “web shell” is a MachineKey thief, so a patch alone doesn’t evict.*
 
 An interactive, **single-file, fully-offline** training tool that walks you through the
 investigation of the **ToolShell** SharePoint exploitation (**CVE-2025-49704 / 49706** and the
