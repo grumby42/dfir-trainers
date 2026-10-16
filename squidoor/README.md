@@ -1,4 +1,5 @@
 # Squidoor DFIR Hunt & IR Trainer
+*Endpoint intrusion — Squidoor / FinalDraft (CL-STA-0049): web-shell foothold → renamed-LOLBin loader → Graph/Outlook dead-drop C2.*
 
 An interactive, **single-file, fully-offline** training tool that walks you through the
 investigation of the **Squidoor / FinalDraft** backdoor (activity cluster **CL-STA-0049**,
