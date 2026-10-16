@@ -3,8 +3,9 @@
 Interactive, **single-file, fully-offline** HTML trainers that walk you through
 real DFIR investigations **turn-by-turn** — intrusions and insider data-exfil —
 the reasoning, the frameworks, the bias checks, and the detection engineering,
-not just a list of IOCs. Five cases across distinct evidence domains: endpoint,
-web-app, network, cloud-sync/file-provenance, and identity + hypervisor.
+not just a list of IOCs. Six cases across distinct evidence domains: endpoint,
+web-app, network, cloud-sync/file-provenance, identity + hypervisor, and cloud
+identity / OAuth app abuse.
 
 Each trainer is built to a shared template and a strict fact-check standard (see
 **[`TRAINER_SPEC.md`](TRAINER_SPEC.md)**). Every technical claim is checked
@@ -29,6 +30,7 @@ dependencies, no network calls, no telemetry.
 | **[Salt Typhoon](salt-typhoon/)** | PRC-affiliated intrusions into telecom core (network-device DFIR, no EDR, LOTL, long dwell) | ✅ Published |
 | **[OneDrive Data-Exfil](onedrive/)** | Insider exfiltration to a personal OneDrive (cloud-sync/file-provenance forensics; proves-vs-doesn't; version drift) | ✅ Published |
 | **[Scattered Spider](scattered-spider/)** | UNC3944 / Octo Tempest — identity-first intrusion (help-desk social engineering → hypervisor-layer ransomware) | ✅ Published |
+| **[Cloud Identity](cloud-identity/)** | Midnight Blizzard / APT29 — password spray → OAuth app abuse → self-granted `full_access_as_app` → mailbox collection over EWS (cloud identity, no malware) | ✅ Published |
 
 ---
 
@@ -81,4 +83,4 @@ endorsed by any party named in a trainer.
 
 ---
 
-*Index generated 2026-10-16T16:47Z · Squidoor trainer build `HUNT-20261015-2250Z`.*
+*Index generated 2026-10-16T16:50Z · Squidoor trainer build `HUNT-20261015-2250Z`.*
