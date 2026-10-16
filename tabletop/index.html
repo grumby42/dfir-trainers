@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DFIR Tabletop & IR-Readiness Facilitator</title>
+<style>
+:root{
+  --bg:#191a1c; --panel:#1f2124; --panel2:#232629; --ink:#e9e6df; --muted:#a39d91;
+  --faint:#766f62; --line:#33332f; --accent:#c89b3c; --accent2:#7fb0a3; --bad:#c76b5a; --good:#79a06b;
+  --serif:Georgia,"Times New Roman",serif; --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+@media (prefers-color-scheme:light){:root:not([data-theme=dark]){--bg:#f3f0e9;--panel:#fbf9f4;--panel2:#f0ece2;--ink:#23201a;--muted:#5f594d;--faint:#8c8575;--line:#ddd7c9;--accent:#9a6f1e;--accent2:#3f6f63;}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5}
+body{background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:26px 26px;background-position:-1px -1px;background-blend-mode:normal}
+.wrap{max-width:1000px;margin:0 auto;padding:22px 16px 60px}
+header.top{border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:18px}
+.badge{display:inline-block;font-size:11px;letter-spacing:.5px;color:var(--accent);border:1px solid var(--line);border-radius:3px;padding:2px 7px;margin-bottom:8px}
+h1{font-family:var(--serif);font-weight:600;font-size:25px;margin:2px 0 4px;letter-spacing:.2px}
+.sub{color:var(--muted);font-size:13.5px}
+h2.title{font-family:var(--serif);font-weight:600;font-size:19px;margin:0 0 4px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:16px;margin:14px 0}
+.panel2{background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:12px;margin:10px 0}
+label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--faint);margin-bottom:4px}
+select,input,textarea{width:100%;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:8px;font-family:var(--sans);font-size:14px}
+textarea{min-height:60px;resize:vertical}
+.btn{background:var(--accent);color:#1a1507;border:none;border-radius:4px;padding:9px 15px;font-weight:600;font-size:14px;cursor:pointer;font-family:var(--sans)}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn.sm{padding:5px 10px;font-size:12.5px}
+.btn:disabled{opacity:.4;cursor:default}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.row.sb{justify-content:space-between}
+.chip{display:inline-block;font-size:11.5px;padding:2px 8px;border:1px solid var(--line);border-radius:3px;color:var(--muted);background:var(--panel2)}
+.chip.owner{color:var(--accent);border-color:var(--accent)}
+.chip.csf{color:var(--accent2);border-color:var(--accent2)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:720px){.grid2{grid-template-columns:1fr}}
+.inject-text{font-size:15.5px;margin:8px 0 10px}
+.ask{border-left:2px solid var(--accent);padding:6px 0 6px 12px;margin:10px 0;color:var(--ink)}
+.good{background:var(--panel2);border:1px dashed var(--line);border-radius:4px;padding:10px 12px;margin:10px 0;font-size:14px}
+.good .lbl{color:var(--good);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+.mat{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.mat button{flex:1;min-width:90px;background:var(--bg);border:1px solid var(--line);color:var(--muted);border-radius:4px;padding:7px 4px;cursor:pointer;font-size:12.5px;font-family:var(--sans)}
+.mat button.on{background:var(--accent);color:#1a1507;border-color:var(--accent);font-weight:600}
+.progress{height:4px;background:var(--line);border-radius:3px;overflow:hidden;margin:4px 0 14px}
+.progress i{display:block;height:100%;background:var(--accent)}
+.steps{list-style:none;padding:0;margin:0;font-size:12.5px}
+.steps li{padding:5px 8px;border-left:2px solid transparent;color:var(--muted)}
+.steps li.active{border-left-color:var(--accent);color:var(--ink);background:var(--panel2)}
+.steps li.done{color:var(--faint)}
+table.aa{width:100%;border-collapse:collapse;font-size:13.5px;margin:8px 0}
+table.aa th,table.aa td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+table.aa th{color:var(--faint);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+.bar{height:8px;background:var(--line);border-radius:3px;overflow:hidden;min-width:80px}
+.bar i{display:block;height:100%}
+.disc{font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:10px;margin-top:14px}
+code{background:var(--panel2);padding:1px 5px;border-radius:3px;font-size:12.5px}
+a{color:var(--accent)}
+.copied{color:var(--good);font-size:12px;opacity:0;transition:opacity .2s}
+.copied.show{opacity:1}
+footer.stamp{border-top:1px solid var(--line);margin-top:26px;padding-top:12px;color:var(--faint);font-size:11px}
+footer .mono{font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--accent2)}
+.hide{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <span class="badge">DFIR Tabletop v1</span>
+    <h1>Tabletop &amp; IR-Readiness Facilitator</h1>
+    <span class="sub">Run a case or a readiness scenario as a facilitated exercise · score against NIST SP 800-61r3 / CSF 2.0 · generate a one-page after-action.</span>
+  </header>
+
+  <!-- SETUP -->
+  <div id="setup">
+    <div class="panel">
+      <h2 class="title">1 · Pick a scenario</h2>
+      <p class="sub" style="margin-top:0">Case scenarios replay a real intrusion from the trainers as decision injects. Readiness scenarios drill the calls that have no single analyst answer.</p>
+      <label>Scenario</label>
+      <select id="selScenario"></select>
+      <div id="scnSummary" class="panel2" style="margin-top:12px"></div>
+    </div>
+    <div class="panel">
+      <h2 class="title">2 · Who's in the room (optional)</h2>
+      <p class="sub" style="margin-top:0">Name the person covering each role so the after-action records who owned which call. Leave blank to run roles-only.</p>
+      <div class="grid2" id="roleInputs"></div>
+    </div>
+    <div class="row sb">
+      <span class="sub">Nothing leaves this browser. Keyboard: <code>←</code> / <code>→</code> during the run.</span>
+      <button class="btn" id="startBtn">Start exercise</button>
+    </div>
+  </div>
+
+  <!-- RUN -->
+  <div id="run" class="hide">
+    <div class="row sb"><h2 class="title" id="runScnName"></h2><button class="btn ghost sm" id="toSetup">← Change scenario</button></div>
+    <div class="progress"><i id="bar"></i></div>
+    <div class="panel" id="injectCard"></div>
+    <div class="row sb">
+      <button class="btn ghost" id="prev">Back</button>
+      <span class="sub" id="counter"></span>
+      <button class="btn" id="next">Next inject</button>
+    </div>
+    <div class="panel2" style="margin-top:14px">
+      <label>Injects</label><ol class="steps" id="stepList"></ol>
+    </div>
+  </div>
+
+  <!-- AFTER ACTION -->
+  <div id="aa" class="hide">
+    <div class="row sb"><h2 class="title">After-action report</h2><button class="btn ghost sm" id="backToRun">← Back to run</button></div>
+    <div class="panel" id="aaBody"></div>
+    <div class="row">
+      <button class="btn" id="copyTxt">Copy as text</button>
+      <button class="btn ghost" id="copyJson">Copy as JSON</button>
+      <span class="copied" id="copied">Copied ✓</span>
+    </div>
+  </div>
+
+  <footer class="stamp" id="footer"></footer>
+</div>
+
+<script>
+const BUILD_ID="HUNT-20261016-2024Z · design-rev 2026-10-16";
+const STAMP_UTC="2026-10-16T20:24Z";
+
+const ROLES=["SOC Lead","IR Manager","IT / Identity Admin","Legal / Privacy","Comms / PR","Exec Sponsor"];
+const CSF=[
+ ["Govern","Decision rights, authority to declare/contain, policy, risk appetite — the cross-cutting wrapper (CSF 2.0)."],
+ ["Identify","Pre-incident groundwork: asset/identity inventory, logging coverage, legal/regulatory obligations, comms protocols."],
+ ["Protect","Safeguards that cut likelihood and blast radius: MFA/CA, hardening, least privilege, training."],
+ ["Detect","Logging, monitoring, threat intel, and triage that spot compromise fast."],
+ ["Respond","Execute the plan: containment, eradication, stakeholder comms, evidence and forensics."],
+ ["Recover","Restore systems, communicate, run the post-incident review, update playbooks."]
+];
+const MATURITY=[
+ {k:1,label:"Ad hoc",d:"no plan; improvised"},
+ {k:2,label:"Developing",d:"partial / inconsistent"},
+ {k:3,label:"Defined",d:"documented & practiced"},
+ {k:4,label:"Managed",d:"measured & improving"}
+];
+
+/* inject: {t,title,text,owner(roleIndex),csf(name),ask,good} */
+const SCENARIOS=[
+ {id:"squidoor",kind:"Case",name:"Squidoor / FinalDraft — endpoint espionage",
+  summary:"A suspected Chinese APT exploits an unpatched IIS server, hides a backdoor in memory behind a renamed signed binary, and uses an Outlook/Graph dead-drop for C2. Drill the decisions, not the packets.",
+  source:"Replays the Squidoor trainer (Unit 42 / Elastic). Synthetic details.",
+  injects:[
+   {t:"T+0",title:"The vendor report lands",text:"A report drops overnight: a Chinese APT abusing Outlook/Graph for C2. The SOC flags one real hit — a w3wp.exe → cmd → whoami on an internet-facing IIS box at a sensitive business unit.",owner:0,csf:"Detect",ask:"Do we stand up an incident? Who decides, and on what basis — the hit or the headline?",good:"Triage by consequence (sensitive host, confirmed foothold behavior), not by vendor hype. Declare on the corroborated foothold; name the decision owner."},
+   {t:"T+1h",title:"Foothold confirmed",text:"Unpatched IIS, a web shell, and a renamed signed binary loading something that never touches disk.",owner:1,csf:"Respond",ask:"Contain the host now, or watch to scope first? What's the risk each way, and who makes the call?",good:"Capture volatile memory before any reboot; weigh contain-vs-monitor with Exec/Legal aware; document the decision and its rationale."},
+   {t:"T+2h",title:"Can we even see the C2?",text:"The implant uses an Outlook/Graph dead-drop. Someone asks whether your logging would ever show a non-browser process calling Graph.",owner:2,csf:"Identify",ask:"What visibility gap does this expose, and who owns closing it?",good:"Record the telemetry gap (non-browser → Graph) as an Identify/Detect finding for the after-action — gaps are deliverables."},
+   {t:"T+4h",title:"Define 'eradicated'",text:"Multiple web shells across servers, one disguised as a certificate.",owner:1,csf:"Respond",ask:"What does eradication mean here, and who signs off that we're clear?",good:"Eradication = every shell + persistence removed AND stolen creds/tokens rotated, against written exit criteria — not 'we deleted the file.'"},
+   {t:"T+1d",title:"The leadership update",text:"Leadership wants one paragraph and a yes/no on 'are we clear?'",owner:5,csf:"Recover",ask:"What can you honestly say, and what do you commit to next?",good:"Calibrated status (not false comfort), residual monitoring named, lessons routed into detections. Comms pre-cleared with Legal."}
+  ]},
+
+ {id:"toolshell",kind:"Case",name:"ToolShell — SharePoint RCE + key theft",
+  summary:"Unauthenticated RCE on on-prem SharePoint; the 'web shell' is really a MachineKey thief enabling fileless re-entry. The trap is believing a patch is enough.",
+  source:"Replays the ToolShell trainer (MSRC / Eye Security / Unit 42). Synthetic details.",
+  injects:[
+   {t:"T+0",title:"Patch Tuesday panic",text:"A SharePoint RCE chain is under mass exploitation. Your on-prem farm is internet-facing. The CISO asks: 'are we exposed, and were we hit?'",owner:1,csf:"Detect",ask:"How do you answer 'were we hit' vs. 'are we vulnerable' — two different questions?",good:"Separate exposure (vuln mgmt) from compromise (hunt IIS logs for the ToolPane+SignOut tell). Assign each to an owner; don't conflate them."},
+   {t:"T+90m",title:"The key is gone",text:"Hunt finds the exploitation artifact and evidence the ASP.NET MachineKey was read.",owner:2,csf:"Respond",ask:"You've patched. Are you done? Who decides what 'done' requires?",good:"No — a stolen MachineKey lets them forge access after patching. Rotate MachineKeys + iisreset as a required step; patch alone is not eradication."},
+   {t:"T+3h",title:"Multi-actor muddle",text:"Telemetry suggests more than one actor touched the box after disclosure.",owner:1,csf:"Respond",ask:"How does 'more than one actor' change scope and attribution handling?",good:"Scope to behavior, not an actor label; hold attribution loosely; assume commodity follow-on and widen the credential-reset blast radius."},
+   {t:"T+1d",title:"Customer/regulator exposure",text:"The farm held documents subject to contractual and possibly regulatory obligations.",owner:3,csf:"Identify",ask:"Who owns the obligation analysis, and when does the clock start?",good:"Legal/Privacy owns it now, in parallel — not after eradication. Identify what data was reachable and which clocks (contract, regulation) may have started."},
+   {t:"T+2d",title:"Prove it's over",text:"Leadership wants assurance the actor can't walk back in.",owner:5,csf:"Recover",ask:"What's your evidence-based 'all clear,' and what stays monitored?",good:"All-clear tied to: patched + keys rotated + creds reset + standing detection for the behavior. Residual monitoring stays on; say so plainly."}
+  ]},
+
+ {id:"salt-typhoon",kind:"Case",name:"Salt Typhoon — network-device LOTL",
+  summary:"A nation-state actor lives on provider edge routers with no EDR, hiding in configs, NetFlow, and syslog over a long dwell. The hard part is seeing it at all.",
+  source:"Replays the Salt Typhoon trainer (CISA/NSA/FBI AA25-239A). Synthetic details.",
+  injects:[
+   {t:"T+0",title:"News, not an alert",text:"Press reports a PRC actor inside telecom cores. There's no EDR on your routers. Someone asks, 'could this be us?'",owner:0,csf:"Identify",ask:"Who owns network-device IR, and do we even have the evidence to answer?",good:"Name the owner (often unclear for network gear) and the evidence sources (config history, NetFlow, syslog, AAA) — the gap itself is the first finding."},
+   {t:"T+4h",title:"A config nobody ticketed",text:"A GRE tunnel and a privilege-15 local account appear in config history with no change ticket.",owner:1,csf:"Detect",ask:"Is this an incident or sloppy change management? How do you tell, and who adjudicates?",good:"Correlate config diff to change tickets; 'no ticket' + attacker-shaped change = incident. Escalate rather than rationalize."},
+   {t:"T+8h",title:"Contain without going dark",text:"Containing a core router could drop customer traffic.",owner:5,csf:"Respond",ask:"Who authorizes an action that risks an outage, and how is that call made under time pressure?",good:"Exec/Govern owns the availability-vs-security trade; decide with the risk stated in writing, staged if possible, with comms ready."},
+   {t:"T+1d",title:"Rotate the trust fabric",text:"The actor touched device creds, TACACS/RADIUS secrets, and SNMP strings.",owner:2,csf:"Respond",ask:"What does eradication require across the fleet, and who coordinates it?",good:"Rotate the whole device trust fabric, not one box; coordinate a fleet-wide change window; verify from centralized logs, not the device's own."},
+   {t:"T+3d",title:"Instrument for next time",text:"Leadership asks how you'd have caught this sooner.",owner:0,csf:"Recover",ask:"What readiness gap do you commit to closing?",good:"Centralized config/flow/syslog + diff alerting as a funded Protect/Detect improvement; a network-device IR runbook with a named owner."}
+  ]},
+
+ {id:"onedrive",kind:"Case",name:"OneDrive exfil — departing insider",
+  summary:"A departing employee syncs corporate files to a personal OneDrive on a managed laptop. The discipline is proving what actually left — and what each artifact does and doesn't show.",
+  source:"Replays the OneDrive data-exfil trainer. Synthetic details.",
+  injects:[
+   {t:"T+0",title:"HR flags a resignation",text:"A soon-to-depart employee with access to sensitive files gives notice. Security is asked to 'check for exfil.'",owner:3,csf:"Identify",ask:"What's the authority and scope to investigate an employee, and who approves it?",good:"Legal/HR define scope and authority first; document the predicate. Investigate within policy, not on a hunch."},
+   {t:"T+2h",title:"What the artifacts prove",text:"OneDrive settings DB and ODL logs show personal-account sync activity.",owner:1,csf:"Detect",ask:"What do these artifacts prove vs. merely suggest, and how do you say so to non-technical stakeholders?",good:"State proof vs. inference precisely (sync occurred vs. specific file X left); avoid overclaiming — the case may become legal."},
+   {t:"T+6h",title:"Preserve for a possible case",text:"This could become an HR action or litigation.",owner:3,csf:"Respond",ask:"Who owns evidence preservation and chain of custody, and from when?",good:"Preserve now with documented chain of custody; image/export before the laptop is wiped on offboarding. Legal owns the standard."},
+   {t:"T+1d",title:"The notification question",text:"Some synced files contained third-party or regulated data.",owner:3,csf:"Identify",ask:"Does this trigger any obligation, and who decides?",good:"Legal/Privacy assess obligations based on what data left; the technical team supplies the proven scope, not a guess."},
+   {t:"T+2d",title:"Close the gap that allowed it",text:"Personal-account sync was possible on a managed device.",owner:2,csf:"Protect",ask:"What control do you commit to, and who owns it?",good:"Block/limit personal-account sync via policy (a Protect improvement); DLP on egress; name the owner and a date."}
+  ]},
+
+ {id:"scattered-spider",kind:"Case",name:"Scattered Spider — identity-first → ESXi",
+  summary:"Actors social-engineer the help desk, take over an SSO identity, move with legit tools, and ransom at the hypervisor — below your endpoint sensors, in hours not weeks.",
+  source:"Replays the Scattered Spider trainer (CISA/FBI). Synthetic details.",
+  injects:[
+   {t:"T+0",title:"A weird help-desk call",text:"The help desk reports a caller impersonating an employee, pushing hard for an MFA reset.",owner:0,csf:"Protect",ask:"Is this an incident yet? Who owns identity-proofing at the help desk, and is it strong enough?",good:"Treat a pressured reset as a potential incident; test whether identity-proofing would actually stop this. The human process is the control."},
+   {t:"T+1h",title:"The account is theirs",text:"An SSO account signs in from a new device and starts touching admin consoles.",owner:1,csf:"Respond",ask:"Containment here means disabling a real employee's identity. Who authorizes that, fast?",good:"Pre-agreed authority to disable/step-up an identity under suspicion; revoke sessions + tokens together; speed matters — this runs in hours."},
+   {t:"T+2h",title:"Below the sensors",text:"They reach vCenter and enable SSH on ESXi hosts. EDR is green.",owner:1,csf:"Detect",ask:"Why is EDR green, and whose telemetry is the witness?",good:"The endgame runs below the guest OS; identity + hypervisor logs are the witness. 'Clean EDR' is expected here, not reassuring."},
+   {t:"T+3h",title:"Ransomware clock",text:"Signs point to imminent hypervisor-layer encryption. Backups may be in scope.",owner:5,csf:"Respond",ask:"What's the containment call when acting may tip them off and not acting risks encryption?",good:"Exec-owned, decisive coordinated cut (identity, vCenter, egress) with immutable-backup status confirmed first; decide with the clock explicit."},
+   {t:"T+1d",title:"Help-desk hardening",text:"Leadership wants to know this can't happen the same way again.",owner:0,csf:"Recover",ask:"What's the committed fix, and who owns it?",good:"Harden help-desk identity-proofing + consent/reset workflow; tabletop it again; a named owner and date — process, not just tooling."}
+  ]},
+
+ {id:"cloud-identity",kind:"Case",name:"Cloud Identity — Midnight Blizzard / OAuth",
+  summary:"A password spray on a legacy no-MFA account pivots to OAuth app abuse and tenant-wide mailbox collection — no malware, defeating IP-based detection by design.",
+  source:"Replays the Cloud Identity trainer (MSTIC / CISA ED 24-02). Synthetic details.",
+  injects:[
+   {t:"T+0",title:"Are we exposed?",text:"Press reports a state actor read a vendor's email via OAuth. The CFO asks if your tenant is exposed.",owner:2,csf:"Detect",ask:"How do you answer with evidence rather than reassurance, and who runs it?",good:"Run the behavior hunt (apps recently granted high mail rights, then reading mail); answer from telemetry, not vibes. Name the owner."},
+   {t:"T+2h",title:"An app with the mailroom keys",text:"An OAuth app was granted Exchange full_access_as_app via admin consent by a new user, then read exec mailboxes.",owner:1,csf:"Respond",ask:"Containment kills app-only access. Who authorizes removing apps and revoking tokens, together?",good:"Coordinated cut: disable account + revoke sessions, remove malicious apps + revoke tokens, block the consent user — simultaneously. Partial = they re-consent."},
+   {t:"T+3h",title:"Clean EDR, bleeding mailboxes",text:"Every endpoint is green. Leadership reads that as 'no incident.'",owner:5,csf:"Detect",ask:"How do you correct the 'EDR is green so we're fine' belief, upward?",good:"Explain EDR has no view of app-to-Exchange access; absence of endpoint evidence is expected here, not exculpatory. Reset the exec mental model."},
+   {t:"T+1d",title:"What was in the mail?",text:"Accessed mailboxes may have contained secrets and credentials (the CISA lesson).",owner:3,csf:"Identify",ask:"Who owns analyzing exfiltrated mail for secrets, and what does it trigger?",good:"Legal + IR analyze accessed-mailbox content for secrets; rotate anything exposed; assess downstream/customer and notification obligations."},
+   {t:"T+2d",title:"Harden consent",text:"Anyone could register apps and grant consent.",owner:2,csf:"Protect",ask:"What's the committed control, and who owns it?",good:"Admin-consent workflow + app-registration restriction + app-governance monitoring + MFA/CA on all accounts incl. legacy; adopt SCuBA baselines. Named owner."}
+  ]},
+
+ {id:"ransom-decision",kind:"Readiness",name:"Ransomware extortion — the decision",
+  summary:"Systems are encrypted and data was stolen. The actor demands payment. This scenario has no clean technical answer — it drills the business, legal, and comms calls under pressure.",
+  source:"Playbook-level. Anchors: NIST SP 800-61r3, CISA #StopRansomware, OFAC ransomware-payment advisory. Verify specifics with counsel.",
+  injects:[
+   {t:"T+0",title:"The ransom note",text:"Core systems are encrypted; the actor claims to have stolen data and sets a 72-hour clock with a payment demand.",owner:5,csf:"Govern",ask:"Who is authorized to decide on payment, and is that decided before the room gets emotional?",good:"Pre-defined decision authority and a 'we decide calmly' rule; payment is a business/legal decision, never a reflex. Convene the right people first."},
+   {t:"T+1h",title:"Can we restore instead?",text:"The question of whether backups are intact and recoverable in time is unclear.",owner:1,csf:"Recover",ask:"Who can state, with confidence, our true restore capability and timeline?",good:"Known, tested restore confidence changes everything; if you can't state it in an incident, that's the top readiness gap. Immutable/offline backups are the hinge."},
+   {t:"T+2h",title:"Legal and sanctions",text:"Payment may implicate sanctions (OFAC) and insurance/regulatory conditions.",owner:3,csf:"Identify",ask:"Who owns the legal/sanctions analysis, and is counsel + insurer already engaged?",good:"Legal + insurer + (as appropriate) law enforcement engaged early; sanctions exposure checked before any payment path. This is not IT's call to make alone."},
+   {t:"T+4h",title:"What do we say?",text:"Customers, staff, and possibly media are asking questions.",owner:4,csf:"Respond",ask:"Who speaks, what can be said now, and how do you avoid a worse second story?",good:"One pre-cleared voice; say what's known, commit to updates, never over-promise. Comms pre-drafted in the IR plan, cleared by Legal."},
+   {t:"T+1d",title:"Decision + record",text:"A pay / no-pay decision must be made and documented.",owner:5,csf:"Govern",ask:"How is the decision made, recorded, and defended later?",good:"Decision made by the defined authority against stated criteria, documented with rationale (for regulators, insurer, board). Process beats panic."}
+  ]},
+
+ {id:"breach-notification",kind:"Readiness",name:"Breach-notification clock",
+  summary:"You've confirmed exposure of personal data. Multiple notification obligations may now be running on different clocks. This drills the legal/comms/privacy coordination, not forensics.",
+  source:"Playbook-level. Anchors: NIST SP 800-61r3; GDPR Art. 33 (72-hour) and varied US state/sector rules. Verify every timeline with counsel.",
+  injects:[
+   {t:"T+0",title:"Confirmed exposure",text:"Investigation confirms attacker access to a store of personal data.",owner:3,csf:"Identify",ask:"When does the notification clock start, and who decides that it has?",good:"Legal/Privacy determines the trigger and start time per each applicable regime; 'confirmed' vs 'suspected' matters. The clock is a legal determination, not a gut call."},
+   {t:"T+2h",title:"Which clocks are running?",text:"Data subjects may span jurisdictions and sectors, each with its own timeline.",owner:3,csf:"Identify",ask:"Who maps obligations to jurisdictions, and is that mapping already prepared?",good:"A pre-built obligations matrix (e.g. GDPR Art. 33 ~72h; varied US state/sector rules) turned into an action timeline; building it mid-incident is a gap."},
+   {t:"T+6h",title:"What can we even say yet?",text:"Comms wants to get ahead of it; the facts are still firming up.",owner:4,csf:"Respond",ask:"How do you communicate before the picture is complete without creating liability?",good:"Hold to confirmed facts, coordinate every external word with Legal, sequence regulators/affected parties/public per plan. Speed and accuracy both matter."},
+   {t:"T+1d",title:"Regulator vs. customer sequencing",text:"Regulators, affected individuals, partners, and media all expect to hear from you.",owner:5,csf:"Govern",ask:"Who owns the sequence and sign-off, and is it pre-agreed?",good:"A defined notification sequence and sign-off authority, exercised in advance; ad-hoc sequencing under stress causes the second incident (the comms one)."},
+   {t:"T+2d",title:"Record and improve",text:"The response needs to be defensible after the fact.",owner:3,csf:"Recover",ask:"What record proves you met obligations, and what did this expose?",good:"A documented decision/notification log; the readiness gaps (missing matrix, unclear authority) become funded fixes. Defensibility is the deliverable."}
+  ]},
+
+ {id:"vendor-compromise",kind:"Readiness",name:"Third-party / vendor compromise",
+  summary:"A critical SaaS provider or MSP you depend on discloses a breach. Your data or access may be implicated, but the incident isn't on your network. This drills dependency and trust decisions.",
+  source:"Playbook-level. Anchors: NIST SP 800-61r3, CISA supply-chain guidance. Verify specifics with counsel and the vendor.",
+  injects:[
+   {t:"T+0",title:"The vendor's disclosure",text:"A SaaS/MSP you rely on announces a security incident. Details are thin.",owner:1,csf:"Identify",ask:"Do we know what we've entrusted to them and what access they hold? Who owns that map?",good:"A current vendor/dependency map and data-flow inventory answers this in minutes; if you're reconstructing it now, that's the top gap."},
+   {t:"T+2h",title:"Contain the trust, not the host",text:"The incident is on their side, but their access or tokens into your environment may be exposed.",owner:2,csf:"Respond",ask:"What can you contain on your side (keys, tokens, federation, access), and who authorizes it?",good:"Rotate/revoke vendor-held credentials, API keys, and federation trust; the thing you control is the trust relationship, not their host."},
+   {t:"T+6h",title:"Press the vendor",text:"You need facts the vendor isn't volunteering.",owner:3,csf:"Govern",ask:"Who owns the vendor relationship and the contractual right to answers/forensics?",good:"Invoke contractual notification/forensic clauses; a named owner drives structured asks (scope, data, IOCs, timeline). Have the questions pre-written."},
+   {t:"T+1d",title:"Your own obligations",text:"If your data was in their breach, your obligations may trigger regardless of whose network it was.",owner:3,csf:"Identify",ask:"Does their incident create notification duties for you, and who decides?",good:"Legal/Privacy assess your obligations based on your data in their environment — a vendor breach can start your clock. Don't assume it's only their problem."},
+   {t:"T+2d",title:"Reduce the dependency risk",text:"Leadership asks how exposed you are to this vendor and others like it.",owner:5,csf:"Recover",ask:"What do you commit to — and is it a program, not a one-off?",good:"Third-party risk as an ongoing program: dependency mapping, least-privilege vendor access, breach clauses, and an exit/failover plan for critical vendors."}
+  ]}
+];
+
+/* ---------------- state ---------------- */
+let scn=null, idx=0, ratings={}, notes={}, participants={};
+
+const $=id=>document.getElementById(id);
+const selScenario=$('selScenario');
+SCENARIOS.forEach((s,i)=>{const o=document.createElement('option');o.value=i;o.textContent=`[${s.kind}] ${s.name}`;selScenario.appendChild(o);});
+
+function roleInputs(){
+ $('roleInputs').innerHTML=ROLES.map((r,i)=>`<div><label>${r}</label><input data-role="${i}" placeholder="name (optional)" value="${participants[i]||''}"></div>`).join('');
+ document.querySelectorAll('#roleInputs input').forEach(inp=>inp.addEventListener('input',e=>{participants[e.target.dataset.role]=e.target.value;}));
+}
+function showSummary(){const s=SCENARIOS[selScenario.value];$('scnSummary').innerHTML=`<b style="font-family:var(--serif)">${s.name}</b><div class="sub" style="margin-top:4px">${s.summary}</div><div class="sub" style="margin-top:6px;color:var(--faint)">${s.source}</div>`;}
+selScenario.addEventListener('change',showSummary);
+roleInputs();showSummary();
+
+$('startBtn').addEventListener('click',()=>{scn=SCENARIOS[selScenario.value];idx=0;$('setup').classList.add('hide');$('run').classList.remove('hide');$('runScnName').textContent=scn.name;renderInject();});
+$('toSetup').addEventListener('click',()=>{$('run').classList.add('hide');$('setup').classList.remove('hide');});
+
+function key(i){return scn.id+':'+i;}
+function renderInject(){
+ const n=scn.injects.length, j=scn.injects[idx];
+ $('bar').style.width=((idx)/n*100)+'%';
+ $('counter').textContent=`Inject ${idx+1} of ${n}`;
+ const rated=ratings[key(idx)]||0;
+ const matBtns=MATURITY.map(m=>`<button data-m="${m.k}" class="${rated===m.k?'on':''}" title="${m.d}">${m.k} · ${m.label}</button>`).join('');
+ $('injectCard').innerHTML=`
+  <div class="row" style="gap:6px;margin-bottom:6px"><span class="chip">${j.t}</span><span class="chip owner">Owner: ${ROLES[j.owner]}</span><span class="chip csf">CSF: ${j.csf}</span></div>
+  <h2 class="title">${j.title}</h2>
+  <div class="inject-text">${j.text}</div>
+  <div class="ask"><b>Facilitator:</b> ${j.ask}</div>
+  <button class="btn ghost sm" id="revealBtn">Reveal — what good looks like</button>
+  <div class="good hide" id="goodBox"><div class="lbl">What good looks like</div>${j.good}</div>
+  <div style="margin-top:14px"><label>How did the room handle it? (maturity for ${j.csf})</label><div class="mat" id="matRow">${matBtns}</div></div>
+  <div style="margin-top:12px"><label>Decision made / gap noted (optional)</label><textarea id="noteBox" placeholder="e.g. 'No clear authority to disable an identity — gap.'">${notes[key(idx)]||''}</textarea></div>`;
+ $('revealBtn').addEventListener('click',()=>{$('goodBox').classList.toggle('hide');});
+ document.querySelectorAll('#matRow button').forEach(b=>b.addEventListener('click',()=>{ratings[key(idx)]=+b.dataset.m;renderInject();}));
+ $('noteBox').addEventListener('input',e=>{notes[key(idx)]=e.target.value;});
+ $('next').textContent = idx===n-1 ? 'Finish → after-action' : 'Next inject';
+ $('prev').disabled = idx===0;
+ $('stepList').innerHTML=scn.injects.map((x,i)=>`<li class="${i===idx?'active':(i<idx?'done':'')}">${i+1}. ${x.title} <span style="color:var(--faint)">· ${x.csf}${ratings[key(i)]?(' · '+ratings[key(i)]):''}</span></li>`).join('');
+}
+$('next').addEventListener('click',()=>{if(idx<scn.injects.length-1){idx++;renderInject();}else{showAfterAction();}});
+$('prev').addEventListener('click',()=>{if(idx>0){idx--;renderInject();}});
+document.addEventListener('keydown',e=>{if($('run').classList.contains('hide'))return;if(e.key==='ArrowRight')$('next').click();if(e.key==='ArrowLeft')$('prev').click();});
+$('backToRun').addEventListener('click',()=>{$('aa').classList.add('hide');$('run').classList.remove('hide');renderInject();});
+
+function funcScores(){
+ const agg={}; CSF.forEach(c=>agg[c[0]]={sum:0,n:0});
+ scn.injects.forEach((j,i)=>{const r=ratings[key(i)];if(r){agg[j.csf].sum+=r;agg[j.csf].n++;}});
+ const out=[];CSF.forEach(c=>{const a=agg[c[0]];if(a.n)out.push({f:c[0],avg:a.sum/a.n,n:a.n});});
+ return out;
+}
+function matColor(v){return v>=3.5?'var(--good)':v>=2.5?'var(--accent)':'var(--bad)';}
+function showAfterAction(){
+ $('run').classList.add('hide');$('aa').classList.remove('hide');$('bar').style.width='100%';
+ const fs=funcScores();
+ const ratedN=scn.injects.filter((x,i)=>ratings[key(i)]).length;
+ const gaps=scn.injects.map((j,i)=>({j,i,r:ratings[key(i)]||0,note:notes[key(i)]||''})).filter(x=>x.r && x.r<3);
+ const roster=ROLES.map((r,i)=>participants[i]?`${r}: <b>${participants[i]}</b>`:null).filter(Boolean).join(' · ')||'<span class="sub">roles-only (no names entered)</span>';
+ const fnTable=fs.length?`<table class="aa"><tr><th>CSF 2.0 function</th><th>Maturity (avg of ${ratedN} rated)</th><th></th></tr>${fs.map(x=>`<tr><td>${x.f}</td><td>${x.avg.toFixed(1)} / 4 (${x.n} inject${x.n>1?'s':''})</td><td><div class="bar"><i style="width:${x.avg/4*100}%;background:${matColor(x.avg)}"></i></div></td></tr>`).join('')}</table>`:'<p class="sub">No injects were rated — rate them during the run to populate the scorecard.</p>';
+ const gapList=gaps.length?`<ul>${gaps.map(g=>`<li><b>${g.j.title}</b> (${g.j.csf}, rated ${g.r}/4) — recommended: ${g.j.good}${g.note?`<br><span class="sub">Room note: ${g.note}</span>`:''}</li>`).join('')}</ul>`:'<p class="sub">No functions rated below "Defined." Either strong readiness or more rating needed.</p>';
+ $('aaBody').innerHTML=`
+  <h2 class="title">${scn.name}</h2>
+  <div class="sub">${scn.kind} scenario · ${scn.injects.length} injects · generated ${new Date().toISOString().slice(0,16).replace('T',' ')} · for internal readiness use</div>
+  <div class="panel2"><label>Participants</label>${roster}</div>
+  <div class="sechead" style="font-family:var(--serif);font-size:16px;margin:14px 0 2px">Readiness snapshot (CSF 2.0 / NIST SP 800-61r3)</div>
+  ${fnTable}
+  <div class="sechead" style="font-family:var(--serif);font-size:16px;margin:14px 0 2px">Top gaps &amp; recommendations</div>
+  ${gapList}
+  <div class="disc">Maturity scale: 1 Ad hoc · 2 Developing · 3 Defined · 4 Managed. Scores reflect the facilitator's in-room judgement, not an audit. Use this to prioritize, not to grade. Readiness scenarios reference NIST SP 800-61r3, CISA, GDPR Art. 33 and OFAC guidance — verify every legal/regulatory specific with counsel for your jurisdiction.</div>`;
+}
+function aaText(){
+ const fs=funcScores();
+ const gaps=scn.injects.map((j,i)=>({j,r:ratings[scn.id+':'+i]||0,note:notes[scn.id+':'+i]||''})).filter(x=>x.r&&x.r<3);
+ let o=`AFTER-ACTION — ${scn.name}\n${scn.kind} scenario · ${scn.injects.length} injects · ${new Date().toISOString()}\n`;
+ o+=`Participants: ${ROLES.map((r,i)=>participants[i]?`${r}=${participants[i]}`:null).filter(Boolean).join('; ')||'roles-only'}\n`;
+ o+=`\nREADINESS SNAPSHOT (CSF 2.0 / NIST SP 800-61r3), 1 Ad hoc .. 4 Managed\n`;
+ fs.forEach(x=>o+=`- ${x.f}: ${x.avg.toFixed(1)}/4 (${x.n})\n`);
+ if(!fs.length)o+='- (no injects rated)\n';
+ o+=`\nTOP GAPS & RECOMMENDATIONS\n`;
+ if(!gaps.length)o+='- none rated below Defined\n';
+ gaps.forEach(g=>{o+=`- ${g.j.title} (${g.j.csf}, ${g.r}/4): ${g.j.good}\n`;if(g.note)o+=`    room note: ${g.note}\n`;});
+ o+=`\nNote: facilitator judgement, not an audit. Verify legal/regulatory specifics with counsel.\n`;
+ return o;
+}
+function copy(txt){(async()=>{try{await navigator.clipboard.writeText(txt);}catch(e){}const c=$('copied');c.classList.add('show');setTimeout(()=>c.classList.remove('show'),1600);})();}
+$('copyTxt').addEventListener('click',()=>copy(aaText()));
+$('copyJson').addEventListener('click',()=>copy(JSON.stringify({scenario:scn.name,kind:scn.kind,participants,ratings,notes,generated:new Date().toISOString()},null,2)));
+
+$('footer').innerHTML=`<div>Build <span class="mono">${BUILD_ID}</span> · generated <span class="mono">${STAMP_UTC}</span> · single-file offline HTML · no external dependencies · no telemetry.</div>
+<div style="margin-top:6px">Scoring frame: NIST SP 800-61r3 (IR mapped to CSF 2.0 functions). Facilitation structure draws on <i>Crafting the InfoSec Playbook</i> (Bollinger, Enright &amp; Valites) and the <i>Cybersecurity Incident Management Master's Guide</i> (Clark). Case scenarios replay the trainers in this repo; readiness scenarios are playbook-level. Independent educational tool — not affiliated with or endorsed by NIST, CISA, or any party named.</div>
+<div style="margin-top:6px">Built by Theodore &quot;Ted&quot; Gransbury · <a href="https://github.com/grumby42">github.com/grumby42</a> · <a href="https://grumbylearns.io">grumbylearns.io</a> · <a href="https://www.linkedin.com/in/tgransbury">linkedin.com/in/tgransbury</a> · assembled with AI assistance (Claude).</div>`;
+</script>
+</body>
+</html>
