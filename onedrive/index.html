@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OneDrive Data-Exfil DFIR Trainer — artifacts, proves-vs-doesn't, case log</title>
+<style>
+  :root{
+    --bg:#070b10;--panel:#111a24;--panel2:#0d141d;--ink:#e7edf3;--muted:#8aa0b4;--faint:#5e7183;
+    --line:#1e2b3a;--line2:#2a3a4c;--accent:#37d0a8;--accent2:#4ea3ff;--warn:#ffb454;--bad:#ff6b6b;
+    --good:#51d88a;--purple:#b48cff;--chip:#172231;--evid:#05090d;--evidink:#b7e3cf;--shadow:0 12px 34px rgba(0,0,0,.5);--winbar:#0a1420;--lead:#1b2a3f;--atk:#2a1113;--atkln:#5a2b2f;--atkink:#ffd2cf;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:radial-gradient(1200px 600px at 80% -10%,#0e1a26 0,transparent 60%),radial-gradient(900px 500px at -10% 10%,#0c1622 0,transparent 55%),var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.55;-webkit-font-smoothing:antialiased}
+  code,.mono{font-family:"SF Mono",SFMono-Regular,ui-monospace,"Cascadia Code",Consolas,Menlo,monospace}
+  .wrap{max-width:1180px;margin:0 auto;padding:16px 14px 90px}
+  header.top{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:12px}
+  header.top h1{font-size:18px;margin:0;letter-spacing:.3px}
+  header.top .sub{color:var(--muted);font-size:12.5px}
+  .badge{font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--accent);border:1px solid var(--line2);border-radius:999px;padding:3px 10px;background:var(--chip)}
+  .modebar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+  .modebtn{background:var(--panel2);border:1px solid var(--line2);color:var(--muted);border-radius:9px;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:600}
+  .modebtn.on{background:var(--chip);color:var(--ink);border-color:var(--accent)}
+
+  .viewtoggle{display:inline-flex;border:1px solid var(--line2);border-radius:9px;overflow:hidden;margin-bottom:12px}
+  .viewtoggle button{background:var(--panel2);border:none;color:var(--muted);padding:7px 14px;cursor:pointer;font-size:12.5px;font-weight:700}
+  .viewtoggle button.on.def{background:#0f1e2c;color:var(--accent2)}
+  .viewtoggle button.on.atk{background:var(--atk);color:#ff8f8a}
+
+  .fwstrip{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px}
+  @media(max-width:760px){.fwstrip{grid-template-columns:repeat(2,1fr)}}
+  .fw{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+  .fw .k{font-size:9.5px;text-transform:uppercase;letter-spacing:.7px;color:var(--faint)}
+  .fw .v{font-size:12.5px;font-weight:600;margin-top:2px}
+  .fw.changed{border-color:var(--accent);box-shadow:0 0 0 1px rgba(55,208,168,.25)}
+  .diamond{display:flex;gap:5px;margin-top:4px}
+  .dv{width:16px;height:16px;border-radius:4px;border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--faint);background:#0a121b}
+  .dv.on{background:#10251a;border-color:var(--good);color:var(--good)}
+  .layout{display:grid;grid-template-columns:1fr 310px;gap:16px}
+  @media(max-width:980px){.layout{grid-template-columns:1fr}}
+  .progress{height:5px;background:var(--panel);border-radius:999px;overflow:hidden;margin:2px 0 12px}
+  .progress>i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0;transition:width .35s}
+  .phase{font-size:10.5px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+  h2.title{margin:3px 0 4px;font-size:19px}
+  .loopbadge{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#1a1024;background:var(--warn);border-radius:999px;padding:3px 10px;font-weight:700;margin:6px 0}
+  .atkbanner{display:inline-flex;align-items:center;gap:7px;font-size:11px;color:#ffd2cf;background:var(--atk);border:1px solid var(--atkln);border-radius:999px;padding:3px 11px;font-weight:700;margin:6px 0}
+
+  .lead{display:flex;gap:10px;align-items:flex-start;background:var(--lead);border:1px solid #2b4360;border-radius:12px;padding:11px 13px;margin:12px 0}
+  .lead .ava{flex:0 0 34px;width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#4ea3ff,#b48cff);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#06101c}
+  .lead .who{font-size:11px;color:#9fc2e6;font-weight:700;margin-bottom:2px}.lead .who .role{color:var(--faint);font-weight:500}
+  .lead .msg{font-size:13.5px;color:#e4eefb}
+  .lead .tag{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--warn);border:1px solid #5a4a22;border-radius:5px;padding:1px 6px;margin-left:6px}
+
+  .newconcept{border:1px solid #33314a;background:#161327;border-radius:10px;padding:10px 12px;margin:10px 0}
+  .newconcept .lbl{font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--purple);font-weight:700}
+  .newconcept b{color:#e9e2ff}
+  .scene{margin:10px 0}.scene p{margin:8px 0}.scene strong{color:#fff}
+
+  .workspace{display:grid;gap:12px;margin:14px 0}.ws2{grid-template-columns:1fr 1fr}@media(max-width:720px){.ws2{grid-template-columns:1fr}}
+  .win{background:var(--evid);border:1px solid var(--line2);border-radius:10px;overflow:hidden;box-shadow:var(--shadow)}
+  .win .bar{display:flex;align-items:center;gap:8px;background:var(--winbar);border-bottom:1px solid var(--line);padding:7px 11px}
+  .win .bar .dots{display:flex;gap:5px}.win .bar .dots i{width:9px;height:9px;border-radius:50%}
+  .dr{background:#ff5f56}.dy{background:#ffbd2e}.dg{background:#27c93f}
+  .win .bar .app{font-size:11px;color:var(--muted);letter-spacing:.4px;text-transform:uppercase}.win .bar .app b{color:var(--accent2);font-weight:700}
+  .win pre{margin:0;padding:11px 13px;overflow-x:auto;font-size:12px;color:var(--evidink);line-height:1.5;font-family:ui-monospace,Menlo,Consolas,monospace}
+  .win pre .c{color:#56708a}.win pre .hi{color:var(--warn);font-weight:600}.win pre .r{color:var(--bad);font-weight:600}.win pre .g{color:var(--good)}.win pre .b{color:var(--accent2)}.win pre .p{color:var(--purple)}
+  .win.note pre{color:#cfe8dd}
+
+  .reason{border:1px solid var(--line2);border-radius:12px;overflow:hidden;margin:14px 0;background:var(--panel2)}
+  .reason .rh{background:#0c1622;padding:8px 12px;font-size:11px;letter-spacing:.7px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line)}
+  .reason .rb{padding:4px 12px 12px}
+  .rrow{padding:10px 0;border-bottom:1px dashed #1b2735}.rrow:last-child{border-bottom:none}
+  .rrow .lbl{font-size:10px;letter-spacing:.8px;text-transform:uppercase;font-weight:700;margin-bottom:3px}
+  .lbl.obs{color:var(--accent2)}.lbl.ori{color:var(--purple)}.lbl.rel{color:var(--warn)}.lbl.suf{color:var(--accent)}
+  .rrow .txt{font-size:13px;color:#d4e2ee}
+  .verdict{display:inline-block;font-size:10.5px;font-weight:700;border-radius:5px;padding:1px 7px;margin-left:6px;vertical-align:middle}
+  .verdict.linked{background:#10251a;color:var(--good);border:1px solid #1f6b47}.verdict.unknown{background:#2a2410;color:var(--warn);border:1px solid #6b561f}.verdict.unrelated{background:#241315;color:var(--bad);border:1px solid #6b2630}
+  .meter{height:8px;background:#0a121b;border-radius:999px;overflow:hidden;margin:6px 0;border:1px solid var(--line)}.meter>i{display:block;height:100%;background:linear-gradient(90deg,var(--bad),var(--warn),var(--good));transition:width .4s}
+  .move{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;border-radius:6px;padding:3px 9px;margin-top:4px}
+  .move.PIVOT{background:#12243a;color:var(--accent2);border:1px solid #244a6e}.move.COLLECT{background:#2a2410;color:var(--warn);border:1px solid #6b561f}.move.CONTAIN{background:#241315;color:var(--bad);border:1px solid #6b2630}.move.ADVANCE{background:#10251a;color:var(--good);border:1px solid #1f6b47}.move.LOOP{background:#2a1410;color:#ff9f6b;border:1px solid #7a3b1f}
+
+  /* attacker panel */
+  .atkpanel{border:1px solid var(--atkln);border-radius:12px;overflow:hidden;margin:14px 0;background:#160b0c}
+  .atkpanel .ah{background:#20100f;padding:8px 12px;font-size:11px;letter-spacing:.7px;text-transform:uppercase;color:#ff9f9a;border-bottom:1px solid var(--atkln)}
+  .atkpanel .ab{padding:4px 12px 12px}
+  .arow{padding:9px 0;border-bottom:1px dashed #3a2020}.arow:last-child{border-bottom:none}
+  .arow .lbl{font-size:10px;letter-spacing:.8px;text-transform:uppercase;font-weight:700;margin-bottom:3px;color:#ff8f8a}
+  .arow .txt{font-size:13px;color:var(--atkink)}
+  .arow.nextmv{background:#1c0d0e;margin:6px -12px -12px;padding:10px 12px}
+  .arow.nextmv .lbl{color:#ffb454}
+
+  .bias{border-left:3px solid #d98cff;background:#17121f;padding:9px 13px;border-radius:0 8px 8px 0;margin:13px 0}
+  .bias h4{margin:0 0 5px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#c9a6ff}
+  .bias p{margin:3px 0;font-size:13px;color:#e3d7f5}
+  .bias .ct{color:#9fe6c9}
+
+  .decision{border:1px solid #2a3a2f;background:#0f1a14;border-radius:10px;padding:13px;margin:14px 0}
+  .decision .q{font-weight:600;margin-bottom:9px}
+  .opt{display:block;width:100%;text-align:left;background:var(--panel2);color:var(--ink);border:1px solid var(--line2);border-radius:8px;padding:10px 12px;margin:6px 0;cursor:pointer;font-size:13.5px;transition:.12s}
+  .opt:hover{border-color:var(--accent)}.opt.correct{border-color:var(--good);background:#10251a}.opt.wrong{border-color:var(--bad);background:#261213}
+  .opt .mk{float:right;font-weight:700}
+  .fb{display:none;margin-top:9px;padding:10px 12px;border-radius:8px;font-size:13px}.fb.show{display:block}.fb.ok{background:#10251a;border:1px solid #1f6b47}.fb.no{background:#241317;border:1px solid #7a2b33}
+  .crit{border-left:3px solid var(--warn);background:#1c1710;padding:9px 13px;border-radius:0 8px 8px 0;margin:13px 0}
+  .crit h4,.kp h4,.take h4{margin:0 0 5px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+  .crit p{margin:3px 0;font-size:13.5px}
+  .kp{margin:13px 0 4px}.kp ul{margin:0;padding-left:18px}.kp li{margin:4px 0;font-size:13.5px}
+  .take{border-left:3px solid var(--accent);background:#0e1a18;padding:9px 13px;border-radius:0 8px 8px 0;margin:13px 0}.take p{margin:3px 0;color:#d7f3ea;font-size:13.5px}
+  .refs{font-size:12px;color:var(--muted);margin:12px 0 2px}.refs a{color:var(--accent2);text-decoration:none}.refs a:hover{text-decoration:underline}
+  .nav{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:16px}
+  .btn{background:var(--accent);color:#04231b;border:none;border-radius:9px;padding:11px 18px;font-weight:700;cursor:pointer;font-size:14px}.btn:hover{filter:brightness(1.08)}
+  .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line2);font-weight:600}.btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn.sm{padding:7px 12px;font-size:12.5px}
+
+  .rail .box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px;margin-bottom:12px}
+  .rail h3{margin:0 0 9px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+  .confnum{font-size:26px;font-weight:800;color:var(--accent)}.confsub{font-size:11px;color:var(--faint)}
+  .gaps{list-style:none;margin:8px 0 0;padding:0;font-size:12px}
+  .gaps li{padding:5px 8px;border-radius:6px;background:#1a1409;border:1px solid #3a2e12;color:var(--warn);margin:4px 0;display:flex;gap:7px}
+  .gaps li.closed{background:#0e1a14;border-color:#1f4a37;color:var(--good);text-decoration:line-through;opacity:.75}
+  .steps{list-style:none;margin:0;padding:0;font-size:12px;max-height:250px;overflow:auto}
+  .steps li{padding:5px 7px;border-radius:6px;color:var(--muted);cursor:pointer;display:flex;gap:8px;align-items:center}
+  .steps li .n{font-size:10px;width:16px;text-align:center;color:#3f5467}
+  .steps li.active{background:var(--chip);color:var(--ink)}.steps li.done{color:var(--accent)}.steps li.done .n::before{content:"✓"}.steps li.done .n{color:var(--accent)}
+  .steps li .lp{color:var(--warn);font-size:10px}
+  .biaswatch{font-size:11.5px;color:#c9a6ff;line-height:1.5}
+
+  .gl{font-size:12.5px}.gl dt{color:var(--accent);font-weight:700;margin-top:9px}.gl dd{margin:2px 0 0;color:#cdd9e5}
+  table.map{width:100%;border-collapse:collapse;font-size:12px;margin:10px 0}
+  table.map th,table.map td{border:1px solid var(--line2);padding:6px 8px;text-align:left;vertical-align:top}
+  table.map th{background:var(--chip);color:var(--muted);text-transform:uppercase;font-size:10px;letter-spacing:.5px}
+  table.map td code{color:var(--accent)}
+  textarea{width:100%;background:var(--evid);color:var(--evidink);border:1px solid var(--line2);border-radius:10px;padding:11px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;resize:vertical}
+  .copyrow{display:flex;gap:10px;align-items:center;margin-top:8px}
+  .copied{color:var(--good);font-size:13px;display:none}.copied.show{display:inline}
+  .reading a,.kit a{color:var(--accent2);text-decoration:none}.reading a:hover,.kit a:hover{text-decoration:underline}
+  .reading li,.kit li{margin:6px 0;font-size:13px}
+  .tag{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--faint);border:1px solid var(--line2);border-radius:4px;padding:1px 6px;margin-right:6px}
+  .tag.must{color:#06101c;background:var(--good);border-color:var(--good);font-weight:700}.tag.good{color:var(--warn);border-color:#5a4a22}
+  .disc{font-size:11.5px;color:#6a7f91;background:#0e141d;border:1px dashed var(--line2);border-radius:8px;padding:10px 12px;margin:14px 0}
+  .sechead{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:18px 0 6px;border-top:1px solid var(--line);padding-top:12px}
+  footer.stamp{margin-top:24px;border-top:1px solid var(--line);padding-top:12px;color:var(--faint);font-size:11px}footer.stamp .mono{color:#7fd8bd}
+
+  /* generator */
+  .gen{max-width:900px}.genctl{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+  .genctl select{background:var(--panel2);color:var(--ink);border:1px solid var(--line2);border-radius:8px;padding:9px 11px;font-size:13px}
+  .genctl label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-right:4px}
+  .promptcard{background:var(--panel);border:1px solid var(--line2);border-radius:14px;overflow:hidden;box-shadow:var(--shadow)}
+  .pc-head{background:var(--winbar);border-bottom:1px solid var(--line);padding:11px 15px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .pc-type{font-size:12px;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:.6px}.pc-pack{font-size:11px;color:var(--muted)}
+  .pc-body{padding:15px}.pc-sect{margin:0 0 14px}
+  .pc-sect .h{font-size:10.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--faint);margin-bottom:4px;font-weight:700}
+  .pc-sect .t{font-size:14px;color:#e6eef6}
+  .pc-input{background:var(--evid);border:1px solid var(--line2);border-radius:9px;padding:12px;font-size:13px;color:var(--evidink);font-family:ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap}
+  .pc-lead{display:flex;gap:10px;align-items:flex-start;background:var(--lead);border:1px solid #2b4360;border-radius:10px;padding:10px 12px}
+  .pc-lead .ava{flex:0 0 30px;width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#4ea3ff,#b48cff);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;color:#06101c}
+  .pc-twist{font-size:12.5px;color:var(--warn);background:#1c1710;border:1px solid #5a4a22;border-radius:8px;padding:8px 11px}
+  .approach{display:none;margin-top:12px;border-top:1px dashed var(--line2);padding-top:12px}.approach.show{display:block}
+  .approach h4{margin:0 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--good)}
+  .approach ol{margin:0;padding-left:18px}.approach li{margin:4px 0;font-size:13px}
+  .genrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+
+  /* case log */
+  .clog{max-width:1000px}
+  .guidebar{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+  @media(max-width:760px){.guidebar{grid-template-columns:1fr}}
+  .guide{background:var(--panel2);border:1px solid var(--line2);border-radius:10px;padding:10px 12px;font-size:12px}
+  .guide b{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px}
+  .guide.create b{color:var(--good)}.guide.update b{color:var(--warn)}.guide.ref b{color:var(--accent2)}
+  .form{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .fg{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}
+  @media(max-width:720px){.fg{grid-template-columns:1fr}}
+  .field label{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:3px}
+  .field input,.field select,.field textarea{width:100%;background:var(--panel2);color:var(--ink);border:1px solid var(--line2);border-radius:7px;padding:8px 9px;font-size:13px;font-family:inherit}
+  .field textarea{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;min-height:46px}
+  .field.full{grid-column:1 / -1}
+  .diamondgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;grid-column:1/-1}
+  .logtable{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:10px}
+  .logtable th,.logtable td{border:1px solid var(--line2);padding:5px 7px;text-align:left;vertical-align:top}
+  .logtable th{background:var(--chip);color:var(--muted);text-transform:uppercase;font-size:9.5px;letter-spacing:.4px}
+  .logtable tr.match{background:#10251a}
+  .findrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0 4px}
+  .findrow input,.findrow select{background:var(--panel2);color:var(--ink);border:1px solid var(--line2);border-radius:7px;padding:7px 9px;font-size:12.5px}
+  .emptyrow{color:var(--faint);font-size:12.5px;padding:8px 2px}
+
+  /* toast */
+  #toast{position:fixed;right:16px;bottom:16px;max-width:330px;background:#13202e;border:1px solid var(--accent2);border-radius:12px;box-shadow:var(--shadow);padding:12px 14px;z-index:50;display:none}
+  #toast.show{display:block;animation:slidein .25s ease}
+  @keyframes slidein{from{transform:translateY(12px);opacity:0}to{transform:none;opacity:1}}
+  #toast .tt{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--accent2);font-weight:700;margin-bottom:4px}
+  #toast .tm{font-size:13px;color:#dbe8f4;margin-bottom:9px}
+  #toast .tr{display:flex;gap:8px}
+  #toast .x{position:absolute;top:8px;right:11px;color:var(--faint);cursor:pointer;font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <span class="badge">DFIR Trainer · OneDrive Exfil</span>
+    <h1>OneDrive Data-Exfil Trainer — artifact forensics · insider lane · proves-vs-doesn't · case log</h1>
+    <span class="sub">Personal OneDrive on a managed host · settings DB + ODL logs · what the artifact proves (and doesn't) · defensible findings</span>
+  </header>
+
+  <div class="modebar">
+    <button class="modebtn on" id="mWalk">▶ Case walkthrough</button>
+    <button class="modebtn" id="mGen">⚙ Exercise generator</button>
+    <button class="modebtn" id="mLog">🗃 Case log</button>
+  </div>
+
+  <!-- WALKTHROUGH -->
+  <div id="walkMode">
+    <div class="viewtoggle"><button class="def on" id="vDef">🛡 Defender view</button><button class="atk" id="vAtk">🗡 Attacker view</button></div>
+    <div class="fwstrip" id="fwstrip"></div>
+    <div class="progress"><i id="bar"></i></div>
+    <div class="layout">
+      <main><div id="card"></div>
+        <div class="nav"><button class="btn ghost" id="prev">◀ Back</button><div class="confsub" id="counter"></div><button class="btn" id="next">Advance ▶</button></div>
+      </main>
+      <aside class="rail">
+        <div class="box"><h3>Case confidence</h3><div class="confnum" id="confNum">5%</div><div class="confsub">closeness to a defensible, actionable conclusion</div><div class="meter" style="margin-top:8px"><i id="confBar" style="width:5%"></i></div></div>
+        <div class="box"><h3>Open collection gaps</h3><ul class="gaps" id="gaps"></ul></div>
+        <div class="box"><h3>Bias watch</h3><div class="biaswatch">At every step ask: am I <b>seeking disconfirming evidence</b>, or just evidence that fits my favored story? Note the bias, don't lean on it.</div></div>
+        <div class="box"><h3>Investigation phases</h3><ul class="steps" id="steps"></ul></div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- GENERATOR -->
+  <div id="genMode" style="display:none">
+    <div class="gen">
+      <p class="confsub" style="font-size:13px;color:var(--muted);margin-top:0">A "prompt book" of reps. Includes behavioral-inference and bias-spotting drills. Lock a type/scenario or leave random. Work it in your notebook, then reveal a model approach.</p>
+      <div class="genctl">
+        <div><label>Exercise</label><select id="selType"><option value="">Random</option></select></div>
+        <div><label>Scenario</label><select id="selPack"><option value="">Random</option></select></div>
+        <div><label>Difficulty</label><select id="selDiff"><option value="">Any</option><option>Foundational</option><option>Intermediate</option><option>Advanced</option></select></div>
+        <button class="btn" id="genBtn">Generate rep ▶</button>
+      </div>
+      <div id="promptHost"></div>
+    </div>
+  </div>
+
+  <!-- CASE LOG -->
+  <div id="logMode" style="display:none">
+    <div class="clog">
+      <div class="guidebar">
+        <div class="guide create"><b>Create an entry when…</b>you've confirmed a distinct incident/campaign — enough to fill the durable fields with evidence, not guesses.</div>
+        <div class="guide update"><b>Update an entry when…</b>new evidence changes a field, a rival hypothesis is ruled out, confidence shifts, or a sibling sample is found.</div>
+        <div class="guide ref"><b>Reference an entry when…</b>a new case shares a durable field (C2 method, naming convention, LOLBin). Search BEFORE you attribute — a match is a hypothesis, not a verdict.</div>
+      </div>
+      <div class="disc" style="margin-top:0"><b>Why the fixed schema:</b> this form IS your controlled vocabulary. Your "column B vs. column XA" problem is schema drift — if everyone free-texts, nothing correlates and nobody can clean it later. Enumerated fields + ATT&amp;CK IDs + Diamond vertices force alignment at entry time; that's exactly what shared standards (STIX, MISP, OpenCTI) do at scale by mapping everyone's data to one model. Trade-off: fixed fields can't capture every nuance — that's what <b>Notes</b> is for. Keep structured data structured; keep prose in Notes.</div>
+
+      <div class="form">
+        <div class="fg">
+          <div class="field"><label>Incident / alias</label><input id="f_name" placeholder="HUNT-EXFIL-OD / personal OneDrive"></div>
+          <div class="field"><label>Date (first seen)</label><input id="f_date" placeholder="2026-10-15"></div>
+          <div class="field"><label>Initial access vector</label><select id="f_vector"></select></div>
+          <div class="field"><label>C2 method</label><select id="f_c2"></select></div>
+          <div class="field"><label>Execution / notable binary (LOLBin?)</label><input id="f_exec" placeholder="OneDriveExplorer on settings DB; odl.py on ODL logs"></div>
+          <div class="field"><label>Persistence</label><select id="f_persist"></select></div>
+          <div class="field"><label>Victim sector</label><select id="f_sector"></select></div>
+          <div class="field"><label>Victim region</label><input id="f_region" placeholder="SE Asia / South America"></div>
+          <div class="field"><label>Confidence (calibrated)</label><select id="f_conf"><option>Low</option><option selected>Moderate</option><option>High</option></select></div>
+          <div class="field"><label>Source</label><input id="f_source" placeholder="internal IR / Unit 42 / Elastic"></div>
+          <div class="field full"><label>ATT&amp;CK technique IDs (comma-separated — the shared vocabulary)</label><input id="f_attack" placeholder="T1078, T1074.001, T1005, T1567.002, T1070.004"></div>
+          <div class="diamondgrid">
+            <div class="field"><label>Diamond — Adversary</label><input id="f_dA" placeholder="departing insider (authorized user)"></div>
+            <div class="field"><label>Diamond — Capability</label><input id="f_dC" placeholder="personal OneDrive cloud sync"></div>
+            <div class="field"><label>Diamond — Infrastructure</label><input id="f_dI" placeholder="personal OneDrive account (consumer tenant)"></div>
+            <div class="field"><label>Diamond — Victim</label><input id="f_dV" placeholder="corporate files on a managed host"></div>
+          </div>
+          <div class="field full"><label>Files / processes / paths touched</label><textarea id="f_files" placeholder="settings\Personal\<UserCid>.dat (+ .previous); logs\Personal\*.odl"></textarea></div>
+          <div class="field full"><label>Commands / patterns</label><textarea id="f_cmds" placeholder="OneDriveExplorer -f <UserCid>.dat; odl.py -o out.csv"></textarea></div>
+          <div class="field full"><label>Naming conventions / durable fingerprints (the stuff that survives tool swaps)</label><input id="f_fprint" placeholder="personal OneDrive on managed host; corp files in Personal namespace"></div>
+          <div class="field full"><label>Hypotheses ruled out (ACH residue — your anti-bias record)</label><textarea id="f_ach" placeholder="ruled out: benign personal use; shared-folder autosync; online-only placeholders only"></textarea></div>
+          <div class="field full"><label>Notes (nuance that doesn't fit a field)</label><textarea id="f_notes" placeholder="match parser to client version (artifact drift); ODL obfuscated+rolling; report fact vs inference"></textarea></div>
+        </div>
+        <div class="genrow">
+          <button class="btn" id="addEntry">Add entry to log</button>
+          <button class="btn ghost" id="loadDemo">Load OneDrive exfil as example</button>
+          <button class="btn ghost" id="clearForm">Clear form</button>
+        </div>
+      </div>
+
+      <div class="findrow">
+        <b style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Find matches (\"I see X → who else did X?\")</b>
+        <select id="findField"><option value="c2">C2 method</option><option value="vector">Initial access</option><option value="attack">ATT&amp;CK ID contains</option><option value="fprint">Fingerprint contains</option></select>
+        <input id="findVal" placeholder="value to match…">
+        <button class="btn ghost sm" id="findBtn">Highlight matches</button>
+        <button class="btn ghost sm" id="clearFind">Clear</button>
+      </div>
+      <div id="logTableHost"></div>
+      <div class="copyrow"><button class="btn ghost sm" id="exportJson">Copy log as JSON</button><button class="btn ghost sm" id="exportTsv">Copy log as TSV</button><span class="copied" id="logCopied">Copied ✓</span></div>
+      <div class="disc">Entries live in this browser session only (nothing leaves your machine). Export to carry them into MISP/OpenCTI or a spreadsheet. Remember: a shared field match is a <b>lead to test</b> — borrowed TTPs, RaaS affiliates, and copycats mean "same technique" ≠ "same actor." Weight by how rare and specific the overlap is, and seek independent corroboration.</div>
+    </div>
+  </div>
+
+  <div id="toast"><span class="x" id="toastX">✕</span><div class="tt" id="toastTitle">Case-log cue</div><div class="tm" id="toastMsg"></div><div class="tr"><button class="btn sm" id="toastGo">Open Case Log</button><button class="btn ghost sm" id="toastDismiss">Later</button></div></div>
+
+  <footer class="stamp" id="footer"></footer>
+</div>
+
+<script>
+/* ============================================================
+   ONEDRIVE DATA-EXFIL DFIR TRAINER
+   A data-exfiltration (insider) investigation using OneDrive forensic
+   artifacts. Technique facts drawn from and checked against: Brian
+   Maloney's OneDriveExplorer + "OneDrive Evolution" (artifact version
+   drift) + SANS blog; Yogesh Khatri's ODL log research (odl.py); and
+   the Forensics Wiki. ATT&CK IDs map the behavior to MITRE ATT&CK
+   (Exfiltration to Cloud Storage T1567.002, etc.). All consoles use
+   SYNTHETIC file names, user/host names, and fileIDs; no real case data.
+   The "attacker" lane is the INSIDER's plausible reasoning, not a
+   confession. The core discipline throughout: state what each artifact
+   PROVES, and what it does NOT.
+   ============================================================ */
+const BUILD_ID="HUNT-20261016-0318Z (fact-checked)";
+const STAMP_UTC="2026-10-16T03:18Z";
+const LEAD_NAME="Dana R.",LEAD_INIT="DR",LEAD_ROLE="Hunt Lead";
+
+const GAPS=[{id:"personal",text:"Confirm a PERSONAL OneDrive is signed in on this managed host"},{id:"namespace",text:"Determine whether CORPORATE files are in that namespace"},{id:"local",text:"Establish local availability (downloaded vs online-only placeholder)"},{id:"upload",text:"Find log evidence the files actually synced/uploaded"},{id:"version",text:"Match the parser/field assumptions to the OneDrive client version"},{id:"deleted",text:"Recover deleted/previous namespace state"},{id:"scope",text:"Corroborate beyond OneDrive (browser, USB, email, file bytes)"}];
+
+const GLOSS=[
+ ["Confirmation bias","Seeking, weighting, or remembering evidence that fits your favored hypothesis while discounting the rest. The #1 analyst failure mode — and in an exfil case it can put an innocent person's job at risk. Counter: hunt DISCONFIRMING evidence; run ACH."],
+ ["Anchoring bias","Over-weighting the first impression — here, 'a personal OneDrive is signed in, so they stole data.' Counter: generate alternatives before committing; re-derive from the artifacts."],
+ ["Availability bias","The talk you just watched colors everything — 'I just learned OneDrive forensics, so this must be OneDrive exfil.' Counter: consider base rates (benign personal use) and other channels (USB, email, browser)."],
+ ["Base-rate neglect","Ignoring how common the benign explanation is. Plenty of people sign a personal OneDrive into a work laptop with zero corporate data in it. Counter: ask 'how often is this benign here?' before escalating."],
+ ["Proves vs. doesn't (the core discipline)","The central skill of artifact forensics. A file NAME in the OneDrive namespace proves it was KNOWN to the sync client — not that its bytes were ever on this machine, not that it uploaded, and not that a recipient opened it. State exactly what each artifact supports, and what it does not."],
+ ["Structured analytic techniques (SATs)","Methods (ACH, devil's advocate, key-assumptions check, red-teaming your own conclusion) that force rigor and expose bias. From Heuer's 'Psychology of Intelligence Analysis.'"],
+ ["Analysis of Competing Hypotheses (ACH)","List plausible explanations, then seek evidence that DISPROVES each. In an exfil case 'done enough' is relative to the DECISION (brief HR vs. support termination vs. support litigation) — the bar rises with the stakes."],
+ ["OneDrive settings database","The <code>&lt;UserCid&gt;.dat</code> (and <code>.previous</code>) file, or a newer <b>SQLite</b> database, under <code>AppData\\Local\\Microsoft\\OneDrive\\settings\\{Personal,Business1-9}</code>. Reconstructs the OneDrive folder structure: names, file-vs-folder, UUIDs/fileIDs, child counts. Parsed by OneDriveExplorer. Proves the namespace — not local bytes or exfil."],
+ ["ODL logs","Obfuscated proprietary binary logs <code>.odl / .odlgz / .odlsent / .aold</code> under <code>AppData\\Local\\Microsoft\\OneDrive\\logs\\{Personal,Business1-9,Common}</code>. Record sync/file activity you can correlate back to items. Need <b>ObfuscationStringMap.txt</b> (and/or keystores) to decode; Khatri's <code>odl.py</code> or OneDriveExplorer. Rolling / limited retention — absence is not proof of absence. Can leak account email/token."],
+ ["Files On-Demand (available-locally vs online-only)","A name in the tree may be an <b>online-only placeholder</b> whose bytes were never downloaded to this host. 'In the namespace' ≠ 'was present locally.' Always resolve local-availability before claiming a file was here."],
+ ["Personal vs Business OneDrive","A <b>personal</b> account signed in and syncing on a <b>corporate</b> host is the exfil channel to watch — corporate data flowing into an account the organization doesn't control. The sanctioned tenant is usually Business1."],
+ ["Artifact version drift","OneDrive's on-disk format changes across client versions (Major Versions 17–26; <code>.dat</code> → SQLite). Your parser AND your field assumptions must match the installed version — last year's offsets lie. (This is exactly what Maloney's 'OneDrive Evolution' reference tracks.)"],
+ ["Structured threat intel","Recording incidents in a FIXED schema (ATT&CK IDs, Diamond vertices, enumerated fields) so they correlate across cases and teams. Free-text spreadsheets don't scale; standards (STIX/MISP/OpenCTI) map everyone's data to one model."],
+ ["PEAK","Prepare → Execute → Act. Splunk/SURGe (Bianco & Fetterman). Hunt types: Flames (hypothesis), Embers (baseline), Alchemy (model-assisted)."],
+ ["Diamond Model","Adversary, Capability, Infrastructure, Victim — for an insider-exfil case: the insider, personal-cloud sync, the personal OneDrive account, and the org's data."],
+ ["Pyramid of Pain","Indicators ranked by pain-to-adversary: hashes/IPs → domains → network/host artifacts → tools → TTPs. For data handling, the durable signal is the behavior (personal-cloud sync of corporate data), not a filename."],
+ ["Chain of custody & defensibility","An exfil finding may go to HR, Legal, or court. Preserve artifacts, document parsing (tool + version), and write calibrated conclusions you can defend — overstating what an artifact proves is the classic, career-ending error."]
+];
+
+const ATTACK=[
+ ["Initial Access","Valid Accounts (an authorized insider; legitimate access)","T1078"],
+ ["Collection","Data from Local System","T1005"],
+ ["Collection","Data Staged: Local Data Staging (into the sync folder)","T1074.001"],
+ ["Exfiltration","Exfiltration Over Web Service","T1567"],
+ ["Exfiltration","Exfiltration to Cloud Storage (personal OneDrive)","T1567.002"],
+ ["Defense Evasion","Indicator Removal: File Deletion (remove files after sync)","T1070.004"]
+];
+
+const READING=[
+ ["Primary / tool","Brian Maloney — OneDriveExplorer (parses settings DB + ODL logs)","https://github.com/Beercow/OneDriveExplorer"],
+ ["Primary","Brian Maloney — OneDrive Evolution (artifact version-drift reference, v17–26)","https://malwaremaloney.blogspot.com/p/onedrive-evolution.html"],
+ ["Primary","Brian Maloney — Recreating OneDrive's folder structure from <UserCid>.dat (SANS)","https://www.sans.org/blog/recreating-onedrive-s-folder-structure-from-usercid-dat"],
+ ["Primary","Yogesh Khatri — OneDrive ODL log parser (odl.py) + Reading OneDrive Logs","https://github.com/ydkhatri/OneDrive"],
+ ["Reference","Forensics Wiki — Microsoft OneDrive (ODL format + paths)","https://forensics.wiki/microsoft_onedrive/"],
+ ["Bias","Heuer — Psychology of Intelligence Analysis (CIA, free)","https://www.cia.gov/resources/csi/books-monographs/psychology-of-intelligence-analysis/"],
+ ["ATT&CK","Exfiltration to Cloud Storage (T1567.002)","https://attack.mitre.org/techniques/T1567/002/"],
+ ["Intel platform","MISP","https://www.misp-project.org/"],
+ ["Framework","PEAK","https://www.splunk.com/en_us/blog/security/peak-threat-hunting-framework.html"],
+ ["Framework","Diamond Model (paper)","https://apps.dtic.mil/sti/pdfs/ADA586960.pdf"],
+ ["Framework","Pyramid of Pain","https://detect-respond.blogspot.com/2013/03/the-pyramid-of-pain.html"],
+ ["Framework","MITRE ATT&CK","https://attack.mitre.org/"],
+ ["Standard","NIST SP 800-61 Rev.3","https://csrc.nist.gov/pubs/sp/800/61/r3/final"],
+ ["Standard","RFC 3227 — order of volatility","https://www.rfc-editor.org/rfc/rfc3227"]
+];
+
+const KIT=[
+ ["must","OneDriveExplorer (Beercow)","Parse the OneDrive settings DB (<UserCid>.dat / SQLite) + correlate ODL logs; reconstruct the namespace.","https://github.com/Beercow/OneDriveExplorer"],
+ ["must","odl.py (Khatri)","De-obfuscate and parse OneDrive ODL logs to CSV.","https://github.com/ydkhatri/OneDrive"],
+ ["must","MITRE ATT&CK","Shared language for TTPs; tag every hunt and log entry (here: T1567.002).","https://attack.mitre.org/"],
+ ["must","Forensics Wiki — OneDrive","Authoritative artifact paths + format reference.","https://forensics.wiki/microsoft_onedrive/"],
+ ["must","A write-blocked image + a SQLite viewer","Work on a copy; inspect the settings DB directly when you need ground truth.","https://www.sqlite.org/"],
+ ["must","MISP or OpenCTI","Structured case DB — where your log grows up.","https://www.misp-project.org/"],
+ ["good","OneDrive Evolution (Maloney)","Check the artifact format for the exact client version before you parse.","https://malwaremaloney.blogspot.com/p/onedrive-evolution.html"],
+ ["good","KAPE / targeted collection","Collect the OneDrive settings + logs folders cleanly for analysis.","https://www.kroll.com/kape"],
+ ["good","Registry Explorer","Resolve OneDrive mount points / accounts from the user hive.","https://ericzimmerman.github.io/"],
+ ["good","DEF CON 29 — Forensicating Endpoint Artifacts in Cloud Storage","Background on cloud-storage endpoint forensics.","https://media.defcon.org/"],
+ ["good","The DFIR Report + vendor blogs","Your lead pipeline — detailed public case studies.","https://thedfirreport.com/"],
+ ["good","Heuer — Psychology of Intelligence Analysis","The bias/SAT bible; free from CIA.","https://www.cia.gov/resources/csi/books-monographs/psychology-of-intelligence-analysis/"]
+];
+
+/* ---------- walkthrough steps (OneDrive data-exfil IR · proves-vs-doesn't discipline) ---------- */
+const S=[
+{ phase:"Mission Brief · PEAK Prepare", title:"You sit down at the forensics bench",
+  fw:{kill:"Reconnaissance",nist:"Preparation",peak:"Prepare",pyramid:"Behaviors",diamond:[]}, conf:5, gapsOpen:["scope"],
+  lead:{tag:"tasking",msg:`"Morning. A developer resigns today — going to a competitor Friday. DLP threw a couple of alerts about a <b>personal</b> cloud account on their work laptop. HR and Legal want to know: did company files leave on a <b>personal OneDrive</b>? Give me what the artifacts actually support — nothing you can't defend. SITREP before you brief anyone."`},
+  newConcept:{term:"Artifact forensics, not a hunt",def:`This case is different from an intrusion hunt. There's no adversary to chase across the network — there's an <b>authorized user</b> and a question of evidence: what left, and can you prove it? Your job is to say exactly what each OneDrive artifact <b>supports</b>, and exactly what it does <b>not</b>.`},
+  scene:`<p>The <strong>🗡 Attacker view</strong> here is the <b>insider's</b> likely reasoning — still inference, never a confession, and doubly so because a real person's job (and maybe a lawsuit) rides on your calibration.</p>`,
+  panes:[{app:"case notebook",cls:"note",dr:1,body:`CASE HUNT-EXFIL-OD  subject: departing dev (authorized user)\nquestion: did CORPORATE data go to a PERSONAL OneDrive?\nhost: managed laptop (sanctioned tenant = Business1)\naudience: HR + Legal -> findings must be DEFENSIBLE\nstatus: PREPARE`}],
+  attacker:{goal:"Take useful work product to the next employer with the least friction.",why:"A personal cloud account synced on the work laptop is effortless — no USB, no email flags, just drag into a synced folder.",recon:"They know the laptop already has OneDrive; signing in a personal account is a few clicks.",next:"Sign in a personal OneDrive and move files into its synced folder."},
+  reason:{obs:"A tasking and a constraint (defensibility), no artifacts yet.",ori:"PEAK Prepare: scope the question, plan the collection.",rel:{v:"unknown",b:"Nothing examined. Relevance calls begin once you parse the settings DB + logs."},suf:{lvl:5,gap:"No evidence. Collect the OneDrive artifacts from a copy of the image.",move:"COLLECT",mv:"Preserve settings + logs folders; work on a copy."}},
+  keypoints:["Exfil findings go to HR/Legal — calibrate to what you can defend.","The insider lane is inference about an authorized user; weigh it carefully.","Order of volatility + chain of custody start now."],
+  take:"Scope the question precisely ('did corporate data reach a personal OneDrive?') and commit to stating what each artifact proves AND doesn't. Work on a forensic copy.",
+  refs:[["RFC 3227","https://www.rfc-editor.org/rfc/rfc3227"],["OneDriveExplorer","https://github.com/Beercow/OneDriveExplorer"]]
+},
+{ phase:"Phase 0 · Distillation", title:"From 'they stole files' to an artifact question",
+  fw:{kill:"Reconnaissance",nist:"Preparation",peak:"Prepare",pyramid:"Behaviors",diamond:[]}, conf:6, gapsOpen:[],
+  lead:{tag:"question",msg:`"Before the tools — what's the one question the artifacts can actually answer? Not 'are they guilty.'"`},
+  newConcept:{term:"Distillation (artifact edition)",def:"Turn the accusation into a chain of answerable questions: (1) is a PERSONAL OneDrive signed in here? (2) are CORPORATE file names in its namespace? (3) were they ever LOCAL (vs online-only)? (4) do the LOGS show them sync/upload? Each is a separate evidentiary step."},
+  scene:`<p>'They stole files' isn't answerable. 'Did corporate files sync to a personal OneDrive on this host, and what proves it?' is.</p>`,
+  panes:[{app:"DLP alert (paraphrased)",cls:"",dr:1,body:`DLP: personal cloud client signed in on MANAGED host\n user: j.rivera  host: LT-DEV-114\n (sanctioned tenant is Business1 only)`},{app:"the chain of questions",cls:"note",dr:1,body:`1 personal account present?  -> settings\\Personal\n2 corporate names in namespace? -> settings DB\n3 ever local vs online-only?    -> availability flag\n4 did they upload/sync?         -> ODL logs`}],
+  attacker:{why:"They rely on 'it's just my personal cloud' being hard to distinguish from exfil.",weakness:"The settings folder, the namespace, and the logs each leave a separate, examinable trace.",next:"Move corporate files into the personal synced folder and let it upload."},
+  decision:{prompt:"Best-distilled starting question?",options:[
+    {text:"Did the employee violate policy?",correct:false,feedback:"A conclusion for HR/Legal, not an artifact question. You answer the facts; they judge the policy."},
+    {text:"Prove they intended to steal data",correct:false,feedback:"Intent is rarely provable from artifacts alone, and leading with it invites bias. Start with what's observable."},
+    {text:"Is a personal OneDrive signed in here, and do its artifacts show corporate files synced?",correct:true,feedback:"Yes — observable, staged into steps (presence → namespace → local → upload), each answerable from a specific artifact."}]},
+  crit:"Distillation fails at a verdict ('are they guilty') or at intent. Aim for observable, artifact-backed facts; let HR/Legal supply judgment.",
+  keypoints:["Break the accusation into per-artifact evidentiary steps.","You supply facts + calibrated confidence, not verdicts."],
+  take:"Chain: personal account present → corporate names in namespace → local availability → log evidence of upload. Answer each from its artifact.",
+  refs:[["Diamond Model","https://apps.dtic.mil/sti/pdfs/ADA586960.pdf"]]
+},
+{ phase:"Phase 1 · PEAK Execute", title:"Three hypotheses, three artifacts",
+  fw:{kill:"Collection",nist:"Detection & Analysis",peak:"Execute",pyramid:"Host artifacts",diamond:[]}, conf:8, gapsOpen:[],
+  newConcept:{term:"Hypothesis-driven (artifact edition)",def:"Each hypothesis names the exact file that would confirm or refute it."},
+  scene:`<p>Three queryable hypotheses, each tied to a OneDrive artifact on the host image.</p>`,
+  panes:[{app:"analysis plan",cls:"",dr:1,body:`<span class="c"># H1 (presence)</span> a <span class="hi">settings\\Personal</span> folder exists (personal account signed in)\n<span class="c"># H2 (namespace)</span> the settings DB (<span class="hi">&lt;UserCid&gt;.dat</span> / SQLite) lists corporate file names\n<span class="c"># H3 (activity)</span> <span class="hi">ODL logs</span> show sync/upload operations for those names`}],
+  attacker:{why:"Keep it to native OneDrive behavior — no obvious 'hacking tool' to find.",weakness:"But OneDrive writes a settings DB AND rolling activity logs; both are examinable.",next:"Let the client sync the staged files to the personal cloud."},
+  reason:{obs:"Three hypotheses, each mapped to a specific artifact.",ori:"PEAK Execute. Note: some artifacts may be online-only or rolled off.",rel:{v:"unknown",b:"Pre-analysis. Linkage keys: user profile, account scope (Personal vs Business1), fileID, timestamps.",},suf:{lvl:8,gap:"Untested — parse the artifacts, mindful of what each can prove.",move:"ADVANCE",mv:"Start with presence (H1)."}},
+  keypoints:["Name the exact artifact that settles each hypothesis.","Account SCOPE (Personal vs Business1) is the first discriminator."],
+  take:"H1 presence (settings\\Personal) → H2 namespace (settings DB) → H3 activity (ODL logs). Each hypothesis points at one file.",
+  refs:[["Forensics Wiki — OneDrive","https://forensics.wiki/microsoft_onedrive/"]]
+},
+{ phase:"Phase 2 · Triage", title:"A personal account on a corporate laptop",
+  fw:{kill:"Collection",nist:"Detection & Analysis",peak:"Execute",pyramid:"Host artifacts",diamond:["V"]}, conf:18, gapsOpen:["personal"],
+  lead:{tag:"reporting up",msg:`"You flagged the Personal scope, not Business1. Why does that matter? One line."`},
+  newConcept:{term:"Personal ≠ Business (and personal ≠ guilt)",def:"The sanctioned tenant is <b>Business1</b>. A <code>settings\\Personal</code> folder means a <b>personal</b> OneDrive was signed in on the managed host — the channel to watch. But <b>signing in a personal account is not itself exfil</b>; the question is whether CORPORATE data went into it."},
+  scene:`<p>You find both <code>settings\\Business1</code> (sanctioned) and <code>settings\\Personal</code> (not) on <strong>LT-DEV-114</strong>. The Personal scope is the lead — and also the moment bias wants to run ahead.</p>`,
+  panes:[{app:"settings folders on the image",cls:"",dr:1,body:`...\\OneDrive\\settings\\<span class="g">Business1\\</span>  <span class="c"># sanctioned tenant</span>\n...\\OneDrive\\settings\\<span class="r">Personal\\</span>     <span class="c"># personal account — the lead</span>\n...\\OneDrive\\logs\\Personal\\ (.odl/.odlgz)`}],
+  attacker:{why:"A personal account blends in — 'everyone has OneDrive.'",weakness:"On a MANAGED host where only Business1 is sanctioned, a Personal scope stands out.",next:"Drag corporate files into the personal synced folder."},
+  bias:{risk:"Availability + anchoring: 'personal OneDrive on a work laptop = data theft,' before you've opened the namespace.",counter:"Hold it. A Personal scope only proves a personal account was signed in. Plenty of people do that with zero corporate data. The namespace + logs decide — not the folder's existence."},
+  reason:{obs:"A Personal settings scope alongside the sanctioned Business1.",ori:"NIST Detection & Analysis.",rel:{v:"linked",b:"The Personal scope on a managed host is the relevant lead — that's your one-liner. But it's a lead to TEST, not a finding. Open the namespace next.",},suf:{lvl:18,gap:"Presence confirmed; nothing yet about WHAT is in it.",move:"PIVOT",mv:"Parse the Personal settings DB."}},
+  keypoints:["Account scope (Personal vs Business1) is the first, cleanest discriminator.","Presence of a personal account ≠ exfil — don't skip ahead."],
+  take:"Triage by scope: a Personal OneDrive on a managed host is the lead. State it as a lead to test, not a verdict.",
+  refs:[["OneDriveExplorer","https://github.com/Beercow/OneDriveExplorer"]]
+},
+{ phase:"Phase 3 · The settings database", title:"Reconstruct the namespace",
+  fw:{kill:"Collection",nist:"Detection & Analysis",peak:"Execute",pyramid:"Host artifacts",diamond:["V","C"]}, conf:30, gapsOpen:["namespace"],
+  newConcept:{term:"The settings DB = the namespace",def:"Run <b>OneDriveExplorer</b> against the Personal scope's <code>&lt;UserCid&gt;.dat</code> (<code>-f</code>) or SQLite DB (<code>-s</code>). It reconstructs the OneDrive <b>folder structure</b>: names, file-vs-folder, UUIDs/fileIDs, child counts. This shows what the sync client KNEW about — the namespace."},
+  scene:`<p>The reconstructed tree shows corporate-looking names — <code>Q3_roadmap.pptx</code>, <code>pricing_model.xlsx</code>, a <code>client_contracts\\</code> folder — inside the <strong>Personal</strong> namespace. Striking. But be precise about what it proves.</p>`,
+  panes:[{app:"OneDriveExplorer — Personal namespace",cls:"",dr:1,body:`Personal\\\n  client_contracts\\        (folder)\n  Q3_roadmap.pptx          fileID 9F1A... \n  pricing_model.xlsx       fileID 2C77...\n<span class="c"># names + UUIDs recovered from the settings DB</span>`}],
+  attacker:{why:"Drag-and-drop into the synced folder is frictionless and feels private.",weakness:"The settings DB records every item in the namespace, with IDs — even after you tidy up.",next:"Let it sync; maybe delete locally afterward to look clean."},
+  decision:{prompt:"Corporate file names appear in the Personal namespace. What does that PROVE?",options:[
+    {text:"The files were stolen — case closed",correct:false,feedback:"Overstatement, and the career-ending error. The DB proves the names were in the namespace, not that bytes were here or left."},
+    {text:"The sync client KNEW about these items in the personal account — nothing yet about local presence or upload",correct:true,feedback:"Exactly. Namespace presence is step one. Now resolve local availability (next) and log evidence (later)."}]},
+  crit:"The settings DB proves the NAMESPACE — names, structure, IDs. It does NOT prove the bytes were ever on this machine, that anything uploaded, or that a recipient opened it. Say precisely that.",
+  keypoints:["OneDriveExplorer reconstructs the namespace (names, folders, UUIDs).","Namespace presence is necessary evidence, not sufficient proof of exfil."],
+  take:"Reconstruct the namespace with OneDriveExplorer; report 'these names were in the personal account's namespace' — and stop there until you resolve availability and logs.",
+  refs:[["OneDriveExplorer","https://github.com/Beercow/OneDriveExplorer"],["Recreating from <UserCid>.dat (SANS)","https://www.sans.org/blog/recreating-onedrive-s-folder-structure-from-usercid-dat"]]
+},
+{ phase:"Phase 4 · Local or online-only?", title:"Files On-Demand and the placeholder trap",
+  fw:{kill:"Collection",nist:"Detection & Analysis",peak:"Execute",pyramid:"TTPs",diamond:["V","C"]}, conf:40, gapsOpen:[], gapsClose:["namespace"],
+  newConcept:{term:"Available-locally vs online-only (the placeholder trap)",def:"With <b>Files On-Demand</b>, a name in the tree can be an <b>online-only placeholder</b> whose bytes were never downloaded to this host. 'In the namespace' is NOT 'was present locally.' Resolve each item's local-availability before claiming the file was on this machine."},
+  scene:`<p>You check availability per item. Some were downloaded (available-locally); some are online-only placeholders — names with no local bytes. That distinction changes the story for each file.</p>`,
+  panes:[{app:"per-item availability",cls:"note",dr:1,body:`Q3_roadmap.pptx     availability: <span class="r">available-locally</span> (bytes were here)\npricing_model.xlsx  availability: <span class="hi">online-only</span>  (placeholder — may never have had local bytes)\nclient_contracts\\   folder (mixed)`}],
+  attacker:{why:"They may not realize placeholders leave a different trace than downloaded files.",weakness:"Either way the namespace records the name; availability tells you which files actually had bytes here.",next:"Rely on the defender conflating 'name present' with 'file was here.'"},
+  reason:{obs:"Mixed availability across the flagged items.",ori:"Resolving what the namespace actually means per file.",rel:{v:"linked",b:"Availability is a per-item fact tied to each namespace entry; it refines, not replaces, the namespace finding.",},suf:{lvl:40,gap:"Namespace + availability known; upload/sync activity still unproven.",move:"PIVOT",mv:"Go to the ODL logs for activity evidence."}},
+  crit:"An online-only placeholder name does NOT establish the file was present on, or left from, this host. Treat downloaded vs online-only as fundamentally different evidentiary states.",
+  keypoints:["Files On-Demand means a name may have no local bytes.","Resolve availability per item before any 'the file was here' claim."],
+  take:"For every flagged name, record available-locally vs online-only. It decides what you can say about local presence — and it's where sloppy reports overreach.",
+  refs:[["Forensics Wiki — OneDrive","https://forensics.wiki/microsoft_onedrive/"]]
+},
+{ phase:"Phase 5 · The ODL logs", title:"The activity record — if you can read it",
+  fw:{kill:"Collection",nist:"Detection & Analysis",peak:"Execute",pyramid:"TTPs",diamond:["V","C","I"]}, conf:52, gapsOpen:["upload"],
+  lead:{tag:"question",msg:`"Namespace is one thing. Did the files actually go UP to the personal cloud — and can you time it?"`},
+  loop:{type:"Hunt loop iterates",text:"The namespace finding raises a sharper question — 'did it upload, and when?' — which the logs may answer, if they're decodable and still present."},
+  logcue:"You reached the activity layer. Log that ODL evidence depends on de-obfuscation + retention — the field that decides how strong your 'it uploaded' claim can be.",
+  newConcept:{term:"ODL logs (obfuscated, rolling)",def:"OneDrive writes obfuscated binary logs — <code>.odl / .odlgz / .odlsent / .aold</code> — under <code>...\\OneDrive\\logs\\Personal</code>. They record sync/file activity you can correlate back to items and TIMESTAMP. To read them you need <b>ObfuscationStringMap.txt</b> (and/or keystores); parse with <b>odl.py</b> (Khatri) or OneDriveExplorer. They ROLL — old activity ages out. Decoded output can contain the account email/token."},
+  scene:`<p>You de-obfuscate the Personal logs and find sync operations referencing the flagged items, with timestamps. Now 'it was in the namespace' can become 'it synced at this time' — carefully.</p>`,
+  panes:[{app:"odl.py / OneDriveExplorer — decoded",cls:"",dr:1,body:`de-obfuscate (ObfuscationStringMap.txt) -> output.csv\n<span class="g">sync op</span> Q3_roadmap.pptx  ts=2026-10-13T18:22Z  account=<span class="hi">personal</span>\n<span class="c"># correlates to the namespace fileID 9F1A...</span>\n<span class="r">note:</span> logs roll — earlier activity may be gone`}],
+  attacker:{why:"They assume logs are unreadable (obfuscated) or already rolled off.",weakness:"With the obfuscation map, the logs become readable and tie items to sync times.",next:"Sign out / remove the account to shrink the footprint."},
+  bias:{risk:"Over-reading the log: treating a 'sync' line as proof the full file content left and was received.",counter:"A sync operation evidences client activity on that item; pair it with availability + the namespace ID. Don't inflate 'a sync op is logged' into 'the competitor has the file.'"},
+  reason:{obs:"Decoded sync operations referencing the flagged items, timestamped.",ori:"Activity evidence correlating to the namespace.",rel:{v:"linked",b:"Log events carry the fileID/name tying them to the namespace entries — artifact-to-artifact corroboration, the strongest kind here.",},suf:{lvl:52,gap:"Upload activity evidenced for SOME items; retention limits the rest.",move:"PIVOT",mv:"State what the logs support, and where they go silent."}},
+  crit:"ODL logs are your best 'it synced' evidence — but they're obfuscated (need the map) and rolling (absence ≠ absence). Caveat both in the finding.",
+  keypoints:["ODL logs tie items to sync activity + timestamps — once de-obfuscated.","Rolling retention means missing log evidence is not exculpatory."],
+  take:"De-obfuscate the Personal ODL logs; correlate sync ops to namespace IDs for timed 'it synced' evidence. Note obfuscation + retention as limits on strength.",
+  refs:[["odl.py (Khatri)","https://github.com/ydkhatri/OneDrive"],["OneDriveExplorer","https://github.com/Beercow/OneDriveExplorer"]]
+},
+{ phase:"Phase 6 · The version-drift trap  ↻", title:"Last year's offsets lie",
+  fw:{kill:"(method)",nist:"Detection & Analysis",peak:"Execute",pyramid:"TTPs",diamond:["V","C","I"]}, conf:58, gapsOpen:["version"],
+  newConcept:{term:"Artifact version drift",def:"OneDrive's on-disk format changes across client versions (Major Versions <b>17–26</b>; <code>.dat</code> → <b>SQLite</b>; fields move). If your parser or your field assumptions don't match the installed client version, you can <b>misread</b> the artifact — and brief a wrong conclusion. Check the client version; use Maloney's <b>OneDrive Evolution</b> reference; update the tool."},
+  scene:`<p>Before you finalize, you confirm the OneDrive client version on the host and verify your parser handles that format. The 'Evolution' reference exists precisely because this keeps changing.</p>`,
+  panes:[{app:"version check",cls:"note",dr:1,body:`OneDrive client on host: Major Version <span class="hi">25.x</span> (SQLite-era)\nparser: OneDriveExplorer -s (SQLite)  <span class="g">match</span>\ncross-check field layout vs 'OneDrive Evolution' (v17–26)\n<span class="r">pitfall:</span> parsing a v25 DB with v19 assumptions -> wrong tree`}],
+  attacker:{why:"Not an attacker move — this is the examiner's own failure mode.",weakness:"—",next:"—"},
+  bias:{risk:"Availability bias: assuming the artifact matches the screenshot in the blog post you learned from — which may be an older version.",counter:"Verify the CLIENT VERSION on this host and confirm your parser matches it. Don't port last year's field offsets onto this year's format."},
+  reason:{obs:"The host runs a SQLite-era client; parser matches; fields cross-checked.",ori:"Method validation — is my tool reading this format correctly?",rel:{v:"linked",b:"Version match is a precondition for trusting every prior finding; it validates, not adds to, the evidence.",},suf:{lvl:58,gap:"Findings now rest on a version-matched parse.",move:"ADVANCE",mv:"Recover deleted/previous state."}},
+  crit:"A version mismatch can silently corrupt your namespace reconstruction. Confirm the client version and parser compatibility BEFORE you rely on the output — this is the case's signature pitfall.",
+  keypoints:["The artifact format evolves (v17–26; .dat → SQLite).","Match parser + field assumptions to the installed client version."],
+  take:"Before concluding, confirm the OneDrive client version and that your parser handles that format. Cross-check against the 'Evolution' reference. Document the tool + version used.",
+  refs:[["OneDrive Evolution (Maloney)","https://malwaremaloney.blogspot.com/p/onedrive-evolution.html"]]
+},
+{ phase:"Phase 7 · Deleted & previous state", title:"What they cleaned up",
+  fw:{kill:"Defense Evasion",nist:"Detection & Analysis",peak:"Execute",pyramid:"TTPs",diamond:["V","C","I"]}, conf:64, gapsOpen:[], gapsClose:["deleted"],
+  newConcept:{term:"Previous state + recycle bin",def:"OneDrive keeps a <code>&lt;UserCid&gt;.dat.previous</code> snapshot, and OneDriveExplorer can fold in <code>$Recycle.Bin</code> (<code>-rb</code>) and a user registry hive (<code>-r</code>) to resolve mount points. A subject who deleted files after syncing may still be visible in the previous namespace state."},
+  scene:`<p>You compare current vs <code>.previous</code> and check the recycle bin. Two names present earlier are gone now — removed after the sync window, per the logs.</p>`,
+  panes:[{app:"current vs .previous",cls:"",dr:1,body:`current:  client_contracts\\, Q3_roadmap.pptx, pricing_model.xlsx\nprevious: + <span class="r">salary_bands.xlsx</span>, + <span class="r">src_export.zip</span>  <span class="c"># gone from current</span>\n$Recycle.Bin: correlates 2 deletions post-sync`}],
+  attacker:{why:"Delete locally after syncing to look clean at handover.",weakness:"The previous-state snapshot + recycle bin + logs preserve what was there.",next:"Hand back a tidy-looking laptop."},
+  reason:{obs:"Two items present in the previous namespace, absent now, with recycle-bin correlation.",ori:"Kill chain: Defense Evasion (cleanup).",rel:{v:"linked",b:"The .previous snapshot + recycle bin tie the removed names to the same namespace and timeframe — consistent, corroborated.",},suf:{lvl:64,gap:"Deleted state recovered; now weigh it all for the decision.",move:"PIVOT",mv:"Run the sufficiency gate for the brief."}},
+  crit:"Local deletion is not erasure: the previous-state snapshot and recycle bin can preserve names removed after syncing. But apply the same discipline — a recovered name still needs availability + log context.",
+  keypoints:["<UserCid>.dat.previous + $Recycle.Bin recover removed items.","Cleanup after syncing is itself a notable behavior — still corroborate each item."],
+  take:"Compare current vs .previous and fold in the recycle bin to recover post-sync deletions. Corroborate recovered names with availability + logs like any other.",
+  refs:[["OneDriveExplorer","https://github.com/Beercow/OneDriveExplorer"]]
+},
+{ phase:"Phase 8 · The Sufficiency Gate", title:"What can you actually tell HR and Legal?",
+  fw:{kill:"Actions on Objectives",nist:"Analysis → Reporting decision",peak:"Execute",pyramid:"TTPs",diamond:["V","C","I"]}, conf:70, gapsOpen:[],
+  lead:{tag:"SITREP",msg:`"SITREP — three lines for HR and Legal. What can you state as fact, what's inference, and what can't you prove? Be precise; this may go to litigation."`},
+  loop:{type:"ACH loop",text:"The bar for 'enough' rises with the audience: a performance conversation needs less than a lawsuit. Judge sufficiency per decision."},
+  newConcept:{term:"ACH + the defensibility bar",def:"List the explanations, disprove each, and set 'enough' by the DECISION: briefing HR vs. supporting termination vs. supporting litigation each demand different certainty. Write what the artifacts <b>support</b>, label <b>inference</b>, and name what you <b>cannot</b> prove."},
+  scene:`<p>Confidence dips here on purpose — listing alternatives makes an honest examiner less certain. Separate fact from inference explicitly.</p>`,
+  panes:[{app:"notebook — ACH",cls:"note",dr:1,body:`H-A intentional exfil to personal cloud <span class="g">strongly supported</span> (corp files in Personal namespace + sync logs + post-sync deletes)\nH-B benign personal use <span class="r">weak</span> (corp-named files, not personal)\nH-C auto-synced shared folder <span class="hi">test it</span> (check if a share would explain it)\nH-D placeholders only / never uploaded <span class="hi">partly</span> (true for online-only items — scope those out)\nFACT: names in Personal namespace; sync ops logged for N items\nINFERENCE: intent to take to competitor\nCANNOT PROVE: recipient opened them`}],
+  attacker:{why:"They count on the gap between 'files synced' and 'provable theft with intent.'",weakness:"Namespace + availability + timed sync logs + post-sync deletion is a strong, corroborated fact pattern.",next:"If confronted, claim it was personal/accidental."},
+  bias:{risk:"Confirmation + outcome pressure: HR wants a clean 'yes, they stole it,' and you want to deliver.",counter:"Argue FOR each rival (esp. H-C shared-folder, H-D placeholders). State H-A as 'strongly supported by X, Y, Z,' not 'proven.' Separate FACT from INFERENCE in writing — that line is what survives cross-examination."},
+  reason:{obs:"One hypothesis strongly supported; some items explained benignly (online-only); intent unprovable from artifacts.",ori:"NIST pivot: Analysis → Reporting. Sufficiency is per-decision + per-audience.",rel:{v:"linked",b:"The corroborated items (local + logged sync + deletion) carry the finding; the online-only items are scoped out honestly.",},suf:{lvl:70,gap:"Enough to state a strongly-supported finding for HR/Legal; NOT enough to assert intent or receipt.",move:"CONTAIN",mv:"Write the calibrated finding; recommend legal hold + account action."}},
+  decision:{prompt:"How do you phrase the headline for Legal?",options:[
+    {text:"'The employee stole N company files via personal OneDrive.'",correct:false,feedback:"Overstated — asserts theft + intent the artifacts don't prove, and invites impeachment on the online-only items."},
+    {text:"'N corporate files were present in a personal OneDrive namespace on the host; M were available-locally and show logged sync operations at these times; intent is not established by these artifacts.'",correct:true,feedback:"Right — fact, scope, timing, and an explicit limit. Defensible."},
+    {text:"Wait until you can prove intent",correct:false,feedback:"Intent generally isn't provable from artifacts; that's HR/Legal's call on the facts you provide. Report the facts now."}]},
+  crit:"Two failure modes: overstating to please the audience, and withholding solid facts for unattainable certainty. Separate FACT / INFERENCE / CANNOT-PROVE in writing.",
+  keypoints:["'Enough' rises with the audience (HR vs. litigation).","Write fact vs. inference vs. unprovable — explicitly."],
+  take:"Gate with ACH; set the bar by the audience; state a strongly-supported finding with scope, timing, and explicit limits — never an intent claim the artifacts can't carry.",
+  refs:[["NIST SP 800-61r3","https://csrc.nist.gov/pubs/sp/800/61/r3/final"]]
+},
+{ phase:"Phase 9 · Corroborate beyond OneDrive", title:"One artifact rarely closes it",
+  fw:{kill:"Actions on Objectives",nist:"Detection & Analysis",peak:"Act",pyramid:"TTPs (max pain)",diamond:["A","C","I","V"]}, conf:86, gapsOpen:[], gapsClose:["scope","upload"],
+  newConcept:{term:"Triangulate",def:"OneDrive artifacts are strong but not the whole story. Corroborate with other host evidence: file-access timestamps (<code>$MFT</code>, LNK/jumplists), browser downloads/uploads, USB history, email, and — where recoverable — the file <b>bytes</b> themselves. Independent artifacts pointing the same way is what makes a finding hard to dispute."},
+  scene:`<p>You pull corroborators: recent-access to the two local files, no USB mass-copy, nothing in webmail. The picture converges on the personal-OneDrive channel — and you can say what you checked and ruled out.</p>`,
+  panes:[{app:"corroboration matrix",cls:"note",dr:1,body:`OneDrive Personal namespace + sync logs  <span class="g">[primary]</span>\nLNK/jumplist: recent access to Q3_roadmap.pptx <span class="g">[corrob]</span>\nUSB history: <span class="hi">no mass-copy</span> event <span class="c">[rules out USB]</span>\nwebmail: nothing relevant <span class="c">[rules out email]</span>\n$MFT timestamps align with sync window <span class="g">[corrob]</span>`}],
+  attacker:{why:"They chose the channel they thought was quietest.",weakness:"Each channel leaves its own artifacts; checking all of them both strengthens the real one and clears the others.",next:"—"},
+  reason:{obs:"Independent artifacts corroborate the OneDrive channel; other channels ruled out.",ori:"CTI/forensic synthesis. Diamond completes (insider, personal-cloud sync, personal account, org data).",rel:{v:"linked",b:"Multiple INDEPENDENT artifacts align on the same items + timeframe — the strongest form of linkage, and it also rules out alternative channels.",},suf:{lvl:86,gap:"Enough to deliver a corroborated, calibrated finding.",move:"CONTAIN",mv:"Finalize report + response actions."}},
+  keypoints:["Corroborate with $MFT/LNK/USB/browser/email — and the bytes if recoverable.","Ruling OUT other channels strengthens the one you found."],
+  take:"Triangulate the OneDrive finding with independent host artifacts; checking the other channels both corroborates and clears them. Document what you ruled out.",
+  refs:[["Diamond Model","https://apps.dtic.mil/sti/pdfs/ADA586960.pdf"],["Exfil to Cloud Storage (T1567.002)","https://attack.mitre.org/techniques/T1567/002/"]]
+},
+{ phase:"Phase 10 · Detection Engineering", title:"Catch the channel next time",
+  fw:{kill:"(prevention)",nist:"Detection & Analysis",peak:"Act",pyramid:"TTPs",diamond:["A","C","I","V"]}, conf:90, gapsOpen:[],
+  newConcept:{term:"Policy + telemetry, honestly",def:"The durable fix for this channel is as much POLICY as detection: block or restrict <b>personal</b> OneDrive on managed hosts (tenant-restriction / Files On-Demand + DLP), and instrument the settings/logs folders. Be honest about the gaps: ODL logs are obfuscated + rolling, placeholders hide local presence."},
+  scene:`<p>Turn the case into prevention and detection, led by the policy control that actually closes the channel.</p>`,
+  panes:[{app:"controls — deployable",cls:"note",dr:1,body:`<span class="g">Control:</span> restrict personal OneDrive on managed hosts (tenant allow-list / AADJ)\n<span class="g">Detect A:</span> creation of <span class="hi">settings\\Personal</span> on a managed host (only Business1 sanctioned)\n<span class="g">Detect B:</span> DLP egress to consumer OneDrive endpoints\n<span class="g">Detect C:</span> corporate file names/hashes appearing in a Personal namespace\n<span class="r">Gaps:</span> ODL obfuscated+rolling; online-only placeholders obscure local presence</p>`}],
+  attacker:{why:"They relied on personal cloud being allowed and unmonitored on the laptop.",weakness:"A tenant restriction removes the channel; a Personal-scope alert catches the attempt.",next:"They'd need a different channel (which your corroboration step already watches)."},
+  decision:{prompt:"Why lead with a POLICY control, not just a detection rule?",options:[
+    {text:"Detection rules don't work",correct:false,feedback:"They help — but detecting exfil after it happens is worse than preventing the channel."},
+    {text:"Blocking personal OneDrive on managed hosts removes the channel; detection + the obfuscated/rolling logs are a weaker safety net",correct:true,feedback:"Right — prevention closes the door; detection (with honest telemetry gaps) backs it up."}]},
+  reason:{obs:"A policy control plus detections, with the telemetry gaps named.",ori:"PEAK Act / prevention + detection engineering.",rel:{v:"linked",b:"Built from the confirmed channel; new hits still earn their own relevance test.",},suf:{lvl:90,gap:"Controls ready; detection limited by ODL obfuscation/retention.",move:"ADVANCE",mv:"Finalize the report."}},
+  keypoints:["Prevention (restrict personal OneDrive) beats after-the-fact detection.","Name the telemetry gaps (ODL obfuscation/retention, placeholders)."],
+  take:"Lead with policy (restrict personal OneDrive on managed hosts), back it with Personal-scope + DLP detections, and state the ODL/placeholder gaps plainly.",
+  refs:[["Exfil to Cloud Storage (T1567.002)","https://attack.mitre.org/techniques/T1567/002/"]]
+},
+{ phase:"Phase 11 · Report & Preserve  ↻", title:"A finding that survives cross-examination",
+  fw:{kill:"—",nist:"Reporting / Lessons Learned",peak:"Act → Prepare (next)",pyramid:"TTPs",diamond:["A","C","I","V"]}, conf:97, gapsOpen:[], gapsClose:["personal","local","version"],
+  lead:{tag:"wrap-up",msg:`"Clean work. Write the finding so it holds up, preserve everything, and turn the lessons into the policy control + a repeatable OneDrive playbook."`},
+  loop:{type:"Case closes → feeds the next",text:"The playbook (collect settings+logs, version-check, parse, resolve availability, de-obfuscate, corroborate) and the policy control make the next exfil case faster and the channel rarer."},
+  logcue:"Close the loop: your calibrated finding + the preservation record + the policy control ARE the lessons learned. Reference this entry the next time a personal cloud appears on a managed host.",
+  newConcept:{term:"Defensible reporting + preservation",def:"Preserve the image and the parsed artifacts; document the <b>tool and version</b> used (artifact drift!); and write FACT / INFERENCE / CANNOT-PROVE separately with timestamps and scope. A finding that overstates is worse than one that is narrow and true."},
+  scene:`<p>Finalize the report, preserve the evidence under legal hold, and ship the policy control + playbook.</p>`,
+  panes:[{app:"report skeleton",cls:"note",dr:1,body:`FACT: N corporate-named files in the PERSONAL OneDrive namespace on LT-DEV-114;\n      M available-locally; sync ops logged at listed times; 2 deleted post-sync\nINFERENCE: consistent with intentional exfil to a personal account\nCANNOT PROVE: intent; whether a recipient accessed the files\nMETHOD: OneDriveExplorer vX / odl.py; client Major Version 25.x; worked on image copy\nPRESERVE: image + parsed output under legal hold`}],
+  attacker:{why:"They expect a sloppy, overstated report that collapses under scrutiny.",weakness:"A narrow, corroborated, version-documented finding holds up.",next:"—"},
+  reason:{obs:"A calibrated finding with preserved evidence and documented method.",ori:"NIST Reporting → Lessons Learned.",rel:{v:"linked",b:"Every stated fact traces to a named artifact + tool/version — nothing on a hunch.",},suf:{lvl:97,gap:"Residual: recipient-side activity is outside host scope. Never 100%.",move:"ADVANCE",mv:"Close the case; the playbook + control carry forward."}},
+  crit:"Document the TOOL + CLIENT VERSION in the report — artifact drift means a conclusion is only as good as the version-matched parse behind it. Separate fact from inference in writing.",
+  keypoints:["Preserve the image + parsed artifacts; document tool + version.","Report FACT / INFERENCE / CANNOT-PROVE explicitly."],
+  take:"Write a narrow, corroborated, version-documented finding; preserve under legal hold; ship the policy control + a repeatable OneDrive playbook.",
+  refs:[["OneDriveExplorer","https://github.com/Beercow/OneDriveExplorer"],["NIST SP 800-61r3","https://csrc.nist.gov/pubs/sp/800/61/r3/final"]]
+},
+{ phase:"Debrief", title:"Field notes, kit, glossary, loop map & reading room",
+  fw:{kill:"—",nist:"Lessons Learned",peak:"Prepare (next)",pyramid:"TTPs",diamond:["A","C","I","V"]}, conf:100, gapsOpen:[],
+  scene:`<p>You took an accusation to a calibrated, corroborated, defensible finding — distilling into artifact questions, separating 'in the namespace' from 'was here' from 'uploaded,' dodging the version-drift trap, and writing fact vs. inference for HR and Legal. Everything below is for your long-term notes.</p>`,
+  debrief:true
+}
+];
+
+/* ================= GENERATOR ================= */
+const EX_TYPES=[
+ {id:"distill",name:"Distill the direction",diff:"Foundational",task:"Turn the input into ONE queryable hunt: behavior, hypothesis, data source, scope, hit-vs-miss.",
+  approach:["Strip to the BEHAVIOR, not the IOC.","State a testable hypothesis ('a NON-X process does Y').","Name the data source that confirms/refutes.","Scope it: time window + host/user set.","Define hit vs. miss.","Check it's rare-when-malicious AND baseline-able."]},
+ {id:"relevance",name:"Relevance call",diff:"Foundational",task:"Two artifacts — linked, unknown, or unrelated? State the BASIS and what would disprove it.",
+  approach:["List linkage keys present: host·user·lineage·time·hash·config-infra·capability signature·rare TTP.","One match = lead; several INDEPENDENT = linked.","Name what would DISPROVE the link.","Verdict + basis in one sentence."]},
+ {id:"sufficiency",name:"Sufficiency gate (ACH)",diff:"Intermediate",task:"Given partial evidence: enough to CONTAIN? ERADICATE? ATTRIBUTE? Justify.",
+  approach:["List rival hypotheses (espionage/crime/pentest/FP).","Seek evidence that DISPROVES each.","Judge PER DECISION, not once.","Name the gap + next move.","Avoid early action AND paralysis."]},
+ {id:"infer",name:"Infer the intent (behavioral inference)",diff:"Intermediate",task:"From the evidence, infer the attacker's likely goal and NEXT move — disciplined, not a guess.",
+  approach:["State the inference as a hypothesis ('they likely want X, next they'd do Y').","CITE the specific behavior it rests on (not a vibe).","Assign a CALIBRATED confidence (low/moderate/high) + why.","Name what would DISPROVE it.","Flag availability bias: am I pattern-matching to a case I just read? Could a benign/different actor explain this?","Turn it into action: which detection would you pre-position for that next move?"]},
+ {id:"bias",name:"Spot the bias",diff:"Intermediate",task:"A colleague states the conclusion below. Identify which bias(es) may be at play and the counter-move.",
+  approach:["Name the bias (confirmation / anchoring / availability / base-rate neglect).","Explain WHY the conclusion overreaches the evidence.","Prescribe the counter: seek disconfirming evidence, run ACH, consider base rates, demand independent corroboration.","Rewrite the conclusion with calibrated confidence."]},
+ {id:"sitrep",name:"SITREP to the Hunt Lead",diff:"Foundational",task:`3 lines to ${LEAD_NAME}: (1) what you know + confidence, (2) what you're doing, (3) decision needed / ETA.`,
+  approach:["Line 1 — what we know, calibrated confidence word.","Line 2 — current action.","Line 3 — decision needed or ETA. Bottom line first, no jargon dump."]},
+ {id:"scope",name:"Scope & data sources",diff:"Intermediate",task:"For the key hypothesis, list telemetry that PROVES/REFUTES it — and the gaps you can't see.",
+  approach:["Map hypothesis → source: EDR/Sysmon, IIS/web, proxy/DNS, identity, netflow, edge/appliance, cloud audit.","Call out what you CAN'T see + how you'd get it.","Name the single most decisive query first.","Set a timebox."]},
+ {id:"pyramid",name:"Climb the Pyramid",diff:"Advanced",task:"A fragile IOC is handed to you. Raise the hunt to a durable TTP-level detection.",
+  approach:["Ask what BEHAVIOR produced the IOC.","Write the detection on the behavior/TTP.","Key on the most evasion-resistant field.","State one way they could still evade — accept it or not."]},
+ {id:"logit",name:"Log it (structured intel)",diff:"Foundational",task:"Decompose the scenario into the case-log schema: vector, execution/LOLBin, C2, persistence, ATT&CK IDs, Diamond vertices, durable fingerprint, confidence, ruled-out hypotheses. Then say which PRIOR entry you'd reference.",
+  approach:["Fill the fixed fields (enumerated where possible) — not free text.","Tag ATT&CK IDs and the four Diamond vertices.","Record the DURABLE fingerprint (the thing that survives tool swaps).","Record what you RULED OUT (ACH residue).","Say which existing entry shares a durable field — then treat the match as a lead to test, not a verdict."]}
+];
+const EX_PACKS=[
+ {id:"squidoor",name:"Squidoor / FinalDraft (CL-STA-0049)",diff:"Intermediate",
+  intel:'"A suspected Chinese APT exploits unpatched IIS, drops a web shell, and runs a renamed cdb.exe that reflectively loads an in-memory backdoor using Outlook/Graph Drafts for C2."',
+  exec:'"Are our web servers and our Microsoft 365 exposed to this Squidoor thing?"',
+  vector:"Unpatched public IIS → web shell",c2:"Outlook/Graph dead-drop + 10-channel mesh",twist:"Most implants are internal-only; one unpatched host carried it.",
+  hash:"fake-sha256 of config.ini (illustrative)",ip:"203.0.113.44 (illustrative)",
+  biasclaim:'"This is definitely the APT from that report I read last week — the Outlook C2 trick is their signature, so it\'s the same group."',
+  src:"Unit 42 / Elastic (REF7707)"},
+ {id:"salttyphoon",name:"Salt Typhoon (telecom / edge routers)",diff:"Advanced",
+  intel:'"A PRC actor exploits known Cisco IOS XE flaws on provider edge routers, lives off the land on the device, and builds GRE tunnels for years-long covert collection."',
+  exec:'"The news says China is in the phone companies. Could something be living in our routers?"',
+  vector:"Edge router N-day (e.g. CVE-2023-20198)",c2:"Multi-hop pivots / GRE tunneling",twist:"No EDR on the router — evidence is in device configs, NetFlow, syslog.",
+  hash:"n/a (network-layer)",ip:"malicious GRE peer (illustrative)",
+  biasclaim:'"Our NetFlow looks normal, so we\'re clean."',
+  src:"CISA/NSA/FBI AA25-239A (Aug 2025)"},
+ {id:"scatteredspider",name:"Scattered Spider (help-desk social engineering)",diff:"Intermediate",
+  intel:'"Actors phone the IT help desk impersonating an employee, get an MFA/password reset, take over an SSO account, use legit RMM tools to move, and deploy ransomware on ESXi."',
+  exec:'"Our help desk got a weird call about a password reset. Should we worry?"',
+  vector:"Help-desk social engineering + SIM swap",c2:"Legit RMM / tunneling tools",twist:"Initial access is a phone call — endpoint tools miss it; identity logs are the witness.",
+  hash:"n/a (LOTL)",ip:"RMM tunnel endpoint (illustrative)",
+  biasclaim:'"No malware fired on any endpoint, so this was just a user forgetting their password."',
+  src:"CISA/FBI advisory (updated Jul 2025)"},
+ {id:"akira",name:"Akira ransomware (SonicWall SSLVPN)",diff:"Intermediate",
+  intel:'"Akira affiliates log into SonicWall SSL VPN (CVE-2024-40766), recon fast, and exfil ~2GB over SSH to a rare external IP hours before encryption."',
+  exec:'"Our VPN had a CVE. How fast could they hit us, and would we see data leaving?"',
+  vector:"SonicWall SSLVPN (CVE-2024-40766)",c2:"RDP/VPN + SSH exfil to rare IP",twist:"Exfil happens BEFORE encryption, in hours — byte-counts say data left, not what.",
+  hash:"fake-sha256 of encryptor (illustrative)",ip:"rare SSH exfil IP (illustrative)",
+  biasclaim:'"They encrypted us Friday night, so the breach started Friday night."',
+  src:"S-RM / Darktrace / Rapid7 (2025)"},
+ {id:"toolshell",name:"ToolShell (SharePoint RCE chain)",diff:"Advanced",
+  intel:'"Unauth RCE (CVE-2025-53770/53771) on on-prem SharePoint: w3wp.exe spawns cmd→powershell, drops spinstall0.aspx in LAYOUTS, steals the MachineKey for fileless re-entry even after the shell is removed."',
+  exec:'"We patched SharePoint. Are we actually safe now?"',
+  vector:"SharePoint ToolShell (CVE-2025-53770)",c2:"Web shell + stolen MachineKey",twist:"Patching isn\'t enough — rotate MachineKeys or they re-enter fileless.",
+  hash:"publicly-reported compiled shell (verify in source)",ip:"exploit source (illustrative)",
+  biasclaim:'"We removed spinstall0.aspx and patched, so eradication is complete."',
+  src:"MSRC / Eye Security / Unit 42 (Jul 2025)"},
+ {id:"dprkdev",name:"DPRK 'Contagious Interview' (developer supply chain)",diff:"Advanced",
+  intel:'"North Korean actors lure developers with fake coding tests / trojanized npm packages, steal credentials and GitHub identities, and propagate through trusted developer workflows."',
+  exec:'"An engineer got a suspicious take-home coding test. Could that risk our source code?"',
+  vector:"Trojanized dev package / fake interview",c2:"Attacker infra via dev tooling",twist:"The victim is a trusted developer identity — risk propagates downstream to everyone who trusts their commits.",
+  hash:"fake-sha256 of malicious package (illustrative)",ip:"npm-staged C2 (illustrative)",
+  biasclaim:'"It\'s just one developer\'s laptop — contained to them."',
+  src:"DPRK IT-worker / Contagious Interview reporting (2025–26)"},
+ {id:"clickfix",name:"ClickFix → infostealer",diff:"Foundational",
+  intel:'"A fake CAPTCHA tells the user to paste a command to \'verify\'; the clipboard payload runs PowerShell that installs an infostealer harvesting browser creds and wallets."',
+  exec:'"An employee says a website asked them to copy-paste something into a run box. Is that bad?"',
+  vector:"Fake CAPTCHA / clipboard social engineering",c2:"Infostealer exfil",twist:"The user self-executes — evidence is in clipboard, RunMRU, PowerShell logs.",
+  hash:"fake-sha256 of stealer (illustrative)",ip:"stealer exfil (illustrative)",
+  biasclaim:'"The AV is clean, so nothing happened."',
+  src:"Multiple vendors (ClickFix wave, 2025–26)"}
+];
+const COMPLICATIONS=["You're remote with limited tooling — logs only, no console on the host.","The exec is anxious from a headline — manage expectations while you work.","No EDR on the affected asset; only network + appliance logs.","It's 4:55pm Friday — containment windows matter.","Logs only go back 14 days; part of the timeline is gone.","The client insists it's a false positive.","Another team already 'cleaned it' — verify eradication.","One decisive query's budget before standup. Spend it well."];
+const LEAD_TASKS={distill:["\"The one-line hunt, not the headline.\"","\"What will you actually query? Behavior.\""],relevance:["\"Same incident or two things? Basis?\"","\"Linked or coincidence? One sentence.\""],sufficiency:["\"Contain now or keep digging?\"","\"Enough to brief the CISO? Justify.\""],infer:["\"Where do they go next? And how sure are you?\"","\"Get ahead of them — what do we pre-position?\""],bias:["\"Gut-check that conclusion before I repeat it upstairs.\"","\"Is that evidence, or is that a story we like?\""],sitrep:["\"SITREP in three lines — I brief up in ten.\"","\"Bottom line first.\""],scope:["\"What proves this, and what can't we see?\"","\"Your most decisive query?\""],pyramid:["\"This hash changes tomorrow — give me durable.\"","\"Take it up the pyramid.\""],logit:["\"Log it properly so the next shift can match it.\"","\"Which past case does this rhyme with?\""]};
+
+/* ================= CASE LOG DATA ================= */
+const VECTORS=["Public-facing app exploit (web/IIS/SharePoint)","VPN / edge appliance exploit","Phishing / malicious attachment","Help-desk social engineering / SIM swap","Trojanized package / supply chain","Valid accounts / stolen credentials","Drive-by / fake CAPTCHA (ClickFix)","Other / unknown"];
+const C2S=["HTTP(S)","DNS tunneling","ICMP tunneling","Cloud/SaaS dead-drop (Outlook/Graph)","Paste-site dead-drop","Reverse TCP/UDP","Legitimate RMM tool","SSH / custom tunnel","Other / unknown"];
+const PERSISTS=["Web shell","Scheduled task","Service / driver","Registry Run key","Valid accounts","Stolen token / machine key","Rogue VM / cloud resource","Other / none observed"];
+const SECTORS=["Government","Defense","Telecommunications","Aviation","Education","Financial","Healthcare","Manufacturing","Technology / software","Energy / critical infra","Other"];
+let LOG=[]; let lastFind=null;
+
+/* ================= RENDER: WALKTHROUGH ================= */
+let i=0, view='def'; const seen=new Set(); const openGaps=new Set(),closedGaps=new Set(); let prevFw=null;
+const card=document.getElementById('card'),fwstrip=document.getElementById('fwstrip'),bar=document.getElementById('bar'),counter=document.getElementById('counter'),prevBtn=document.getElementById('prev'),nextBtn=document.getElementById('next'),stepsEl=document.getElementById('steps'),confNum=document.getElementById('confNum'),confBar=document.getElementById('confBar'),gapsEl=document.getElementById('gaps');
+
+function buildSteps(){stepsEl.innerHTML=S.map((t,idx)=>{const lp=/↻/.test(t.phase)?'<span class="lp">↻</span>':'';const nm=t.phase.replace(/^Phase [\d0]+ · /,'').replace(/ *↻/,'').replace(/^Mission Brief · .*/,'Mission Brief');return `<li data-idx="${idx}"><span class="n">${idx+1}</span><span>${nm}</span>${lp}</li>`;}).join('');stepsEl.querySelectorAll('li').forEach(li=>li.addEventListener('click',()=>{i=+li.dataset.idx;render();}));}
+function recomputeGaps(){openGaps.clear();closedGaps.clear();for(let k=0;k<=i;k++){(S[k].gapsOpen||[]).forEach(g=>openGaps.add(g));(S[k].gapsClose||[]).forEach(g=>{closedGaps.add(g);openGaps.delete(g);});}}
+function renderGaps(){const all=[...openGaps].map(id=>({id,c:0})).concat([...closedGaps].map(id=>({id,c:1})));if(!all.length){gapsEl.innerHTML='<li class="closed">None open — case closed</li>';return;}gapsEl.innerHTML=all.map(g=>{const d=GAPS.find(x=>x.id===g.id);return `<li class="${g.c?'closed':''}"><span>${g.c?'✓':'●'}</span><span>${d?d.text:g.id}</span></li>`;}).join('');}
+function renderFw(t){const d=t.fw.diamond||[];const dv=['A','C','I','V'].map(x=>`<span class="dv ${d.includes(x)?'on':''}">${x}</span>`).join('');const cells=[['Kill Chain',t.fw.kill],['NIST IR',t.fw.nist],['PEAK',t.fw.peak],['Pyramid of Pain',t.fw.pyramid]];let h=cells.map(c=>{const ch=prevFw&&prevFw[c[0]]!==c[1];return `<div class="fw ${ch?'changed':''}"><div class="k">${c[0]}</div><div class="v">${c[1]}</div></div>`;}).join('');h+=`<div class="fw"><div class="k">Diamond (A·C·I·V)</div><div class="diamond">${dv}</div></div>`;fwstrip.innerHTML=h;prevFw={'Kill Chain':t.fw.kill,'NIST IR':t.fw.nist,'PEAK':t.fw.peak,'Pyramid of Pain':t.fw.pyramid};}
+function paneHTML(p){return `<div class="win ${p.cls||''}"><div class="bar"><div class="dots"><i class="dr"></i><i class="dy"></i><i class="dg"></i></div><div class="app"><b>${p.app}</b></div></div><pre>${p.body}</pre></div>`;}
+function leadHTML(l){return `<div class="lead"><div class="ava">${LEAD_INIT}</div><div class="body"><div class="who">${LEAD_NAME} <span class="role">· ${LEAD_ROLE}</span>${l.tag?`<span class="tag">${l.tag}</span>`:''}</div><div class="msg">${l.msg}</div></div></div>`;}
+function atkHTML(a){let r='';if(a.goal)r+=`<div class="arow"><div class="lbl">Operator goal</div><div class="txt">${a.goal}</div></div>`;if(a.why)r+=`<div class="arow"><div class="lbl">Why this move / method</div><div class="txt">${a.why}</div></div>`;if(a.recon)r+=`<div class="arow"><div class="lbl">What recon told them</div><div class="txt">${a.recon}</div></div>`;if(a.weakness)r+=`<div class="arow"><div class="lbl">Weakness they rely on</div><div class="txt">${a.weakness}</div></div>`;if(a.next)r+=`<div class="arow nextmv"><div class="lbl">▶ Next move — what YOU pre-empt</div><div class="txt">${a.next}</div></div>`;return `<div class="atkpanel"><div class="ah">🗡 Attacker's-eye view — plausible operator reasoning (inference, not a confession)</div><div class="ab">${r}</div></div>`;}
+function reasonHTML(r){return `<div class="reason"><div class="rh">Analyst reasoning — Observe · Orient · Relevance · Sufficiency</div><div class="rb">
+   <div class="rrow"><div class="lbl obs">Observe</div><div class="txt">${r.obs}</div></div>
+   <div class="rrow"><div class="lbl ori">Orient</div><div class="txt">${r.ori}</div></div>
+   <div class="rrow"><div class="lbl rel">Relevance — is this related?<span class="verdict ${r.rel.v}">${r.rel.v}</span></div><div class="txt">${r.rel.b}</div></div>
+   <div class="rrow"><div class="lbl suf">Sufficiency — do I have enough?</div><div class="meter"><i style="width:${r.suf.lvl}%"></i></div><div class="txt">${r.suf.gap}</div><div class="move ${r.suf.move}">▸ ${r.suf.move}</div> <span class="txt" style="font-size:12.5px">${r.suf.mv}</span></div></div></div>`;}
+
+function fieldNotes(){
+ let o="ONEDRIVE DATA-EXFIL (insider) \u2014 DFIR FIELD NOTES\nBuild "+BUILD_ID+" | generated "+STAMP_UTC+"\n";
+ o+="Sources: OneDriveExplorer + 'OneDrive Evolution' (Maloney) + odl.py (Khatri) + Forensics Wiki. Consoles synthetic; no real case data.\n"+"=".repeat(72)+"\n\n";
+ o+="TAKEAWAYS\n"+"-".repeat(72)+"\n";S.forEach((t,idx)=>{if(t.take)o+=idx+". "+t.title+"\n   -> "+t.take+"\n\n";});
+ o+="BIAS WATCHLIST (notice it, note it, never lean on it)\n"+"-".repeat(72)+"\n";
+ o+="- Anchoring: 'personal OneDrive on a work laptop = theft.' -> presence of a personal account is a LEAD, not a finding; the namespace + logs decide.\n";
+ o+="- Availability: 'I just learned OneDrive forensics, so this is OneDrive exfil.' -> check other channels (USB, email, browser) and base rates.\n";
+ o+="- Overstatement to the audience: HR wants a clean 'yes'. -> state FACT vs INFERENCE vs CANNOT-PROVE; never assert intent from artifacts.\n";
+ o+="- Placeholder trap: a name in the namespace != bytes were here. -> resolve available-locally vs online-only per item.\n";
+ o+="- Version-drift (availability bias on the format): assuming the artifact matches last year's blog screenshot. -> match parser to the installed client version.\n";
+ o+="Rule: PROVES vs DOESN'T. Namespace presence != local bytes != uploaded != recipient opened it.\n\n";
+ o+="THE ARTIFACTS\n"+"-".repeat(72)+"\n";
+ o+="- Settings DB: <UserCid>.dat (+ .previous) or SQLite, under AppData\\Local\\Microsoft\\OneDrive\\settings\\{Personal,Business1-9}.\n";
+ o+="  OneDriveExplorer (-f .dat | -s SQLite) reconstructs the namespace (names, folders, UUIDs/fileIDs). PROVES the namespace, not local bytes/exfil.\n";
+ o+="- ODL logs: .odl/.odlgz/.odlsent/.aold under ...\\OneDrive\\logs\\{Personal,Business1-9,Common}. Obfuscated binary; need ObfuscationStringMap.txt\n";
+ o+="  (and/or keystores). Parse with odl.py (Khatri) or OneDriveExplorer. Record sync/file ops + timestamps. ROLLING -> absence != absence. May leak email/token.\n";
+ o+="- Files On-Demand: a namespace name may be an ONLINE-ONLY placeholder with no local bytes. Resolve availability per item.\n";
+ o+="- Deleted/previous: <UserCid>.dat.previous + $Recycle.Bin (-rb) + user hive (-r) recover removed/earlier state.\n\n";
+ o+="PROVES vs DOESN'T (say it exactly)\n"+"-".repeat(72)+"\n";
+ o+="- Settings DB name present  => the sync client KNEW the item in that account's namespace.\n";
+ o+="- Available-locally flag    => bytes WERE on this host (online-only = may never have been).\n";
+ o+="- ODL sync op + timestamp   => client synced that item at that time (obfuscation/retention permitting).\n";
+ o+="- NONE of the above         => proves INTENT, or that a recipient opened the file.\n\n";
+ o+="METHOD/DEFENSIBILITY: work on an image copy; document TOOL + CLIENT VERSION (artifact drift); preserve under legal hold; separate FACT/INFERENCE/CANNOT-PROVE.\n\n";
+ o+="ATT&CK MAP (behavior mapped to MITRE ATT&CK)\n"+"-".repeat(72)+"\n";ATTACK.forEach(r=>o+="- ["+r[2]+"] "+r[1]+" ("+r[0]+")\n");
+ return o;
+}
+function loopSvg(){return `<svg viewBox="0 0 680 230" width="100%" style="max-width:680px;margin:6px 0" font-family="monospace" font-size="11"><defs><marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#4ea3ff"/></marker><marker id="aw" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#ffb454"/></marker></defs><text x="10" y="16" fill="#8aa0b4">Nested investigation loops</text>${['Prepare','Detect / Analyze','Contain / Eradicate / Recover','Lessons'].map((t,n)=>{const x=20+n*160;return `<rect x="${x}" y="40" width="140" height="34" rx="7" fill="#111a24" stroke="#2a3a4c"/><text x="${x+70}" y="61" fill="#e7edf3" text-anchor="middle">${t}</text>`;}).join('')}${[0,1,2].map(n=>{const x=20+n*160;return `<line x1="${x+140}" y1="57" x2="${x+160}" y2="57" stroke="#4ea3ff" stroke-width="2" marker-end="url(#ar)"/>`;}).join('')}<path d="M650,74 C650,120 90,120 90,74" fill="none" stroke="#ffb454" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#aw)"/><text x="330" y="112" fill="#ffb454" text-anchor="middle">lessons learned feed the next Prepare (never truly closes)</text><rect x="60" y="150" width="240" height="60" rx="8" fill="#0d141d" stroke="#1f6b47"/><text x="180" y="170" fill="#51d88a" text-anchor="middle">PEAK hunt loop</text><text x="180" y="188" fill="#8aa0b4" text-anchor="middle">hypothesis -> execute -> finding</text><text x="180" y="202" fill="#8aa0b4" text-anchor="middle">-> NEW hypothesis</text><rect x="380" y="150" width="240" height="60" rx="8" fill="#0d141d" stroke="#244a6e"/><text x="500" y="170" fill="#4ea3ff" text-anchor="middle">F3EAD intel loop</text><text x="500" y="188" fill="#8aa0b4" text-anchor="middle">find·fix·finish·exploit</text><text x="500" y="202" fill="#8aa0b4" text-anchor="middle">·analyze·disseminate</text><line x1="300" y1="180" x2="380" y2="180" stroke="#8aa0b4" stroke-width="1.5" marker-end="url(#ar)"/></svg>`;}
+function renderDebrief(){
+ const gl=GLOSS.map(g=>`<dt>${g[0]}</dt><dd>${g[1]}</dd>`).join('');
+ const amap=ATTACK.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td><code>${r[2]}</code></td></tr>`).join('');
+ const read=READING.map(r=>`<li><span class="tag">${r[0]}</span><a href="${r[2]}" target="_blank" rel="noopener">${r[1]}</a></li>`).join('');
+ const kit=KIT.map(k=>`<li><span class="tag ${k[0]}">${k[0]==='must'?'must-have':'good'}</span><a href="${k[3]}" target="_blank" rel="noopener">${k[1]}</a> — <span style="color:#cdd9e5">${k[2]}</span></li>`).join('');
+ return `<div><div class="take"><h4>Methodology in one line</h4><p>Lead → distill to a behavior → triage by victimology → pivot on durable fingerprints → fight bias with ACH + calibrated confidence → read the attacker to get ahead → <b>log it structured so the next case matches instantly.</b></p></div>
+  <div class="sechead">Loop map</div>${loopSvg()}
+  <div class="sechead">Analyst's kit — must-have vs. good-to-have</div><ul class="kit">${kit}</ul>
+  <div class="sechead">Glossary (frameworks, biases, SATs, structured intel)</div><dl class="gl">${gl}</dl>
+  <div class="sechead">ATT&amp;CK map</div><table class="map"><tr><th>Tactic</th><th>Technique</th><th>ID</th></tr>${amap}</table>
+  <div class="sechead">Field notes — editable, copy to your log</div><textarea id="notesArea" spellcheck="false" style="min-height:320px">${fieldNotes().replace(/</g,'&lt;')}</textarea>
+  <div class="copyrow"><button class="btn" id="copyBtn">Copy field notes</button><span class="copied" id="copied">Copied ✓</span></div>
+  <div class="sechead">Reading room</div><ul class="reading">${read}</ul>
+  <div class="disc"><b>Sources &amp; accuracy:</b> OneDrive artifact facts are drawn from and checked against: Brian Maloney’s <b>OneDriveExplorer</b> and his <b>“OneDrive Evolution”</b> reference (the artifact format changes across client versions — Major Versions 17–26, <code>.dat</code> → SQLite), Maloney’s SANS writeup, Yogesh Khatri’s ODL-log research (<code>odl.py</code>), and the Forensics Wiki. ATT&amp;CK IDs map the behavior to MITRE ATT&amp;CK (Exfiltration to Cloud Storage, T1567.002, etc.). Every console panel uses <b>synthetic</b> file names, user/host names, fileIDs, and timestamps — there is no real case data — and the paths/artifact names shown (<code>&lt;UserCid&gt;.dat</code>, the settings/logs folders, the <code>.odl</code> family, ObfuscationStringMap.txt) are documented technique facts, not IOCs. The “attacker” lane is the <b>insider’s</b> plausible reasoning about an authorized user — inference, never a confession — and is weighted especially carefully because a real person’s livelihood can ride on the calibration. The trainer’s core discipline is stating what each artifact <b>proves</b> and what it does <b>not</b> (namespace presence ≠ local bytes ≠ upload ≠ recipient access). This is an independent educational reconstruction and is not affiliated with or endorsed by Brian Maloney, Yogesh Khatri, SANS, Microsoft, or any other party named here.</div></div>`;
+}
+
+let toastStep=-1;
+function showToast(msg){const t=document.getElementById('toast');document.getElementById('toastMsg').textContent=msg;t.classList.add('show');}
+function hideToast(){document.getElementById('toast').classList.remove('show');}
+
+function render(){
+ const t=S[i];seen.add(i);recomputeGaps();renderFw(t);
+ let h=`<div class="phase">${t.phase.replace(/↻/,'<span style="color:var(--warn)">↻</span>')}</div><h2 class="title">${t.title}</h2>`;
+ if(view==='atk')h+=`<div class="atkbanner">🗡 Attacker view — toggle back to 🛡 Defender any time</div>`;
+ if(t.loop)h+=`<div class="loopbadge">↻ ${t.loop.type}</div>`;
+ if(t.lead)h+=leadHTML(t.lead);
+ if(t.newConcept)h+=`<div class="newconcept"><div class="lbl">New concept · ${t.newConcept.term}</div>${t.newConcept.def}</div>`;
+ h+=`<div class="scene">${t.scene||''}</div>`;
+ if(t.panes&&t.panes.length)h+=`<div class="workspace ${t.panes.length>1?'ws2':''}">${t.panes.map(paneHTML).join('')}</div>`;
+ if(t.loop)h+=`<div class="crit"><h4>Loop — why this isn't linear</h4><p>${t.loop.text}</p></div>`;
+ // reasoning OR attacker panel depending on view
+ if(view==='atk'&&t.attacker)h+=atkHTML(t.attacker);
+ else if(t.reason)h+=reasonHTML(t.reason);
+ if(view==='atk'&&t.reason)h+=`<details style="margin:10px 0"><summary style="cursor:pointer;color:var(--accent2);font-size:12.5px">Show defender reasoning too</summary>${reasonHTML(t.reason)}</details>`;
+ if(t.bias)h+=`<div class="bias"><h4>⚑ Bias check</h4><p><b>Risk:</b> ${t.bias.risk}</p><p class="ct"><b>Counter:</b> ${t.bias.counter}</p></div>`;
+ if(t.decision){h+=`<div class="decision"><div class="q">⟶ ${t.decision.prompt}</div>`;t.decision.options.forEach((o,idx)=>h+=`<button class="opt" data-opt="${idx}">${o.text}<span class="mk"></span></button>`);h+=`<div class="fb" id="fb"></div></div>`;}
+ if(t.crit)h+=`<div class="crit"><h4>Critical detail</h4><p>${t.crit}</p></div>`;
+ if(t.keypoints&&t.keypoints.length)h+=`<div class="kp"><h4>Key points</h4><ul>${t.keypoints.map(k=>`<li>${k}</li>`).join('')}</ul></div>`;
+ if(t.take)h+=`<div class="take"><h4>Actionable takeaway → notes</h4><p>${t.take}</p></div>`;
+ if(t.refs&&t.refs.length)h+=`<div class="refs">Reference: ${t.refs.map(r=>`<a href="${r[1]}" target="_blank" rel="noopener">${r[0]}</a>`).join(' · ')}</div>`;
+ if(t.debrief)h+=renderDebrief();
+ card.innerHTML=h;
+ if(t.decision){const fb=card.querySelector('#fb');card.querySelectorAll('.opt').forEach(btn=>btn.addEventListener('click',()=>{const ch=t.decision.options[+btn.dataset.opt];card.querySelectorAll('.opt').forEach((b,idx)=>{b.disabled=true;const o=t.decision.options[idx];if(o.correct){b.classList.add('correct');b.querySelector('.mk').textContent='✓';}if(b===btn&&!o.correct){b.classList.add('wrong');b.querySelector('.mk').textContent='✕';}});fb.className='fb show '+(ch.correct?'ok':'no');fb.innerHTML=(ch.correct?'<b>Correct. </b>':'<b>Not quite. </b>')+ch.feedback;}));}
+ if(t.debrief){const ta=card.querySelector('#notesArea'),cp=card.querySelector('#copyBtn'),dn=card.querySelector('#copied');cp.addEventListener('click',async()=>{ta.select();try{await navigator.clipboard.writeText(ta.value);}catch(e){try{document.execCommand('copy');}catch(_){}}dn.classList.add('show');setTimeout(()=>dn.classList.remove('show'),2200);});}
+ bar.style.width=(i/(S.length-1)*100)+'%';counter.textContent=`Turn ${i+1} / ${S.length}`;prevBtn.disabled=(i===0);nextBtn.textContent=(i===S.length-1)?'Done':'Advance ▶';
+ const c=t.conf||0;confNum.textContent=c+'%';confBar.style.width=c+'%';renderGaps();
+ stepsEl.querySelectorAll('li').forEach((li,idx)=>{li.classList.toggle('active',idx===i);li.classList.toggle('done',seen.has(idx)&&idx!==i);});
+ // log-cue toast
+ if(t.logcue && toastStep!==i){toastStep=i;showToast(t.logcue);} else if(!t.logcue){hideToast();}
+ window.scrollTo({top:0,behavior:'smooth'});
+}
+prevBtn.addEventListener('click',()=>{if(i>0){i--;render();}});
+nextBtn.addEventListener('click',()=>{if(i<S.length-1){i++;render();}});
+document.addEventListener('keydown',e=>{if(document.getElementById('walkMode').style.display==='none')return;if(e.key==='ArrowRight'&&i<S.length-1){i++;render();}if(e.key==='ArrowLeft'&&i>0){i--;render();}});
+document.getElementById('vDef').addEventListener('click',()=>{view='def';document.getElementById('vDef').classList.add('on');document.getElementById('vAtk').classList.remove('on');render();});
+document.getElementById('vAtk').addEventListener('click',()=>{view='atk';document.getElementById('vAtk').classList.add('on');document.getElementById('vDef').classList.remove('on');render();});
+
+/* toast wiring */
+document.getElementById('toastX').addEventListener('click',hideToast);
+document.getElementById('toastDismiss').addEventListener('click',hideToast);
+document.getElementById('toastGo').addEventListener('click',()=>{hideToast();switchMode('log');});
+
+/* ================= GENERATOR ================= */
+const promptHost=document.getElementById('promptHost'),selType=document.getElementById('selType'),selPack=document.getElementById('selPack'),selDiff=document.getElementById('selDiff');
+EX_TYPES.forEach(t=>{const o=document.createElement('option');o.value=t.id;o.textContent=t.name;selType.appendChild(o);});
+EX_PACKS.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.name;selPack.appendChild(o);});
+function pick(a){return a[Math.floor(Math.random()*a.length)];}
+function pickF(arr,diff){const f=diff?arr.filter(x=>x.diff===diff):arr;return pick(f.length?f:arr);}
+function genRep(){
+ const type=selType.value?EX_TYPES.find(t=>t.id===selType.value):pickF(EX_TYPES,selDiff.value);
+ const pack=selPack.value?EX_PACKS.find(p=>p.id===selPack.value):pickF(EX_PACKS,selDiff.value);
+ const comp=pick(COMPLICATIONS); const leadLine=pick(LEAD_TASKS[type.id]||["\"Walk me through it.\""]);
+ let inputLabel,inputText;
+ if(type.id==="distill"){if(Math.random()<0.5){inputLabel="Intel excerpt";inputText=pack.intel;}else{inputLabel="Exec / client what-if";inputText=pack.exec;}}
+ else if(type.id==="bias"){inputLabel="Colleague's conclusion";inputText=pack.biasclaim;}
+ else if(type.id==="infer"){inputLabel="What you've observed";inputText=pack.intel+"\n\nTwist: "+pack.twist;}
+ else if(type.id==="relevance"){inputLabel="Two artifacts";inputText="A) "+pack.vector+" (first seen on HOST-A)\nB) "+pack.c2+" (from a process on HOST-A, same day)\n\nTwist: "+pack.twist;}
+ else if(type.id==="pyramid"){inputLabel="Fragile IOC";inputText="hash: "+pack.hash+"\nip:   "+pack.ip+"\ncontext: "+pack.vector;}
+ else if(type.id==="scope"){inputLabel="Hypothesis to prove/refute";inputText=pack.intel;}
+ else if(type.id==="logit"){inputLabel="Incident to decompose";inputText=pack.intel+"\nVector: "+pack.vector+"\nC2: "+pack.c2+"\nTwist: "+pack.twist;}
+ else {inputLabel="Situation";inputText=pack.intel;}
+ promptHost.innerHTML=`<div class="promptcard"><div class="pc-head"><span class="pc-type">${type.name}</span><span class="pc-pack">· ${pack.name}</span><span class="tag" style="margin-left:auto">${type.diff}</span></div><div class="pc-body">
+   <div class="pc-sect"><div class="h">Your task</div><div class="t">${type.task}</div></div>
+   <div class="pc-sect"><div class="h">${inputLabel}</div><div class="pc-input">${inputText}</div></div>
+   <div class="pc-sect"><div class="h">Hunt Lead</div><div class="pc-lead"><div class="ava">${LEAD_INIT}</div><div><div style="font-size:11px;color:#9fc2e6;font-weight:700">${LEAD_NAME} · ${LEAD_ROLE}</div><div style="font-size:13.5px;color:#e4eefb">${leadLine}</div></div></div></div>
+   <div class="pc-sect"><div class="h">Complication</div><div class="pc-twist">⚠ ${comp}</div></div>
+   <div class="pc-sect" style="font-size:11.5px;color:var(--faint)">Grounded in: ${pack.src} — paraphrased for training; verify before operational use.</div>
+   <div class="approach" id="approach"><h4>Model approach (one good way — not the only way)</h4><ol>${type.approach.map(a=>`<li>${a}</li>`).join('')}</ol></div>
+   <div class="genrow"><button class="btn ghost" id="revealBtn">Reveal model approach</button><button class="btn ghost" id="copyPromptBtn">Copy prompt</button><button class="btn" id="againBtn">New rep ▶</button></div>
+ </div></div>`;
+ document.getElementById('revealBtn').addEventListener('click',()=>document.getElementById('approach').classList.add('show'));
+ document.getElementById('againBtn').addEventListener('click',genRep);
+ document.getElementById('copyPromptBtn').addEventListener('click',async()=>{const txt=`EXERCISE: ${type.name} (${type.diff})\nScenario: ${pack.name}\n\nTASK: ${type.task}\n\n${inputLabel}:\n${inputText}\n\nHunt Lead: ${leadLine}\nComplication: ${comp}\nSource: ${pack.src}`;try{await navigator.clipboard.writeText(txt);}catch(e){}const b=document.getElementById('copyPromptBtn');b.textContent='Copied ✓';setTimeout(()=>b.textContent='Copy prompt',1600);});
+ window.scrollTo({top:0,behavior:'smooth'});
+}
+document.getElementById('genBtn').addEventListener('click',genRep);
+
+/* ================= CASE LOG ================= */
+function fillSelect(id,arr){const s=document.getElementById(id);arr.forEach(v=>{const o=document.createElement('option');o.textContent=v;s.appendChild(o);});}
+fillSelect('f_vector',VECTORS);fillSelect('f_c2',C2S);fillSelect('f_persist',PERSISTS);fillSelect('f_sector',SECTORS);
+const FORM_IDS=['f_name','f_date','f_vector','f_c2','f_exec','f_persist','f_sector','f_region','f_conf','f_source','f_attack','f_dA','f_dC','f_dI','f_dV','f_files','f_cmds','f_fprint','f_ach','f_notes'];
+function readForm(){const o={};FORM_IDS.forEach(id=>o[id]=document.getElementById(id).value.trim());return o;}
+function renderLogTable(){const host=document.getElementById('logTableHost');if(!LOG.length){host.innerHTML='<div class="emptyrow">No entries yet. Add one above, or load the OneDrive exfil example.</div>';return;}
+ const rows=LOG.map((e,idx)=>{const m=lastFind&&matchEntry(e,lastFind.field,lastFind.val);return `<tr class="${m?'match':''}"><td>${e.f_name||'—'}</td><td>${e.f_vector||''}</td><td>${e.f_c2||''}</td><td>${e.f_exec||''}</td><td>${e.f_fprint||''}</td><td>${e.f_attack||''}</td><td>${e.f_dA||''}</td><td>${e.f_conf||''}</td></tr>`;}).join('');
+ host.innerHTML=`<table class="logtable"><tr><th>Incident</th><th>Vector</th><th>C2</th><th>Execution</th><th>Fingerprint</th><th>ATT&CK</th><th>Adversary</th><th>Conf</th></tr>${rows}</table>`;}
+function matchEntry(e,field,val){val=(val||'').toLowerCase();if(!val)return false;if(field==='c2')return (e.f_c2||'').toLowerCase().includes(val);if(field==='vector')return (e.f_vector||'').toLowerCase().includes(val);if(field==='attack')return (e.f_attack||'').toLowerCase().includes(val);if(field==='fprint')return (e.f_fprint||'').toLowerCase().includes(val);return false;}
+document.getElementById('addEntry').addEventListener('click',()=>{const e=readForm();if(!e.f_name){alert('Give the entry an incident name/alias first.');return;}LOG.push(e);lastFind=null;renderLogTable();window.scrollTo({top:document.getElementById('logTableHost').offsetTop-80,behavior:'smooth'});});
+document.getElementById('clearForm').addEventListener('click',()=>{FORM_IDS.forEach(id=>{const el=document.getElementById(id);if(el.tagName==='SELECT')el.selectedIndex=(id==='f_conf'?1:0);else el.value='';});});
+document.getElementById('loadDemo').addEventListener('click',()=>{const d={f_name:'HUNT-EXFIL-OD (personal OneDrive)',f_date:'2026-10-16',f_vector:VECTORS[5],f_c2:C2S[3],f_exec:'OneDriveExplorer on the Personal settings DB; odl.py de-obfuscates ODL logs',f_persist:PERSISTS[4],f_sector:SECTORS[8],f_region:'single managed host (insider / departing employee)',f_conf:'Moderate',f_source:'internal IR + OneDriveExplorer (Maloney) + odl.py (Khatri) + Forensics Wiki',f_attack:'T1078, T1074.001, T1005, T1567, T1567.002, T1070.004',f_dA:'departing insider (authorized user) \u2014 intent NOT proven by artifacts',f_dC:'personal OneDrive cloud sync (consumer tenant)',f_dI:'personal OneDrive account signed in on managed host LT-DEV-114',f_dV:'corporate files (Q3_roadmap.pptx, pricing_model.xlsx, client_contracts\\)',f_files:'...\\OneDrive\\settings\\Personal\\<UserCid>.dat (+ .previous); ...\\logs\\Personal\\*.odl/.odlgz',f_cmds:'OneDriveExplorer -f <UserCid>.dat (or -s SQLite); odl.py -o out.csv (needs ObfuscationStringMap.txt)',f_fprint:'personal OneDrive signed in on a managed host (only Business1 sanctioned); corp files in the Personal namespace + logged sync ops',f_ach:'ruled out: benign personal use (corp-named files); shared-folder autosync (tested); online-only placeholders scoped out; USB/email ruled out by corroboration',f_notes:'FACT vs INFERENCE vs CANNOT-PROVE separated for HR/Legal; matched parser to client Major Version 25.x (artifact drift); ODL logs obfuscated + rolling; intent and recipient-access NOT provable from host artifacts'};FORM_IDS.forEach(id=>{const el=document.getElementById(id);if(el.tagName==='SELECT'){const idx=[...el.options].findIndex(o=>o.textContent===d[id]);el.selectedIndex=idx>=0?idx:0;}else el.value=d[id]||'';});});
+document.getElementById('findBtn').addEventListener('click',()=>{lastFind={field:document.getElementById('findField').value,val:document.getElementById('findVal').value};renderLogTable();});
+document.getElementById('clearFind').addEventListener('click',()=>{lastFind=null;document.getElementById('findVal').value='';renderLogTable();});
+function copyText(txt,el){(async()=>{try{await navigator.clipboard.writeText(txt);}catch(e){}const c=document.getElementById('logCopied');c.classList.add('show');setTimeout(()=>c.classList.remove('show'),1800);})();}
+document.getElementById('exportJson').addEventListener('click',()=>copyText(JSON.stringify(LOG,null,2)));
+document.getElementById('exportTsv').addEventListener('click',()=>{const cols=FORM_IDS;const head=cols.join('\t');const body=LOG.map(e=>cols.map(c=>(e[c]||'').replace(/\t/g,' ').replace(/\n/g,'; ')).join('\t')).join('\n');copyText(head+'\n'+body);});
+renderLogTable();
+
+/* ================= MODE SWITCH ================= */
+const mWalk=document.getElementById('mWalk'),mGen=document.getElementById('mGen'),mLog=document.getElementById('mLog'),walkMode=document.getElementById('walkMode'),genModeEl=document.getElementById('genMode'),logModeEl=document.getElementById('logMode');
+function switchMode(m){
+ [mWalk,mGen,mLog].forEach(b=>b.classList.remove('on'));
+ walkMode.style.display='none';genModeEl.style.display='none';logModeEl.style.display='none';
+ if(m==='walk'){mWalk.classList.add('on');walkMode.style.display='';}
+ if(m==='gen'){mGen.classList.add('on');genModeEl.style.display='';if(!promptHost.innerHTML)genRep();}
+ if(m==='log'){mLog.classList.add('on');logModeEl.style.display='';}
+}
+mWalk.addEventListener('click',()=>switchMode('walk'));
+mGen.addEventListener('click',()=>switchMode('gen'));
+mLog.addEventListener('click',()=>switchMode('log'));
+
+document.getElementById('footer').innerHTML=`<div>Build <span class="mono">${BUILD_ID}</span> · generated <span class="mono">${STAMP_UTC}</span> · single-file offline HTML · no external dependencies · no fabricated IOCs.</div><div style="margin-top:6px">Case: OneDrive data-exfil (insider). Analyst + insider lanes · bias drills · structured case log. Hunt Lead: ${LEAD_NAME}. Keyboard ← → in walkthrough.</div>`;
+buildSteps();render();
+</script>
+</body>
+</html>

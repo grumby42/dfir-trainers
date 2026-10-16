@@ -1,8 +1,10 @@
 # DFIR Trainers
 
 Interactive, **single-file, fully-offline** HTML trainers that walk you through
-real intrusion investigations **turn-by-turn** — the reasoning, the frameworks,
-the bias checks, and the detection engineering — not just a list of IOCs.
+real DFIR investigations **turn-by-turn** — intrusions and insider data-exfil —
+the reasoning, the frameworks, the bias checks, and the detection engineering,
+not just a list of IOCs. Four cases, four distinct evidence domains: endpoint,
+web-app, network, and cloud-sync/file-provenance.
 
 Each trainer is built to a shared template and a strict fact-check standard (see
 **[`TRAINER_SPEC.md`](TRAINER_SPEC.md)**). Every technical claim is checked
@@ -22,6 +24,7 @@ dependencies, no network calls, no telemetry.
 | **[Squidoor / FinalDraft](squidoor/)** | CL-STA-0049 — suspected Chinese espionage backdoor (endpoint + cloud dead-drop C2) | ✅ Published |
 | **[ToolShell / SharePoint](toolshell/)** | CVE-2025-49704/49706 + 53770/53771 — on-prem SharePoint RCE; stolen MachineKey; multi-actor | ✅ Published |
 | **[Salt Typhoon](salt-typhoon/)** | PRC-affiliated intrusions into telecom core (network-device DFIR, no EDR, LOTL, long dwell) | ✅ Published |
+| **[OneDrive Data-Exfil](onedrive/)** | Insider exfiltration to a personal OneDrive (cloud-sync/file-provenance forensics; proves-vs-doesn't; version drift) | ✅ Published |
 
 ---
 
