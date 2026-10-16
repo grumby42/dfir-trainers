@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DFIR Hunt Trainer v4 — defender + attacker lanes, bias drills, case log</title>
+<style>
+  :root{
+    --bg:#070b10;--panel:#111a24;--panel2:#0d141d;--ink:#e7edf3;--muted:#8aa0b4;--faint:#5e7183;
+    --line:#1e2b3a;--line2:#2a3a4c;--accent:#37d0a8;--accent2:#4ea3ff;--warn:#ffb454;--bad:#ff6b6b;
+    --good:#51d88a;--purple:#b48cff;--chip:#172231;--evid:#05090d;--evidink:#b7e3cf;--shadow:0 12px 34px rgba(0,0,0,.5);--winbar:#0a1420;--lead:#1b2a3f;--atk:#2a1113;--atkln:#5a2b2f;--atkink:#ffd2cf;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:radial-gradient(1200px 600px at 80% -10%,#0e1a26 0,transparent 60%),radial-gradient(900px 500px at -10% 10%,#0c1622 0,transparent 55%),var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.55;-webkit-font-smoothing:antialiased}
+  code,.mono{font-family:"SF Mono",SFMono-Regular,ui-monospace,"Cascadia Code",Consolas,Menlo,monospace}
+  .wrap{max-width:1180px;margin:0 auto;padding:16px 14px 90px}
+  header.top{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:12px}
+  header.top h1{font-size:18px;margin:0;letter-spacing:.3px}
+  header.top .sub{color:var(--muted);font-size:12.5px}
+  .badge{font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--accent);border:1px solid var(--line2);border-radius:999px;padding:3px 10px;background:var(--chip)}
+  .modebar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+  .modebtn{background:var(--panel2);border:1px solid var(--line2);color:var(--muted);border-radius:9px;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:600}
+  .modebtn.on{background:var(--chip);color:var(--ink);border-color:var(--accent)}
+
+  .viewtoggle{display:inline-flex;border:1px solid var(--line2);border-radius:9px;overflow:hidden;margin-bottom:12px}
+  .viewtoggle button{background:var(--panel2);border:none;color:var(--muted);padding:7px 14px;cursor:pointer;font-size:12.5px;font-weight:700}
+  .viewtoggle button.on.def{background:#0f1e2c;color:var(--accent2)}
+  .viewtoggle button.on.atk{background:var(--atk);color:#ff8f8a}
+
+  .fwstrip{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px}
+  @media(max-width:760px){.fwstrip{grid-template-columns:repeat(2,1fr)}}
+  .fw{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+  .fw .k{font-size:9.5px;text-transform:uppercase;letter-spacing:.7px;color:var(--faint)}
+  .fw .v{font-size:12.5px;font-weight:600;margin-top:2px}
+  .fw.changed{border-color:var(--accent);box-shadow:0 0 0 1px rgba(55,208,168,.25)}
+  .diamond{display:flex;gap:5px;margin-top:4px}
+  .dv{width:16px;height:16px;border-radius:4px;border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--faint);background:#0a121b}
+  .dv.on{background:#10251a;border-color:var(--good);color:var(--good)}
+  .layout{display:grid;grid-template-columns:1fr 310px;gap:16px}
+  @media(max-width:980px){.layout{grid-template-columns:1fr}}
+  .progress{height:5px;background:var(--panel);border-radius:999px;overflow:hidden;margin:2px 0 12px}
+  .progress>i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0;transition:width .35s}
+  .phase{font-size:10.5px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+  h2.title{margin:3px 0 4px;font-size:19px}
+  .loopbadge{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#1a1024;background:var(--warn);border-radius:999px;padding:3px 10px;font-weight:700;margin:6px 0}
+  .atkbanner{display:inline-flex;align-items:center;gap:7px;font-size:11px;color:#ffd2cf;background:var(--atk);border:1px solid var(--atkln);border-radius:999px;padding:3px 11px;font-weight:700;margin:6px 0}
+
+  .lead{display:flex;gap:10px;align-items:flex-start;background:var(--lead);border:1px solid #2b4360;border-radius:12px;padding:11px 13px;margin:12px 0}
+  .lead .ava{flex:0 0 34px;width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#4ea3ff,#b48cff);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#06101c}
+  .lead .who{font-size:11px;color:#9fc2e6;font-weight:700;margin-bottom:2px}.lead .who .role{color:var(--faint);font-weight:500}
+  .lead .msg{font-size:13.5px;color:#e4eefb}
+  .lead .tag{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--warn);border:1px solid #5a4a22;border-radius:5px;padding:1px 6px;margin-left:6px}
+
+  .newconcept{border:1px solid #33314a;background:#161327;border-radius:10px;padding:10px 12px;margin:10px 0}
+  .newconcept .lbl{font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--purple);font-weight:700}
+  .newconcept b{color:#e9e2ff}
+  .scene{margin:10px 0}.scene p{margin:8px 0}.scene strong{color:#fff}
+
+  .workspace{display:grid;gap:12px;margin:14px 0}.ws2{grid-template-columns:1fr 1fr}@media(max-width:720px){.ws2{grid-template-columns:1fr}}
+  .win{background:var(--evid);border:1px solid var(--line2);border-radius:10px;overflow:hidden;box-shadow:var(--shadow)}
+  .win .bar{display:flex;align-items:center;gap:8px;background:var(--winbar);border-bottom:1px solid var(--line);padding:7px 11px}
+  .win .bar .dots{display:flex;gap:5px}.win .bar .dots i{width:9px;height:9px;border-radius:50%}
+  .dr{background:#ff5f56}.dy{background:#ffbd2e}.dg{background:#27c93f}
+  .win .bar .app{font-size:11px;color:var(--muted);letter-spacing:.4px;text-transform:uppercase}.win .bar .app b{color:var(--accent2);font-weight:700}
+  .win pre{margin:0;padding:11px 13px;overflow-x:auto;font-size:12px;color:var(--evidink);line-height:1.5;font-family:ui-monospace,Menlo,Consolas,monospace}
+  .win pre .c{color:#56708a}.win pre .hi{color:var(--warn);font-weight:600}.win pre .r{color:var(--bad);font-weight:600}.win pre .g{color:var(--good)}.win pre .b{color:var(--accent2)}.win pre .p{color:var(--purple)}
+  .win.note pre{color:#cfe8dd}
+
+  .reason{border:1px solid var(--line2);border-radius:12px;overflow:hidden;margin:14px 0;background:var(--panel2)}
+  .reason .rh{background:#0c1622;padding:8px 12px;font-size:11px;letter-spacing:.7px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line)}
+  .reason .rb{padding:4px 12px 12px}
+  .rrow{padding:10px 0;border-bottom:1px dashed #1b2735}.rrow:last-child{border-bottom:none}
+  .rrow .lbl{font-size:10px;letter-spacing:.8px;text-transform:uppercase;font-weight:700;margin-bottom:3px}
+  .lbl.obs{color:var(--accent2)}.lbl.ori{color:var(--purple)}.lbl.rel{color:var(--warn)}.lbl.suf{color:var(--accent)}
+  .rrow .txt{font-size:13px;color:#d4e2ee}
+  .verdict{display:inline-block;font-size:10.5px;font-weight:700;border-radius:5px;padding:1px 7px;margin-left:6px;vertical-align:middle}
+  .verdict.linked{background:#10251a;color:var(--good);border:1px solid #1f6b47}.verdict.unknown{background:#2a2410;color:var(--warn);border:1px solid #6b561f}.verdict.unrelated{background:#241315;color:var(--bad);border:1px solid #6b2630}
+  .meter{height:8px;background:#0a121b;border-radius:999px;overflow:hidden;margin:6px 0;border:1px solid var(--line)}.meter>i{display:block;height:100%;background:linear-gradient(90deg,var(--bad),var(--warn),var(--good));transition:width .4s}
+  .move{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;border-radius:6px;padding:3px 9px;margin-top:4px}
+  .move.PIVOT{background:#12243a;color:var(--accent2);border:1px solid #244a6e}.move.COLLECT{background:#2a2410;color:var(--warn);border:1px solid #6b561f}.move.CONTAIN{background:#241315;color:var(--bad);border:1px solid #6b2630}.move.ADVANCE{background:#10251a;color:var(--good);border:1px solid #1f6b47}.move.LOOP{background:#2a1410;color:#ff9f6b;border:1px solid #7a3b1f}
+
+  /* attacker panel */
+  .atkpanel{border:1px solid var(--atkln);border-radius:12px;overflow:hidden;margin:14px 0;background:#160b0c}
+  .atkpanel .ah{background:#20100f;padding:8px 12px;font-size:11px;letter-spacing:.7px;text-transform:uppercase;color:#ff9f9a;border-bottom:1px solid var(--atkln)}
+  .atkpanel .ab{padding:4px 12px 12px}
+  .arow{padding:9px 0;border-bottom:1px dashed #3a2020}.arow:last-child{border-bottom:none}
+  .arow .lbl{font-size:10px;letter-spacing:.8px;text-transform:uppercase;font-weight:700;margin-bottom:3px;color:#ff8f8a}
+  .arow .txt{font-size:13px;color:var(--atkink)}
+  .arow.nextmv{background:#1c0d0e;margin:6px -12px -12px;padding:10px 12px}
+  .arow.nextmv .lbl{color:#ffb454}
+
+  .bias{border-left:3px solid #d98cff;background:#17121f;padding:9px 13px;border-radius:0 8px 8px 0;margin:13px 0}
+  .bias h4{margin:0 0 5px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#c9a6ff}
+  .bias p{margin:3px 0;font-size:13px;color:#e3d7f5}
+  .bias .ct{color:#9fe6c9}
+
+  .decision{border:1px solid #2a3a2f;background:#0f1a14;border-radius:10px;padding:13px;margin:14px 0}
+  .decision .q{font-weight:600;margin-bottom:9px}
+  .opt{display:block;width:100%;text-align:left;background:var(--panel2);color:var(--ink);border:1px solid var(--line2);border-radius:8px;padding:10px 12px;margin:6px 0;cursor:pointer;font-size:13.5px;transition:.12s}
+  .opt:hover{border-color:var(--accent)}.opt.correct{border-color:var(--good);background:#10251a}.opt.wrong{border-color:var(--bad);background:#261213}
+  .opt .mk{float:right;font-weight:700}
+  .fb{display:none;margin-top:9px;padding:10px 12px;border-radius:8px;font-size:13px}.fb.show{display:block}.fb.ok{background:#10251a;border:1px solid #1f6b47}.fb.no{background:#241317;border:1px solid #7a2b33}
+  .crit{border-left:3px solid var(--warn);background:#1c1710;padding:9px 13px;border-radius:0 8px 8px 0;margin:13px 0}
+  .crit h4,.kp h4,.take h4{margin:0 0 5px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+  .crit p{margin:3px 0;font-size:13.5px}
+  .kp{margin:13px 0 4px}.kp ul{margin:0;padding-left:18px}.kp li{margin:4px 0;font-size:13.5px}
+  .take{border-left:3px solid var(--accent);background:#0e1a18;padding:9px 13px;border-radius:0 8px 8px 0;margin:13px 0}.take p{margin:3px 0;color:#d7f3ea;font-size:13.5px}
+  .refs{font-size:12px;color:var(--muted);margin:12px 0 2px}.refs a{color:var(--accent2);text-decoration:none}.refs a:hover{text-decoration:underline}
+  .nav{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:16px}
+  .btn{background:var(--accent);color:#04231b;border:none;border-radius:9px;padding:11px 18px;font-weight:700;cursor:pointer;font-size:14px}.btn:hover{filter:brightness(1.08)}
+  .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line2);font-weight:600}.btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn.sm{padding:7px 12px;font-size:12.5px}
+
+  .rail .box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px;margin-bottom:12px}
+  .rail h3{margin:0 0 9px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+  .confnum{font-size:26px;font-weight:800;color:var(--accent)}.confsub{font-size:11px;color:var(--faint)}
+  .gaps{list-style:none;margin:8px 0 0;padding:0;font-size:12px}
+  .gaps li{padding:5px 8px;border-radius:6px;background:#1a1409;border:1px solid #3a2e12;color:var(--warn);margin:4px 0;display:flex;gap:7px}
+  .gaps li.closed{background:#0e1a14;border-color:#1f4a37;color:var(--good);text-decoration:line-through;opacity:.75}
+  .steps{list-style:none;margin:0;padding:0;font-size:12px;max-height:250px;overflow:auto}
+  .steps li{padding:5px 7px;border-radius:6px;color:var(--muted);cursor:pointer;display:flex;gap:8px;align-items:center}
+  .steps li .n{font-size:10px;width:16px;text-align:center;color:#3f5467}
+  .steps li.active{background:var(--chip);color:var(--ink)}.steps li.done{color:var(--accent)}.steps li.done .n::before{content:"✓"}.steps li.done .n{color:var(--accent)}
+  .steps li .lp{color:var(--warn);font-size:10px}
+  .biaswatch{font-size:11.5px;color:#c9a6ff;line-height:1.5}
+
+  .gl{font-size:12.5px}.gl dt{color:var(--accent);font-weight:700;margin-top:9px}.gl dd{margin:2px 0 0;color:#cdd9e5}
+  table.map{width:100%;border-collapse:collapse;font-size:12px;margin:10px 0}
+  table.map th,table.map td{border:1px solid var(--line2);padding:6px 8px;text-align:left;vertical-align:top}
+  table.map th{background:var(--chip);color:var(--muted);text-transform:uppercase;font-size:10px;letter-spacing:.5px}
+  table.map td code{color:var(--accent)}
+  textarea{width:100%;background:var(--evid);color:var(--evidink);border:1px solid var(--line2);border-radius:10px;padding:11px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;resize:vertical}
+  .copyrow{display:flex;gap:10px;align-items:center;margin-top:8px}
+  .copied{color:var(--good);font-size:13px;display:none}.copied.show{display:inline}
+  .reading a,.kit a{color:var(--accent2);text-decoration:none}.reading a:hover,.kit a:hover{text-decoration:underline}
+  .reading li,.kit li{margin:6px 0;font-size:13px}
+  .tag{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--faint);border:1px solid var(--line2);border-radius:4px;padding:1px 6px;margin-right:6px}
+  .tag.must{color:#06101c;background:var(--good);border-color:var(--good);font-weight:700}.tag.good{color:var(--warn);border-color:#5a4a22}
+  .disc{font-size:11.5px;color:#6a7f91;background:#0e141d;border:1px dashed var(--line2);border-radius:8px;padding:10px 12px;margin:14px 0}
+  .sechead{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:18px 0 6px;border-top:1px solid var(--line);padding-top:12px}
+  footer.stamp{margin-top:24px;border-top:1px solid var(--line);padding-top:12px;color:var(--faint);font-size:11px}footer.stamp .mono{color:#7fd8bd}
+
+  /* generator */
+  .gen{max-width:900px}.genctl{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+  .genctl select{background:var(--panel2);color:var(--ink);border:1px solid var(--line2);border-radius:8px;padding:9px 11px;font-size:13px}
+  .genctl label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-right:4px}
+  .promptcard{background:var(--panel);border:1px solid var(--line2);border-radius:14px;overflow:hidden;box-shadow:var(--shadow)}
+  .pc-head{background:var(--winbar);border-bottom:1px solid var(--line);padding:11px 15px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .pc-type{font-size:12px;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:.6px}.pc-pack{font-size:11px;color:var(--muted)}
+  .pc-body{padding:15px}.pc-sect{margin:0 0 14px}
+  .pc-sect .h{font-size:10.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--faint);margin-bottom:4px;font-weight:700}
+  .pc-sect .t{font-size:14px;color:#e6eef6}
+  .pc-input{background:var(--evid);border:1px solid var(--line2);border-radius:9px;padding:12px;font-size:13px;color:var(--evidink);font-family:ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap}
+  .pc-lead{display:flex;gap:10px;align-items:flex-start;background:var(--lead);border:1px solid #2b4360;border-radius:10px;padding:10px 12px}
+  .pc-lead .ava{flex:0 0 30px;width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#4ea3ff,#b48cff);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;color:#06101c}
+  .pc-twist{font-size:12.5px;color:var(--warn);background:#1c1710;border:1px solid #5a4a22;border-radius:8px;padding:8px 11px}
+  .approach{display:none;margin-top:12px;border-top:1px dashed var(--line2);padding-top:12px}.approach.show{display:block}
+  .approach h4{margin:0 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--good)}
+  .approach ol{margin:0;padding-left:18px}.approach li{margin:4px 0;font-size:13px}
+  .genrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+
+  /* case log */
+  .clog{max-width:1000px}
+  .guidebar{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+  @media(max-width:760px){.guidebar{grid-template-columns:1fr}}
+  .guide{background:var(--panel2);border:1px solid var(--line2);border-radius:10px;padding:10px 12px;font-size:12px}
+  .guide b{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px}
+  .guide.create b{color:var(--good)}.guide.update b{color:var(--warn)}.guide.ref b{color:var(--accent2)}
+  .form{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .fg{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}
+  @media(max-width:720px){.fg{grid-template-columns:1fr}}
+  .field label{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:3px}
+  .field input,.field select,.field textarea{width:100%;background:var(--panel2);color:var(--ink);border:1px solid var(--line2);border-radius:7px;padding:8px 9px;font-size:13px;font-family:inherit}
+  .field textarea{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;min-height:46px}
+  .field.full{grid-column:1 / -1}
+  .diamondgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;grid-column:1/-1}
+  .logtable{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:10px}
+  .logtable th,.logtable td{border:1px solid var(--line2);padding:5px 7px;text-align:left;vertical-align:top}
+  .logtable th{background:var(--chip);color:var(--muted);text-transform:uppercase;font-size:9.5px;letter-spacing:.4px}
+  .logtable tr.match{background:#10251a}
+  .findrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0 4px}
+  .findrow input,.findrow select{background:var(--panel2);color:var(--ink);border:1px solid var(--line2);border-radius:7px;padding:7px 9px;font-size:12.5px}
+  .emptyrow{color:var(--faint);font-size:12.5px;padding:8px 2px}
+
+  /* toast */
+  #toast{position:fixed;right:16px;bottom:16px;max-width:330px;background:#13202e;border:1px solid var(--accent2);border-radius:12px;box-shadow:var(--shadow);padding:12px 14px;z-index:50;display:none}
+  #toast.show{display:block;animation:slidein .25s ease}
+  @keyframes slidein{from{transform:translateY(12px);opacity:0}to{transform:none;opacity:1}}
+  #toast .tt{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--accent2);font-weight:700;margin-bottom:4px}
+  #toast .tm{font-size:13px;color:#dbe8f4;margin-bottom:9px}
+  #toast .tr{display:flex;gap:8px}
+  #toast .x{position:absolute;top:8px;right:11px;color:var(--faint);cursor:pointer;font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <span class="badge">DFIR Trainer v4</span>
+    <h1>Hunt &amp; IR Trainer — defender + attacker lanes, bias drills, case log</h1>
+    <span class="sub">Squidoor case · think like the attacker · fight confirmation bias · log structured intel</span>
+  </header>
+
+  <div class="modebar">
+    <button class="modebtn on" id="mWalk">▶ Case walkthrough</button>
+    <button class="modebtn" id="mGen">⚙ Exercise generator</button>
+    <button class="modebtn" id="mLog">🗃 Case log</button>
+  </div>
+
+  <!-- WALKTHROUGH -->
+  <div id="walkMode">
+    <div class="viewtoggle"><button class="def on" id="vDef">🛡 Defender view</button><button class="atk" id="vAtk">🗡 Attacker view</button></div>
+    <div class="fwstrip" id="fwstrip"></div>
+    <div class="progress"><i id="bar"></i></div>
+    <div class="layout">
+      <main><div id="card"></div>
+        <div class="nav"><button class="btn ghost" id="prev">◀ Back</button><div class="confsub" id="counter"></div><button class="btn" id="next">Advance ▶</button></div>
+      </main>
+      <aside class="rail">
+        <div class="box"><h3>Case confidence</h3><div class="confnum" id="confNum">5%</div><div class="confsub">closeness to a defensible, actionable conclusion</div><div class="meter" style="margin-top:8px"><i id="confBar" style="width:5%"></i></div></div>
+        <div class="box"><h3>Open collection gaps</h3><ul class="gaps" id="gaps"></ul></div>
+        <div class="box"><h3>Bias watch</h3><div class="biaswatch">At every step ask: am I <b>seeking disconfirming evidence</b>, or just evidence that fits my favored story? Note the bias, don't lean on it.</div></div>
+        <div class="box"><h3>Investigation phases</h3><ul class="steps" id="steps"></ul></div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- GENERATOR -->
+  <div id="genMode" style="display:none">
+    <div class="gen">
+      <p class="confsub" style="font-size:13px;color:var(--muted);margin-top:0">A "prompt book" of reps. Includes behavioral-inference and bias-spotting drills. Lock a type/scenario or leave random. Work it in your notebook, then reveal a model approach.</p>
+      <div class="genctl">
+        <div><label>Exercise</label><select id="selType"><option value="">Random</option></select></div>
+        <div><label>Scenario</label><select id="selPack"><option value="">Random</option></select></div>
+        <div><label>Difficulty</label><select id="selDiff"><option value="">Any</option><option>Foundational</option><option>Intermediate</option><option>Advanced</option></select></div>
+        <button class="btn" id="genBtn">Generate rep ▶</button>
+      </div>
+      <div id="promptHost"></div>
+    </div>
+  </div>
+
+  <!-- CASE LOG -->
+  <div id="logMode" style="display:none">
+    <div class="clog">
+      <div class="guidebar">
+        <div class="guide create"><b>Create an entry when…</b>you've confirmed a distinct incident/campaign — enough to fill the durable fields with evidence, not guesses.</div>
+        <div class="guide update"><b>Update an entry when…</b>new evidence changes a field, a rival hypothesis is ruled out, confidence shifts, or a sibling sample is found.</div>
+        <div class="guide ref"><b>Reference an entry when…</b>a new case shares a durable field (C2 method, naming convention, LOLBin). Search BEFORE you attribute — a match is a hypothesis, not a verdict.</div>
+      </div>
+      <div class="disc" style="margin-top:0"><b>Why the fixed schema:</b> this form IS your controlled vocabulary. Your "column B vs. column XA" problem is schema drift — if everyone free-texts, nothing correlates and nobody can clean it later. Enumerated fields + ATT&amp;CK IDs + Diamond vertices force alignment at entry time; that's exactly what shared standards (STIX, MISP, OpenCTI) do at scale by mapping everyone's data to one model. Trade-off: fixed fields can't capture every nuance — that's what <b>Notes</b> is for. Keep structured data structured; keep prose in Notes.</div>
+
+      <div class="form">
+        <div class="fg">
+          <div class="field"><label>Incident / alias</label><input id="f_name" placeholder="HUNT-SEA-DEF / Squidoor"></div>
+          <div class="field"><label>Date (first seen)</label><input id="f_date" placeholder="2026-10-15"></div>
+          <div class="field"><label>Initial access vector</label><select id="f_vector"></select></div>
+          <div class="field"><label>C2 method</label><select id="f_c2"></select></div>
+          <div class="field"><label>Execution / notable binary (LOLBin?)</label><input id="f_exec" placeholder="renamed cdb.exe (LOLBin), reflective load"></div>
+          <div class="field"><label>Persistence</label><select id="f_persist"></select></div>
+          <div class="field"><label>Victim sector</label><select id="f_sector"></select></div>
+          <div class="field"><label>Victim region</label><input id="f_region" placeholder="SE Asia / South America"></div>
+          <div class="field"><label>Confidence (calibrated)</label><select id="f_conf"><option>Low</option><option selected>Moderate</option><option>High</option></select></div>
+          <div class="field"><label>Source</label><input id="f_source" placeholder="internal IR / Unit 42 / Elastic"></div>
+          <div class="field full"><label>ATT&amp;CK technique IDs (comma-separated — the shared vocabulary)</label><input id="f_attack" placeholder="T1190, T1505.003, T1036.003, T1218, T1620, T1102.002"></div>
+          <div class="diamondgrid">
+            <div class="field"><label>Diamond — Adversary</label><input id="f_dA" placeholder="suspected: CL-STA-0049"></div>
+            <div class="field"><label>Diamond — Capability</label><input id="f_dC" placeholder="Squidoor/FinalDraft"></div>
+            <div class="field"><label>Diamond — Infrastructure</label><input id="f_dI" placeholder="Graph mailbox, Pastebin"></div>
+            <div class="field"><label>Diamond — Victim</label><input id="f_dV" placeholder="defense org, SE Asia"></div>
+          </div>
+          <div class="field full"><label>Files / processes / paths touched</label><textarea id="f_files" placeholder="C:\\ProgramData\\fontdrvhost.exe; config.ini; owa_cert.aspx in wwwroot; mspaint.exe (injected)"></textarea></div>
+          <div class="field full"><label>Commands / patterns</label><textarea id="f_cmds" placeholder="w3wp.exe->cmd->whoami /all; cdb.exe -cf config.ini; GET drafts?$search=subject:R_<id>"></textarea></div>
+          <div class="field full"><label>Naming conventions / durable fingerprints (the stuff that survives tool swaps)</label><input id="f_fprint" placeholder="renames LOLBin to a system-process name; P_/R_<id> draft subjects"></div>
+          <div class="field full"><label>Hypotheses ruled out (ACH residue — your anti-bias record)</label><textarea id="f_ach" placeholder="ruled out: commodity ransomware (no encryptor); pentest (no authz, real exfil); false positive (in-mem backdoor confirmed)"></textarea></div>
+          <div class="field full"><label>Notes (nuance that doesn't fit a field)</label><textarea id="f_notes" placeholder="well-engineered tooling but inconsistent ops hygiene; operators actively curated their Pastebin pages"></textarea></div>
+        </div>
+        <div class="genrow">
+          <button class="btn" id="addEntry">Add entry to log</button>
+          <button class="btn ghost" id="loadDemo">Load Squidoor as example</button>
+          <button class="btn ghost" id="clearForm">Clear form</button>
+        </div>
+      </div>
+
+      <div class="findrow">
+        <b style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Find matches (\"I see X → who else did X?\")</b>
+        <select id="findField"><option value="c2">C2 method</option><option value="vector">Initial access</option><option value="attack">ATT&amp;CK ID contains</option><option value="fprint">Fingerprint contains</option></select>
+        <input id="findVal" placeholder="value to match…">
+        <button class="btn ghost sm" id="findBtn">Highlight matches</button>
+        <button class="btn ghost sm" id="clearFind">Clear</button>
+      </div>
+      <div id="logTableHost"></div>
+      <div class="copyrow"><button class="btn ghost sm" id="exportJson">Copy log as JSON</button><button class="btn ghost sm" id="exportTsv">Copy log as TSV</button><span class="copied" id="logCopied">Copied ✓</span></div>
+      <div class="disc">Entries live in this browser session only (nothing leaves your machine). Export to carry them into MISP/OpenCTI or a spreadsheet. Remember: a shared field match is a <b>lead to test</b> — borrowed TTPs, RaaS affiliates, and copycats mean "same technique" ≠ "same actor." Weight by how rare and specific the overlap is, and seek independent corroboration.</div>
+    </div>
+  </div>
+
+  <div id="toast"><span class="x" id="toastX">✕</span><div class="tt" id="toastTitle">Case-log cue</div><div class="tm" id="toastMsg"></div><div class="tr"><button class="btn sm" id="toastGo">Open Case Log</button><button class="btn ghost sm" id="toastDismiss">Later</button></div></div>
+
+  <footer class="stamp" id="footer"></footer>
+</div>
+
+<script>
+/* ============================================================
+   DFIR HUNT & IR TRAINER v4
+   Case truth: SANS DFIR Summit 2026 transcript (Fakterman & Rochberger,
+   Unit 42) + Unit 42 / Elastic (REF7707). Generator scenarios paraphrase
+   real public reporting (see Reading Room). All in-tool consoles are
+   ILLUSTRATIVE/synthetic; pull real IOCs from the linked repos. No
+   fabricated IOC is presented as genuine. Attacker-view reasoning is
+   PLAUSIBLE INFERENCE from observed behavior, not a confession.
+   ============================================================ */
+const BUILD_ID="HUNT-20261015-2250Z (provisional · fact-checked rev.)";
+const STAMP_UTC="2026-10-15T22:50Z";
+const LEAD_NAME="Dana R.",LEAD_INIT="DR",LEAD_ROLE="Hunt Lead";
+
+const GAPS=[{id:"ident",text:"Confirm the odd process's true identity"},{id:"payload",text:"Recover & decode the in-memory payload"},{id:"c2",text:"Identify every C2 channel in use"},{id:"scope",text:"Map full scope (hosts, regions, sectors)"},{id:"siblings",text:"Find sibling samples / variants"},{id:"attrib",text:"Attribute the activity to an actor"},{id:"persist",text:"Enumerate all persistence & egress nodes"}];
+
+const GLOSS=[
+ ["Confirmation bias","Seeking, weighting, or remembering evidence that fits your favored hypothesis while discounting the rest. The #1 analyst failure mode. Counter: actively hunt DISCONFIRMING evidence and run ACH."],
+ ["Anchoring bias","Over-weighting the first impression (first alert, first theory). Counter: generate alternatives before committing; re-derive from the evidence, not the first guess."],
+ ["Availability bias","The case you just read colors everything — 'I saw Outlook C2 last week so this must be that actor.' Dangerous precisely where pattern-matching is useful. Counter: consider base rates and borrowed-TTP explanations; demand independent corroborators."],
+ ["Base-rate neglect","Ignoring how common the benign explanation is. A rare-looking artifact may still be mundane at scale. Counter: ask 'how often is this benign here?' before escalating."],
+ ["Structured analytic techniques (SATs)","Methods (ACH, devil's advocate, key-assumptions check, red-teaming your own conclusion) that force rigor and expose bias. From Heuer's 'Psychology of Intelligence Analysis.'"],
+ ["Analysis of Competing Hypotheses (ACH)","List plausible explanations, then seek evidence that DISPROVES each. You're 'done enough' when one survives the decision's evidence need — not when you've piled up confirmation."],
+ ["Think-like-the-attacker","Reasoning from the adversary's goal backward: given what I want and what the recon showed, which weakness would I pivot off next? Used to anticipate and pre-position detections — a hypothesis engine, not a certainty."],
+ ["Where leads come from","Intel/advisories, closed incidents, a hypothesis backlog (HEARTH), ATT&CK gaps, crown-jewel assurance, leadership asks, and your own ideas. A Hunt Lead owns the queue; scope every lead regardless."],
+ ["Distillation","Turning prose (a report or an exec's sentence) into a queryable hunt: behavior (not IOC) → hypothesis → data source → scope → hit/miss."],
+ ["Structured threat intel","Recording incidents in a FIXED schema (ATT&CK IDs, Diamond vertices, enumerated fields) so they correlate across cases and teams. Free-text spreadsheets don't scale; standards (STIX/MISP/OpenCTI) exist to map everyone's data to one model."],
+ ["Attack Flow","MITRE/CTID project modelling incidents as ordered sequences of actions + conditions — captures the SHAPE of movement, better for anticipating next steps than a flat IOC list."],
+ ["PEAK","Prepare → Execute → Act. Splunk/SURGe (Bianco & Fetterman). Hunt types: Flames (hypothesis), Embers (baseline), Alchemy (model-assisted)."],
+ ["Diamond Model","Adversary, Capability, Infrastructure, Victim — pivot across edges to find related events; predictive when 3 vertices are known."],
+ ["Pyramid of Pain","Indicators ranked by pain-to-adversary: hashes/IPs → domains → network/host artifacts → tools → TTPs (max pain, most durable — what you profile and detect on)."],
+ ["F3EAD","Find, Fix, Finish, Exploit, Analyze, Disseminate — the loop that turns findings into intel that feeds the next Find."],
+ ["LOLBAS / LOLBin","A trusted, signed, pre-installed binary (cdb.exe) abused so no obviously-malicious tool is dropped."]
+];
+
+const ATTACK=[
+ ["Initial Access","Exploit Public-Facing Application (IIS)","T1190"],
+ ["Persistence","Web Shell","T1505.003"],
+ ["Persistence","Scheduled Task","T1053.005"],
+ ["Defense Evasion","Masquerading: Rename System Utility / Match Legit Name","T1036.003 / .005"],
+ ["Defense Evasion","System/Signed Binary Proxy (cdb.exe LOLBin)","T1218 / T1127"],
+ ["Defense Evasion","Reflective Code Loading","T1620"],
+ ["Defense Evasion","Deobfuscate/Decode (Base64/AES+XOR/Zlib)","T1140"],
+ ["Command & Control","Encrypted Channel: Symmetric Crypto (AES)","T1573.001"],
+ ["Execution","PowerShell (without powershell.exe)","T1059.001"],
+ ["Defense Evasion","Process Injection: PE Injection (mspaint/conhost)","T1055 / .002"],
+ ["Lateral Movement / Cred Access","Pass the Hash","T1550.002"],
+ ["Discovery","Process / Network Service / Registry Discovery","T1057 / T1046 / T1012"],
+ ["Command & Control","Web Service: Outlook via Microsoft Graph API","T1102.003 (Elastic)"],
+ ["Command & Control","Protocol Tunneling (DNS / ICMP channels)","T1572"],
+ ["Command & Control","Web Service: Pastebin","T1102"],
+ ["Exfiltration","Exfiltration Over Web Service","T1567"]
+];
+
+const READING=[
+ ["Primary","Unit 42 — Squidoor","https://unit42.paloaltonetworks.com/advanced-backdoor-squidoor/"],
+ ["Primary","Elastic — FINALDRAFT (REF7707)","https://www.elastic.co/security-labs/finaldraft"],
+ ["Campaign","Elastic — Fragile Web of REF7707 (attacker behavior read)","https://www.elastic.co/security-labs/fragile-web-ref7707"],
+ ["Bias","Heuer — Psychology of Intelligence Analysis (CIA, free)","https://www.cia.gov/resources/csi/books-monographs/psychology-of-intelligence-analysis/"],
+ ["Intel model","OASIS STIX","https://oasis-open.github.io/cti-documentation/stix/intro"],
+ ["Intel platform","MISP","https://www.misp-project.org/"],
+ ["Intel model","MITRE/CTID Attack Flow","https://center-for-threat-informed-defense.github.io/attack-flow/"],
+ ["IOCs","Unit 42 Timely Threat Intel","https://github.com/PaloAltoNetworks/Unit42-timely-threat-intel"],
+ ["Rules","Elastic protections-artifacts (YARA)","https://github.com/elastic/protections-artifacts"],
+ ["Rules","SigmaHQ","https://github.com/SigmaHQ/sigma"],
+ ["LOLBAS","LOLBAS — Cdb","https://lolbas-project.github.io/lolbas/OtherMSBinaries/Cdb/"],
+ ["Framework","PEAK","https://www.splunk.com/en_us/blog/security/peak-threat-hunting-framework.html"],
+ ["Framework","Diamond Model (paper)","https://apps.dtic.mil/sti/pdfs/ADA586960.pdf"],
+ ["Framework","Pyramid of Pain","https://detect-respond.blogspot.com/2013/03/the-pyramid-of-pain.html"],
+ ["Framework","MITRE ATT&CK","https://attack.mitre.org/"],
+ ["Standard","NIST SP 800-61 Rev.3","https://csrc.nist.gov/pubs/sp/800/61/r3/final"],
+ ["Lab PoC","cdb.exe shellcode runner (safe calc PoC)","https://gist.github.com/mattifestation/94e2b0a9e3fe1ac0a433b5c3e6bd0bda"]
+];
+
+const KIT=[
+ ["must","HEARTH (hypothesis bank)","A community-curated library of PEAK-categorized hunt hypotheses; paste a CTI link, get a drafted hunt.","https://github.com/THORCollective/HEARTH"],
+ ["must","MITRE ATT&CK","Shared language for TTPs; tag every hunt and log entry.","https://attack.mitre.org/"],
+ ["must","CISA KEV","Authoritative 'exploited right now' list; drives priority.","https://www.cisa.gov/known-exploited-vulnerabilities-catalog"],
+ ["must","Sigma (SigmaHQ)","Portable detection rules / ready-made hunts.","https://github.com/SigmaHQ/sigma"],
+ ["must","LOLBAS / GTFOBins","Abusable built-in Windows / Unix binaries.","https://lolbas-project.github.io/"],
+ ["must","MISP or OpenCTI","Structured threat-intel DB — where your case log grows up.","https://www.misp-project.org/"],
+ ["good","Attack Flow (CTID)","Model incidents as action sequences — anticipate next steps.","https://center-for-threat-informed-defense.github.io/attack-flow/"],
+ ["good","Atomic Red Team","Safe ATT&CK-mapped tests to generate telemetry + validate detections.","https://github.com/redcanaryco/atomic-red-team"],
+ ["good","LOLDrivers","Known vulnerable/malicious drivers (BYOVD).","https://www.loldrivers.io/"],
+ ["good","abuse.ch (MalwareBazaar/ThreatFox/URLhaus)","Free community IOC + sample feeds.","https://bazaar.abuse.ch/"],
+ ["good","The DFIR Report + vendor blogs","Your lead pipeline — detailed public case studies.","https://thedfirreport.com/"],
+ ["good","Heuer — Psychology of Intelligence Analysis","The bias/SAT bible; free from CIA.","https://www.cia.gov/resources/csi/books-monographs/psychology-of-intelligence-analysis/"]
+];
+
+/* ---------- walkthrough steps (with attacker + bias + logcue) ---------- */
+const S=[
+{ phase:"Mission Brief · PEAK Prepare", title:"You sit down at the hunt desk",
+  fw:{kill:"Reconnaissance",nist:"Preparation",peak:"Prepare",pyramid:"Behaviors",diamond:[]}, conf:5, gapsOpen:["scope"],
+  lead:{tag:"tasking",msg:`"Morning. Vendor dropped a report overnight — a Chinese APT abusing Outlook for C2 (Squidoor). Sweep the <b>IIS-exploitation angle</b> across the estate today, flag sensitive-sector hits, and SITREP me before you contain anything. Go."`},
+  newConcept:{term:"Where leads come from",def:`Leads arrive from intel/advisories, closed incidents, a <b>hypothesis backlog</b> (HEARTH), ATT&amp;CK gaps, crown-jewel assurance, or leadership asks — and sometimes your own shower-thought (still scoped like any other). A Hunt Lead owns the queue; today ${LEAD_NAME} handed you a report.`},
+  scene:`<p>You run intelligence-driven, hypothesis-based hunts. Flip the <strong>🗡 Attacker view</strong> toggle on any phase to see the operator's likely reasoning for that move — a tool for anticipating their next step, used as a hypothesis, never a certainty.</p>`,
+  panes:[{app:"case notebook",cls:"note",dr:1,body:`CASE HUNT-SEA-DEF  lead: IIS exploitation (Squidoor report via ${LEAD_NAME})\nbacklog: HEARTH + prior incidents + ATT&CK gaps\nstatus: PREPARE`}],
+  attacker:{goal:"Establish durable, quiet espionage access to a strategic target.",why:"Public web servers are internet-facing and routinely under-patched — the cheapest way in.",recon:"External scans fingerprint exposed/outdated IIS across the target's ASN.",next:"Find the single host that missed a patch cycle."},
+  reason:{obs:"A tasked lead, no victim yet.",ori:"PEAK Prepare: research, pick topic, form hypotheses.",rel:{v:"unknown",b:"Nothing observed — relevance calls begin once data lands."},suf:{lvl:5,gap:"No evidence. You can only hunt.",move:"ADVANCE",mv:"Distill the report into a hunt."}},
+  keypoints:["Most hunts are tasked or pulled from a backlog.","Attacker view is a hypothesis engine for getting ahead — not a mind-reading claim."],
+  take:"Leads come from many sources; scope each (hypothesis+source+timebox) before burning a shift.",
+  refs:[["PEAK","https://www.splunk.com/en_us/blog/security/peak-threat-hunting-framework.html"],["HEARTH","https://github.com/THORCollective/HEARTH"]]
+},
+{ phase:"Phase 0 · Distillation", title:"From report (or exec quote) to a hunt you can run",
+  fw:{kill:"Reconnaissance",nist:"Preparation",peak:"Prepare",pyramid:"Behaviors",diamond:[]}, conf:6, gapsOpen:[],
+  lead:{tag:"question",msg:`"Before the SIEM — give me the one-line hunt you'll actually run. Not the headline. The behavior."`},
+  newConcept:{term:"Distillation (core skill)",def:"Strip prose to a <b>behavior you can query</b>: (1) behavior not IOC; (2) testable hypothesis; (3) data source; (4) scope; (5) hit/miss."},
+  scene:`<p>'New Chinese APT abuses Outlook for C2' → 'non-browser process hitting Graph.' You'll do this constantly, from report text AND exec/client verbiage.</p>`,
+  panes:[{app:"intel excerpt (paraphrased)",cls:"",dr:1,body:`"Squidoor uses a hard-coded refresh token and the\n Outlook/Graph API, reading the attacker's Drafts\n folder for commands."`},{app:"exec what-if",cls:"note",dr:1,body:`CFO: "A podcast said hackers hide in Outlook now.\n Are WE exposed? Can you check?"`}],
+  attacker:{why:"Attackers distill too: they turned 'targets heavily monitor the perimeter' into 'hide C2 inside sanctioned Graph traffic.'",weakness:"Defenders rarely baseline WHICH processes legitimately call Graph.",next:"Authenticate to Graph from the implant and read Drafts."},
+  decision:{prompt:"Best-distilled hunt from that intel excerpt?",options:[
+    {text:"Block graph.microsoft.com at the proxy",correct:false,feedback:"Breaks Office/Teams and still misses the actor. You stopped at an IOC/destination, not a behavior."},
+    {text:"Alert on any refresh-token use",correct:false,feedback:"Normal apps do this constantly — no baseline, huge false positives."},
+    {text:"NON-browser/Office processes authenticating to Graph AND reading Drafts",correct:true,feedback:"Yes — the behavior, queryable (EDR identity + Graph/audit logs), scoped to the anomaly. The exec question distills to the same hunt."}]},
+  crit:"Distillation fails at an IOC ('block the domain') or too broad ('all tokens'). Aim for a behavior that's rare-when-malicious AND baseline-able.",
+  keypoints:["Report text and exec verbiage distill the same way.","Answer an exec what-if by running the distilled hunt, then reporting plainly."],
+  take:"Recipe: behavior → hypothesis → data source → scope → hit/miss. Practice on every report and client question.",
+  refs:[["Attack Flow","https://center-for-threat-informed-defense.github.io/attack-flow/"]]
+},
+{ phase:"Phase 1 · PEAK Execute", title:"Describe the threat before you can find it",
+  fw:{kill:"Reconnaissance",nist:"Detection & Analysis",peak:"Execute",pyramid:"Host artifacts / behaviors",diamond:[]}, conf:8, gapsOpen:[],
+  newConcept:{term:"Hypothesis-driven hunting",def:"Turn the lead into testable statements about <b>w3wp.exe</b>, each with a data source."},
+  scene:`<p>Three concrete, queryable hypotheses about the IIS worker process.</p>`,
+  panes:[{app:"hunt console — SIEM",cls:"",dr:1,body:`<span class="c"># H1</span> parent=<span class="b">w3wp.exe</span> child in (cmd,powershell) cmd~(<span class="hi">whoami|net group|ipconfig</span>)\n<span class="c"># H2</span> <span class="b">w3wp.exe</span> writes <span class="hi">*\\wwwroot\\*.aspx</span> | <span class="hi">*\\Temp\\*</span>\n<span class="c"># H3</span> <span class="b">w3wp.exe</span> -> <span class="r">CreateRemoteThread</span>`}],
+  attacker:{why:"Keep recon minimal and use native tools so there's no malware verdict to trip.",weakness:"Defenders may only alert on signatures, not on a web process spawning a shell.",next:"Run quick orientation (whoami/net) then drop more shells."},
+  reason:{obs:"Three queryable hypotheses with sources.",ori:"PEAK Execute begins. Pyramid: behaviors (high pain).",rel:{v:"unknown",b:"Pre-data. Note linkage keys: host, user, lineage, time window.",},suf:{lvl:8,gap:"Untested — run them.",move:"ADVANCE",mv:"Execute estate-wide."}},
+  decision:{prompt:"Which hypothesis flags the EARLIEST stage?",options:[
+    {text:"H1 — w3wp.exe spawning a shell for recon",correct:true,feedback:"Right — the canary for a fresh foothold; no malware verdict needed."},
+    {text:"H3 — injection",correct:false,feedback:"Usually later, when tooling loads."},
+    {text:"Wait for the EDR verdict",correct:false,feedback:"Not hunting. LOTL recon often has no verdict."}]},
+  keypoints:["Behavioral hypotheses sit high on the Pyramid.","Write the data source next to every hypothesis."],
+  take:"Core IIS set: w3wp→shell→recon; w3wp→wwwroot/Temp writes; w3wp→injection.",
+  refs:[["Pyramid of Pain","https://detect-respond.blogspot.com/2013/03/the-pyramid-of-pain.html"]]
+},
+{ phase:"Phase 2 · Triage", title:"One hit jumps the queue",
+  fw:{kill:"Delivery / Exploitation",nist:"Detection & Analysis",peak:"Execute",pyramid:"Host artifacts",diamond:["V"]}, conf:20, gapsOpen:["persist"],
+  lead:{tag:"reporting up",msg:`"You flagged WEB-EDGE-03 over the other hits. Why that one? One line."`},
+  newConcept:{term:"Cognitive bias in investigations",def:"You just read the Squidoor report — so everything will <i>look</i> like Squidoor (<b>availability bias</b>), and once you pick a theory you'll over-weight evidence that fits it (<b>confirmation bias</b>). Notice it, note it, and counter it by seeking DISCONFIRMING evidence."},
+  scene:`<p>Mostly noise; one real hit at a <strong>defense org in SE Asia</strong>. ${LEAD_NAME} wants your reasoning in a sentence.</p>`,
+  panes:[{app:"hunt console — results",cls:"",dr:1,body:`match host=WEB-EDGE-03 <span class="hi">w3wp.exe->cmd->whoami /all</span> org=<span class="b">[DEFENSE—SEA]</span> <span class="r">ELEVATED</span>\n<span class="c"># other hits: dev boxes, a scanner, a sysadmin script</span>`}],
+  attacker:{why:"They chose a defense target deliberately — the intel it holds is the whole point.",weakness:"High-value orgs often still run legacy internet-facing web apps.",next:"Spread shells so losing one foothold doesn't end the operation."},
+  bias:{risk:"Availability + confirmation: 'I read about Outlook C2, so this IS Squidoor' — before you've seen any C2.",counter:"Hold the actor label. Right now you have 'web process ran recon,' which fits MANY intrusions. Let the evidence name it, not the report you just read."},
+  reason:{obs:"A recon hit on a sensitive host, plus benign look-alikes.",ori:"NIST Detection & Analysis.",rel:{v:"linked",b:"Matches H1 on a production host; dev-box hits are unrelated (expected users, no follow-on). That's your one-line answer.",},suf:{lvl:20,gap:"One host, one event. Not how/how far/who.",move:"PIVOT",mv:"Reconstruct initial access."}},
+  keypoints:["Prioritize by consequence, not count.","Separate true hit from benign by user, lineage, follow-on."],
+  take:"Triage by victimology. Relevance = shared host/user/lineage/time; benign = expected actor + no follow-on.",
+  refs:[["Heuer (bias/SATs)","https://www.cia.gov/resources/csi/books-monographs/psychology-of-intelligence-analysis/"]]
+},
+{ phase:"Phase 3 · Initial Access", title:"The one server that missed a patch",
+  fw:{kill:"Delivery / Exploitation",nist:"Detection & Analysis",peak:"Execute",pyramid:"Network / host artifacts",diamond:["V"]}, conf:30, gapsOpen:[],
+  newConcept:{term:"Order of volatility (RFC 3227)",def:"Collect what vanishes first: memory before disk. The real payload later lives only in RAM."},
+  scene:`<p>Several IIS servers probed; patched boxes resisted; one unpatched gave way and took a shell.</p>`,
+  panes:[{app:"EDR — exploitation",cls:"",dr:1,body:`WEB-EDGE-01 patched <span class="g">FAILED</span>  WEB-APP-07 patched <span class="g">FAILED</span>\n<span class="r">WEB-EDGE-03 UNPATCHED OK -> owa_cert.aspx</span>  src 203.0.113.44`},{app:"IIS log",cls:"",dr:1,body:`02:11Z POST /vuln 200 203.0.113.44\n02:12Z GET /owa_cert.aspx 200 <span class="hi">(shell)</span>\n02:14Z GET /owa_cert.aspx?c=whoami 200`}],
+  attacker:{why:"Hammer many hosts cheaply; you only need one miss. Patched boxes cost nothing to try.",recon:"Version banners / scan data told them which hosts lagged on patches.",weakness:"Inventory ≠ patch reality; one unmanaged host undoes the rest.",next:"Establish redundancy before anyone notices."},
+  reason:{obs:"Many failed exploits, one success, then shell hits — same host, minutes.",ori:"Exploitation→Installation.",rel:{v:"linked",b:"EDR + IIS log corroborate on SAME host, SAME IP, tight window — that convergence promotes 'maybe' to 'related'.",},suf:{lvl:30,gap:"Entry known; not what the shell did next.",move:"PIVOT",mv:"Follow the shell outward."}},
+  crit:"Reconcile inventory vs. patch state; chase the delta — internet-facing first.",
+  keypoints:["Two-source corroboration on shared host+IP+time = gold-standard linkage.","Note volatile evidence so nobody reboots away the payload."],
+  take:"Confirm initial access via EDR + web logs on shared host/IP/time. 'Fully patched' is a claim to reconcile.",
+  refs:[["RFC 3227","https://www.rfc-editor.org/rfc/rfc3227"]]
+},
+{ phase:"Phase 4 · Spread", title:"Web shells wearing certificates",
+  fw:{kill:"Installation",nist:"Detection & Analysis",peak:"Execute",pyramid:"Tools",diamond:["V","C","I"]}, conf:38, gapsOpen:[],
+  newConcept:{term:"Masquerading (T1036)",def:"The actor deployed multiple web shells, then <b>concealed one as a certificate</b> and copied it to other servers via WMI. The file-upload service they pulled shells from is your first <b>Infrastructure</b> vertex."},
+  scene:`<p>Per Unit 42: the actor retrieved web shells from a file-upload service with <code>certutil</code>, deployed several, <strong>disguised one as a certificate</strong>, and copied it to other servers using WMI (plus curl/Impacket).</p>`,
+  panes:[{app:"EDR — lateral (per Unit 42)",cls:"",dr:1,body:`download via <span class="hi">certutil</span> <- bashupload[.]com  <span class="c">(real host, per Unit 42)</span>\nshells observed: OutlookDC.aspx, Error.aspx, TimeoutAPI.aspx\nconceal one as a <span class="hi">certificate</span> -> copy to other servers via <span class="hi">WMI</span> / curl / Impacket\nshared traits: same-length/shared decrypt keys, junk-code obfuscation`}],
+  attacker:{why:"Redundancy: if one shell is found, others survive. A cert-looking file slips past casual review.",weakness:"Defenders skim 'cert' files and trust extensions.",next:"Load real tooling in memory so file AV finds nothing."},
+  reason:{obs:"A file concealed as a certificate, moved between servers by a web/WMI process.",ori:"Pyramid: Tools.",rel:{v:"linked",b:"Unit 42 notes the shells share strong code characteristics (same-length/shared decryption keys, identical junk-code obfuscation and code structure) — a common-origin signal that links them across hosts; a matching file hash would be the strongest form of such linkage.",},suf:{lvl:38,gap:"Shells mapped; in-memory tooling + C2 unknown.",move:"PIVOT",mv:"Chase the odd processes."}},
+  decision:{prompt:"A file concealed as a .crt, copied between servers and used as a web shell?",options:[
+    {text:"Routine cert rotation",correct:false,feedback:"The cover they're buying. Certs aren't concealed web shells copied host-to-host by WMI. The file TYPE is a disguise."},
+    {text:"Masquerading — validate by content, not the extension",correct:true,feedback:"Yes. Validate by content and code similarity; shared traits across copies link them into one incident."}]},
+  keypoints:["Validate by content, not extension; shared code traits (or a file hash) are your linkage.","Redundant shells → eradication must be complete."],
+  take:"Never trust the extension; validate by content. Shared code characteristics (or a file hash) link hosts into one incident.",
+  refs:[["ATT&CK T1036","https://attack.mitre.org/techniques/T1036/"]]
+},
+{ phase:"Phase 5 · Baseline Deviation", title:"fontdrvhost.exe, but wrong",
+  fw:{kill:"Installation",nist:"Detection & Analysis",peak:"Execute (baseline)",pyramid:"Tools",diamond:["V","C","I"]}, conf:42, gapsOpen:["ident"],
+  newConcept:{term:"Baseline hunting",def:"'Know normal, catch abnormal.' Right name, wrong path, impossible argument."},
+  scene:`<p><code>fontdrvhost.exe</code> from <strong>ProgramData</strong> with a <code>config.ini</code> argument.</p>`,
+  panes:[{app:"EDR — process create",cls:"",dr:1,body:`proc <span class="hi">C:\\ProgramData\\fontdrvhost.exe</span> <span class="hi">config.ini</span> signer Microsoft`},{app:"baseline",cls:"",dr:1,body:`SHOULD: <span class="g">System32\\fontdrvhost.exe, no args</span>\nIS: <span class="r">ProgramData\\..., config.ini</span>`}],
+  attacker:{why:"A system-process name + valid MS signature + a user-writable, under-watched folder = looks legitimate at a glance.",weakness:"Analysts trust name + signature and skip path/args.",next:"Use this to load the backdoor from the .ini into memory."},
+  reason:{obs:"A 'system' binary in the wrong dir taking a config file.",ori:"PEAK baseline hunt.",rel:{v:"unknown",b:"Same host, not yet tied to the shells by evidence. SUSPECTED — collect the binary.",},suf:{lvl:42,gap:"OPEN: you don't know what this IS. Collect, don't conclude.",move:"COLLECT",mv:"Acquire the binary + memory before rotation."}},
+  decision:{prompt:"Signed + named like a service — clear it?",options:[
+    {text:"Yes — valid signature + known name",correct:false,feedback:"The disguise. Real fontdrvhost.exe never runs from ProgramData or takes a config.ini."},
+    {text:"No — path + .ini contradict identity; pull it",correct:true,feedback:"Correct. Behavior over label. COLLECT."}]},
+  crit:"Anchor a 'system' binary's identity to PATH + ARGS + PE OriginalFileName — never the on-disk name.",
+  keypoints:["Baseline deviation = how you KNOW it's anomalous.","'Suspected-related' says collect, not conclude."],
+  take:"Identity check: real path? expected args? PE OriginalFileName? Mismatch → acquire file + memory first.",
+  refs:[["PEAK baseline","https://www.splunk.com/en_us/blog/security/peak-threat-hunting-framework.html"]]
+},
+{ phase:"Phase 6 · Unmasking  ↻", title:"It's cdb.exe — a debugger turned loader",
+  fw:{kill:"Installation",nist:"Detection & Analysis",peak:"Execute",pyramid:"TTPs (max pain)",diamond:["V","C","I"]}, conf:55, gapsOpen:["payload"], gapsClose:["ident"],
+  lead:{tag:"question",msg:`"Good catch on the rename. Are we racing anything on containment?"`},
+  loop:{type:"Hunt loop iterates",text:"New hypothesis — 'if they rename cdb.exe here, there are siblings elsewhere' — becomes a VT hunt later. One answer → next question."},
+  logcue:"You confirmed a DURABLE TTP (renames a LOLBin to a system-process name). Log it as a fingerprint — it'll outlive hashes and help attribute the next case.",
+  newConcept:{term:"LOLBAS + Pyramid apex (TTPs)",def:"A renamed <b>cdb.exe</b> abused to load shellcode — a LOLBin. The rename <b>habit</b> is a TTP: apex of the Pyramid, surviving tool/hash changes."},
+  scene:`<p>It's a <strong>renamed <code>cdb.exe</code></strong> reading shellcode from <code>config.ini</code>, reflectively loading <strong>Squidoor</strong> in memory. Nothing on disk.</p>`,
+  panes:[{app:"terminal",cls:"",dr:1,body:`$ sigcheck fontdrvhost.exe\n PE OriginalFileName: <span class="hi">CDB.Exe</span>\n$ cdb.exe -cf config.ini -> RWX -> reflective DLL -> <span class="r">Squidoor</span>`},{app:"detection (real)",cls:"note",dr:1,body:`(pe.original_file_name=="CDB.Exe" OR image=="cdb.exe")\n AND path NOT IN ("*\\Program Files*\\cdb.exe")\n AND cmdline~(" -c "," -cf "," -pd ")`}],
+  attacker:{why:"Bring no malware: a signed MS debugger defeats file AV, and the rename defeats name-based rules.",weakness:"But the compiled PE OriginalFileName still says CDB.Exe — a habit they didn't vary.",next:"Run the in-memory backdoor and reach C2 over a sanctioned channel."},
+  bias:{risk:"Confirmation: 'LOLBin + in-memory load = definitely the APT from the report.' You're now invested in that story.",counter:"Record it as a strong indicator, not proof of actor. The TTP is real; the ATTRIBUTION still needs independent corroboration (siblings, infra, victimology). Keep a rival hypothesis alive."},
+  reason:{obs:"A trusted debugger, renamed, loading an in-memory backdoor.",ori:"Pyramid APEX: TTPs.",rel:{v:"linked",b:"CLOSED (identity). Proven in-incident; identity via PE metadata. (To ${LEAD_NAME}: yes — it's fileless, a reboot wipes it.)",},suf:{lvl:55,gap:"OPEN: payload encrypted in RAM.",move:"LOOP",mv:"Spawn a sibling hunt AND keep analyzing."}},
+  crit:"Metadata+path+args detections survive the rename; filename rules don't. The point of Summiting the Pyramid.",
+  keypoints:["Climbing to TTPs makes detection durable.","A finding forks the hunt — log the new hypothesis AND the fingerprint."],
+  take:"LOLBAS watch-item: cdb.exe non-standard path + -c/-cf/-pd, keyed on PE OriginalFileName. Log the rename habit as a durable fingerprint.",
+  refs:[["LOLBAS: Cdb","https://lolbas-project.github.io/lolbas/OtherMSBinaries/Cdb/"],["Summiting the Pyramid","https://ctid.mitre.org/projects/summiting-the-pyramid"]]
+},
+{ phase:"Phase 7 · The Backdoor", title:"Squidoor: modular, multi-platform, a mesh",
+  fw:{kill:"Command & Control",nist:"Detection & Analysis",peak:"Execute",pyramid:"TTPs",diamond:["V","C","I"]}, conf:60, gapsOpen:["c2"],
+  newConcept:{term:"Implant mesh & C2 surface reduction",def:"Unit 42: 10 C2 methods (Windows) / 9 (Linux). Per their Figure 4, operators configured <b>most implants to communicate only internally</b> (bind-TCP and named pipes/SMB), with few egressing."},
+  scene:`<p>Full host control, modular, Win+Linux. Resilience trick: the <strong>mesh</strong> — most implants relay internally so little crosses the perimeter.</p>`,
+  panes:[{app:"network map (per Unit 42 Fig. 4)",cls:"",dr:1,body:`<span class="r">[impl]</span>--named pipe--<span class="r">[impl]</span>--TCP--<span class="r">[impl]</span>\ninternet <-- <span class="hi">few egress nodes</span> (HTTP / Outlook) --> C2`}],
+  attacker:{why:"Assume the perimeter is watched: relay internally so almost nothing crosses the boundary.",weakness:"Internal peer traffic (named pipes / bind-TCP) is rarely baselined by defenders.",next:"Keep egress on a few quiet nodes via a sanctioned service."},
+  reason:{obs:"Most implants internal-only, few egress, 10 methods (Windows).",ori:"Kill chain C2.",rel:{v:"linked",b:"Peers linked by shared capability + observable internal connections.",},suf:{lvl:60,gap:"Design seen; egress not yet caught in telemetry.",move:"PIVOT",mv:"Hunt the egress — start with Outlook."}},
+  decision:{prompt:"Most implants internal; few egress. Strategy?",options:[
+    {text:"Perimeter only",correct:false,feedback:"Kill one egress and the mesh re-elects another. Need east-west."},
+    {text:"Hunt internal peer C2 (named pipes / bind-TCP) AND egress nodes",correct:true,feedback:"Right — see both or it regrows."}]},
+  keypoints:["Minimizing external footprint is deliberate.","Eradication scope includes internal peers."],
+  take:"Against meshed implants defend east-west; egress nodes are necessary-but-insufficient.",
+  refs:[["Elastic FINALDRAFT","https://www.elastic.co/security-labs/finaldraft"]]
+},
+{ phase:"Phase 8 · The Outlook C2", title:"Commands hidden in draft emails",
+  fw:{kill:"Command & Control",nist:"Detection & Analysis",peak:"Execute",pyramid:"TTPs",diamond:["V","C","I"]}, conf:66, gapsOpen:[],
+  logcue:"You identified a distinctive C2 method (Outlook/Graph dead-drop with P_/R_<id> draft subjects). Log the C2 method + the request pattern — this is a high-value field to match future cases against.",
+  newConcept:{term:"Dead-drop C2 via trusted service",def:"Hard-coded refresh token → Graph reads the attacker's Drafts. Beacon <code>P_&lt;id&gt;</code>; tasking <code>R_&lt;id&gt;</code> then delete."},
+  scene:`<p>The egress isn't a shady IP — it's <strong>Microsoft Graph</strong>. Maliciousness = which process + the draft pattern (exactly what you distilled in Phase 0).</p>`,
+  panes:[{app:"pcap/proxy",cls:"",dr:1,body:`POST login.microsoftonline.com/.../token grant=<span class="hi">refresh_token</span>\nGET graph/.../drafts?$search="subject:<span class="hi">P_8842719</span>" 404->CREATE\nGET .../drafts?$search="subject:<span class="hi">R_8842719</span>" ->read-><span class="r">DELETE</span>`},{app:"EDR — who calls Graph?",cls:"",dr:1,body:`<span class="r">fontdrvhost.exe -> graph</span> <span class="hi">(NON-browser!)</span>\noutlook/teams -> graph <span class="g">(expected)</span>`}],
+  attacker:{why:"Graph is sanctioned, encrypted, and unblockable — hide in normal M365 traffic.",weakness:"Defenders don't baseline which processes legitimately call Graph; the implant's process identity is the tell.",next:"Pull tasking, run modules, exfiltrate — all looking like Outlook."},
+  reason:{obs:"A non-browser process authenticating to Graph, polling Drafts for P_/R_.",ori:"Kill chain C2.",rel:{v:"linked",b:"Egress process = the SAME renamed binary on a known-compromised host. Mailbox/token = new Infrastructure.",},suf:{lvl:66,gap:"Tasking encrypted.",move:"PIVOT",mv:"Decode the message."}},
+  crit:"Blocklists are useless — Graph is allowed everywhere. Hunt the ACTOR + pattern.",
+  keypoints:["Per-implant id lets one mailbox run the fleet.","Read-then-delete keeps evidence thin — grab it live."],
+  take:"Hunt Outlook/Graph C2 by actor not domain: non-browser proc → Graph + Drafts + odd token reuse. Log the method.",
+  refs:[["ATT&CK T1102.002","https://attack.mitre.org/techniques/T1102/002/"]]
+},
+{ phase:"Phase 9 · Deobfuscation", title:"Peeling the onion",
+  fw:{kill:"Command & Control",nist:"Detection & Analysis",peak:"Execute",pyramid:"Tools / TTPs",diamond:["V","C","I"]}, conf:68, gapsOpen:[], gapsClose:["payload"],
+  newConcept:{term:"Build-a-decoder",def:"Each message unwinds <b>Base64 → AES+XOR → Zlib</b>. Document it → reusable decoder."},
+  scene:`<p>Reverse the pipeline, recover plaintext, close the payload gap.</p>`,
+  panes:[{app:"terminal — decoder",cls:"",dr:1,body:`blob -> <span class="b">base64</span> -> <span class="b">AES+XOR</span> -> <span class="b">zlib</span> -> <span class="g">"run module: net-enum; pw=..."</span>`}],
+  attacker:{why:"Layered crypto slows analysts and defeats static signatures on the tasking.",weakness:"Once you reverse one message the whole channel is readable.",next:"Deliver capability modules on demand."},
+  reason:{obs:"Clean plaintext after three layers.",ori:"Producing a reusable capability (decoder).",rel:{v:"linked",b:"Decoded content references the same implant id + host — content-level linkage.",},suf:{lvl:68,gap:"Can read tasking; haven't seen full module set.",move:"ADVANCE",mv:"Examine modules."}},
+  keypoints:["Knowing the stack converts opaque artifacts into evidence.","A decoder is a reusable deliverable."],
+  take:"Document payload stacks and script a decoder. Recovered tasking is top-tier evidence.",
+  refs:[["ATT&CK T1140","https://attack.mitre.org/techniques/T1140/"]]
+},
+{ phase:"Phase 10 · Modules", title:"Capabilities on demand, hidden in mspaint",
+  fw:{kill:"Actions on Objectives",nist:"Detection & Analysis",peak:"Execute",pyramid:"TTPs",diamond:["V","C","I"]}, conf:70, gapsOpen:[],
+  newConcept:{term:"Injection sleeves + anti-analysis",def:"Modules inject into a fresh <b>mspaint.exe</b> (or <b>conhost.exe</b> on Win11); each needs a <b>password argument</b> to run (anti-sandbox)."},
+  scene:`<p>PowerShell (without powershell.exe), pass-the-hash, network/user enumeration, file ops — each inside a throwaway <code>mspaint.exe</code>.</p>`,
+  panes:[{app:"EDR — modules (per Unit 42 / Elastic)",cls:"",dr:1,body:`recv -> inject -> <span class="hi">mspaint.exe</span> (or conhost.exe on Win11) — net I/O, threads\nmodules: PowerShell (no powershell.exe) | pass-the-hash | <span class="r">net/user enum</span> | file ops\nguard: <span class="hi">per-module password</span> (e.g. Aslire597)`}],
+  attacker:{why:"Keep the persistent core tiny; deliver capability only when needed; passwords stop sandboxes/analysts.",weakness:"A GUI app (mspaint) doing network I/O on a server is wildly out of baseline.",next:"Enumerate, harvest creds, stage data."},
+  reason:{obs:"mspaint.exe on a server, networked, injected threads.",ori:"Kill chain Actions on Objectives.",rel:{v:"linked",b:"Injecting process is the known implant; mspaint spawns from it — lineage links them.",},suf:{lvl:70,gap:"Capabilities known; operator infra/victim set not.",move:"PIVOT",mv:"Follow config infra callouts."}},
+  decision:{prompt:"mspaint.exe on a SERVER networking + spawning threads?",options:[
+    {text:"Benign — signed MS app",correct:false,feedback:"Signed ≠ safe on a host. GUI app + net I/O + injected code = injection sleeve."},
+    {text:"Injection host — hunt GUI apps doing non-GUI things",correct:true,feedback:"Correct — lineage links it to the implant."}]},
+  keypoints:["Modular = small core, just-in-time capabilities.","Per-module passwords are intentional friction."],
+  take:"Flag GUI apps as injection sleeves on servers with net I/O/injected threads; link via lineage.",
+  refs:[["ATT&CK T1055","https://attack.mitre.org/techniques/T1055/"]]
+},
+{ phase:"Phase 11 · Dead Drop", title:"Pastebin as a counter and a vault",
+  fw:{kill:"Actions on Objectives",nist:"Detection & Analysis",peak:"Execute",pyramid:"Network artifacts / TTPs",diamond:["V","C","I"]}, conf:73, gapsOpen:[],
+  newConcept:{term:"Second dead drop + adversary OPSEC",def:"Unit 42: the implant GETs a hard-coded Pastebin page (named <b>Local365</b>) that contains only <b>1</b> — suspected to <b>track how many implants have connected</b>. The actor's Pastebin accounts also stored access tokens / API keys, and were actively curated (files deleted and replaced, e.g. early Feb 2025)."},
+  scene:`<p>The 'useless' GET is suspected telemetry; neighboring pages are the operator's vault of tokens and keys — legitimate infrastructure used for stealth and deniability.</p>`,
+  panes:[{app:"OSINT — pastebin (per Unit 42)",cls:"",dr:1,body:`GET pastebin/Local365 -> "1"  <span class="c"># suspected</span> <span class="hi">implant counter</span>\nactor pages store: access tokens / API keys (later: Graph API tokens;\n titles suggested target names)\nactivity: files deleted & replaced (e.g. early Feb 2025) = active curation`}],
+  attacker:{why:"Free, trusted infra; count installs; store tokens/keys off their own servers to stay deniable.",weakness:"Reusing a public paste site leaves an OSINT trail defenders can pivot on.",next:"Rotate/curate the pages to keep infra fresh and reduce exposure."},
+  reason:{obs:"A process fetching a paste it ignores; related pages hold tokens/keys.",ori:"Actions on Objectives.",rel:{v:"linked",b:"The Pastebin URL came from the SAME decoded config — config-derived infrastructure is tightly linked to the capability and adversary.",},suf:{lvl:73,gap:"Rich artifacts; still can't say how big or who.",move:"PIVOT",mv:"Open a sufficiency gate."}},
+  keypoints:["Legit services chosen because trusted (stealth + deniability).","A process fetching a paste it 'ignores' can be a beacon/counter."],
+  take:"Treat ignored callouts to legit services as possible beacons/dead drops. Config-derived infra = high-confidence linkage.",
+  refs:[["ATT&CK T1102","https://attack.mitre.org/techniques/T1102/"]]
+},
+{ phase:"Phase 12 · The Sufficiency Gate", title:"Do I have enough — or need more?",
+  fw:{kill:"Actions on Objectives",nist:"Analysis → Containment decision",peak:"Execute",pyramid:"TTPs",diamond:["V","C","I"]}, conf:72, gapsOpen:[],
+  lead:{tag:"SITREP",msg:`"SITREP — contain now or need more? Three lines. I brief the CISO in ten."`},
+  newConcept:{term:"ACH — the bias killer",def:"List every plausible explanation, then hunt evidence that <b>disproves</b> each. 'Done enough' = one survives the decision's need — NOT when you've stacked up confirmation. This is your structured defense against confirmation bias."},
+  scene:`<p>Your core question: <strong>when do I have enough?</strong> Run ACH + a containment risk check. Confidence dips here on purpose — honest analysts get <em>less</em> certain listing alternatives.</p>`,
+  panes:[{app:"notebook — ACH",cls:"note",dr:1,body:`H-A espionage APT (Squidoor) <span class="g">survives</span>\nH-B commodity crime <span class="r">NO</span> (no encryptor)\nH-C pentest <span class="r">NO</span> (no authz, real exfil)\nH-D false positive <span class="r">NO</span> (in-mem backdoor)\ncontain? <span class="g">YES</span>  eradicate all? <span class="hi">NO</span>  attribute? <span class="hi">NO</span>`}],
+  attacker:{why:"They bet defenders act slowly or partially — a half-containment lets the mesh re-seed.",weakness:"A simultaneous, complete takedown beats them; they can't regrow what's all removed at once.",next:"If tipped, pivot to a backup egress node and lie low."},
+  bias:{risk:"Confirmation: you WANT H-A (it's the exciting answer and it fits the report). You might wave away H-B/H-D.",counter:"Deliberately argue FOR each rival. H-A only wins because specific evidence KILLS the others — not because it's the story you like. Write down what killed each; that's your audit trail."},
+  reason:{obs:"One hypothesis survives; some decisions ready, others not.",ori:"NIST pivot: Analysis→Containment. Sufficiency is per-decision.",rel:{v:"linked",b:"Core chain settled; unproven = breadth + attribution.",},suf:{lvl:72,gap:"OPEN: full persistence/egress, siblings, attribution. Enough to contain — not close.",move:"CONTAIN",mv:"Plan containment in PARALLEL while scoping. Your 3-line call to ${LEAD_NAME}."}},
+  decision:{prompt:"Live implant proven; mesh not fully mapped. Best move?",options:[
+    {text:"Contain everything now, stop analysis",correct:false,feedback:"Partial containment on a mesh tips the actor and lets unmapped egress survive."},
+    {text:"Parallel-path: stage containment while finishing scope + attribution",correct:true,feedback:"Right — enough to prepare containment + protect crown jewels; keep hunting so eradication is complete and simultaneous."},
+    {text:"Keep hunting until you know everything",correct:false,feedback:"Perfect knowledge never comes. ACH says act when the surviving hypothesis is solid for THIS decision."}]},
+  crit:"Two failure modes: acting too early (incomplete eradication, tipped adversary) and never acting (paralysis). ACH + per-decision sufficiency is your defensible line AND your bias guard.",
+  keypoints:["'Enough' is relative to the decision in front of you.","Disproving alternatives beats piling up confirmation.","Record what killed each rival — your anti-bias audit trail."],
+  take:"Gate moves with ACH; judge sufficiency per decision (contain vs eradicate vs attribute). Log the ruled-out hypotheses.",
+  refs:[["NIST SP 800-61r3","https://csrc.nist.gov/pubs/sp/800/61/r3/final"]]
+},
+{ phase:"Phase 13 · F3EAD Pivot  ↻", title:"Turn the finding into intel: VirusTotal pivots",
+  fw:{kill:"(CTI enrichment)",nist:"Detection & Analysis",peak:"Act",pyramid:"TTPs",diamond:["V","C","I"]}, conf:80, gapsOpen:[], gapsClose:["siblings"],
+  loop:{type:"F3EAD loop (Exploit→Analyze→Disseminate)",text:"The sibling hypothesis from Phase 6 returns. Exploit the fingerprint on VT, Analyze finds, feed a new Find."},
+  logcue:"You found sibling samples + new infrastructure. UPDATE your case entry: new infra, new suspected regions, and raise/clarify confidence with the corroborators you counted.",
+  newConcept:{term:"F3EAD + Diamond pivoting",def:"Pivot across vertices on durable fingerprints; a rare rename convention + submitter geography can surface siblings even when detections are near zero."},
+  scene:`<p>As Unit 42's presenters described in their SANS talk, they took the rename fingerprint to VirusTotal — a lone matching hash, with two submitters who had uploaded it <em>as</em> fontdrvhost.exe (they noted Singapore and Brazil) — then pivoted on region and date to surface sibling <code>config.ini</code> Squidoor payloads at very low/zero detections. (Elastic independently pivoted from the hard-coded Pastebin URL.)</p>`,
+  panes:[{app:"OSINT — VT pivots (per the SANS talk)",cls:"",dr:1,body:`VT: name=fontdrvhost.exe + content~cdb.exe -> 1 hash\nsubmitters noted: <span class="hi">Singapore, Brazil</span>  <span class="c">(from the talk)</span>\npivot(region+date) -> <span class="hi">config.ini</span> = Squidoor (very low/zero detections)\n<span class="g">RESULT: sibling samples surfaced</span>`}],
+  attacker:{why:"Reusing the rename convention across operations saves effort.",weakness:"That very reuse is the thread defenders pull — consistency is a fingerprint.",next:"Nothing — this is where their habit betrays them."},
+  bias:{risk:"Confirmation by cherry-pick: counting only the corroborators that fit, ignoring that two crews can share a published technique.",counter:"Count INDEPENDENT corroborators (convention + file role + date window + decoded payload) AND actively ask 'could this be a copycat or shared toolkit?' Rarity + specificity of the overlap is what earns the link."},
+  reason:{obs:"The fingerprint resolves to siblings from two countries.",ori:"PEAK Act / F3EAD. Diamond pivot C↔I↔V.",rel:{v:"linked",b:"Four INDEPENDENT corroborators: rare rename convention, same file role, tight date window, matching payload. Pattern, not luck.",},suf:{lvl:80,gap:"Scope widening; attribution pending.",move:"LOOP",mv:"Feed indicators into a standing hunt."}},
+  keypoints:["Pivot on hardest-to-change features.","Linkage strengthens with each INDEPENDENT corroborator — and weakens if a benign/shared explanation survives."],
+  take:"F3EAD: exploit a durable fingerprint → analyze siblings → disseminate as leads. Count independent corroborators; rule out copycats.",
+  refs:[["Diamond Model","https://apps.dtic.mil/sti/pdfs/ADA586960.pdf"]]
+},
+{ phase:"Phase 14 · Standing Hunt  ↻", title:"YARA livehunt — a trap that keeps catching",
+  fw:{kill:"(CTI enrichment)",nist:"Detection & Analysis",peak:"Act",pyramid:"TTPs (max pain)",diamond:["V","C","I"]}, conf:84, gapsOpen:[], gapsClose:["c2"],
+  loop:{type:"Standing automation loop",text:"A livehunt is a loop you leave running. Days later it fires on an ELF sample — Linux build confirmed."},
+  newConcept:{term:"Durable detection via YARA",def:"YARA on the 10 C2 channel names; deploy as a VT livehunt. The combination is the signal."},
+  scene:`<p>Convert knowledge into standing detection on a stable internal feature.</p>`,
+  panes:[{app:"rule editor — YARA",cls:"",dr:1,body:`rule Squidoor_C2 { strings: $="HTTP" $="DNS" $="ICMP" $="Outlook" ... condition: <span class="hi">N of them</span> }\nlivehunt (days later): <span class="r">ELF</span> -> Linux build`}],
+  attacker:{why:"They didn't strip the channel strings from the binary.",weakness:"Stable code features are exactly what durable YARA keys on.",next:"Recompile won't help — the strings persist unless they re-engineer."},
+  reason:{obs:"A standing rule fires on a cross-platform variant later.",ori:"PEAK Act: automate + communicate.",rel:{v:"linked",b:"ELF linked by shared capability signature — resilient to recompilation.",},suf:{lvl:84,gap:"Channel gap closed; attribution open.",move:"ADVANCE",mv:"Distill network hunts, then scope+attribute."}},
+  keypoints:["Target durable code features, not hashes.","Livehunts = renewable intel stream."],
+  take:"YARA on durable internals + livehunt = keeps catching new/cross-platform variants after close.",
+  refs:[["Elastic protections-artifacts","https://github.com/elastic/protections-artifacts"]]
+},
+{ phase:"Phase 15 · Detection Engineering", title:"Two network hunts you can deploy today",
+  fw:{kill:"(CTI enrichment)",nist:"Detection & Analysis",peak:"Act",pyramid:"TTPs",diamond:["V","C","I"]}, conf:86, gapsOpen:[],
+  newConcept:{term:"Precision via actor+destination pairing",def:"A benign destination becomes a strong signal paired with an unusual actor."},
+  scene:`<p>Generalize everything into detections that outlive this host.</p>`,
+  panes:[{app:"detection — deployable",cls:"note",dr:1,body:`<span class="g">Hunt A:</span> NON-browser proc -> graph.microsoft.com AND pastebin.com\n<span class="g">Hunt B:</span> GET polling draft subject <span class="hi">R_&lt;id&gt;</span>`}],
+  attacker:{why:"They relied on Graph being unmonitored at the process level.",weakness:"A baseline of 'who calls Graph' turns their stealth into an anomaly.",next:"They'd need a new egress channel entirely to beat this."},
+  reason:{obs:"Two precise analytics from observed TTPs.",ori:"PEAK Act / detection engineering.",rel:{v:"linked",b:"Built from confirmed in-case behavior; new hits still earn their own linkage test.",},suf:{lvl:86,gap:"Detections ready; scope+attribution remain.",move:"ADVANCE",mv:"Run estate-wide."}},
+  decision:{prompt:"Why 'non-browser → Graph' over 'any Graph traffic'?",options:[
+    {text:"All Graph traffic is suspicious",correct:false,feedback:"Graph is everywhere; you'd drown."},
+    {text:"Graph is normal for browsers/Office; a random process (+Pastebin) is the anomaly",correct:true,feedback:"Exactly — benign destination + unusual actor = low false positives."}]},
+  keypoints:["Precision = benign destination + unusual actor.","Every new hit earns its own relevance check."],
+  take:"Deployable: (A) non-browser proc → Graph + Pastebin; (B) R_<id> draft-poll. Baseline Graph callers first.",
+  refs:[["Summiting the Pyramid","https://ctid.mitre.org/projects/summiting-the-pyramid"]]
+},
+{ phase:"Phase 16 · Scope & Attribution", title:"The shape of the operation",
+  fw:{kill:"Actions on Objectives",nist:"Detection & Analysis",peak:"Act",pyramid:"TTPs (max pain)",diamond:["A","C","I","V"]}, conf:92, gapsOpen:[], gapsClose:["scope","attrib"],
+  lead:{tag:"exec ask",msg:`"CISO wants one paragraph for the board: what, who, how bad — plain English, calibrated. Draft it."`},
+  logcue:"Attribution reached (calibrated). FINALIZE the case entry: Diamond complete, victim sectors/regions, confidence = suspected, ruled-out hypotheses recorded. This entry is what you'll match the NEXT case against.",
+  newConcept:{term:"Attribution confidence language",def:"Speak in calibrated terms — <b>suspected</b>, <b>likely</b>, <b>high confidence</b>. The finished Diamond supports a <b>suspected</b> state-sponsored Chinese actor, CL-STA-0049."},
+  scene:`<p>You add <strong>South America</strong>; sectors cluster (gov, defense, telecom, aviation, education); active since <strong>March 2023</strong>. The Diamond completes.</p>`,
+  panes:[{app:"notebook — profile",cls:"note",dr:1,body:`actor <span class="b">CL-STA-0049</span> (suspected) <span class="c">[A]</span>  cap Squidoor+cdb+Outlook C2 <span class="c">[C]</span>\ninfra Graph mailbox, Pastebin, VT geo <span class="c">[I]</span>  vict gov/defense/telecom/avia/edu, SEA+SA <span class="c">[V]</span>`}],
+  attacker:{why:"Broad regional espionage: harvest sensitive data + profiles of officials across allied sectors/regions.",weakness:"Consistent victimology reveals strategic intent — the WHY shows in WHO they hit.",next:"Rotate to fresh infra and keep collecting elsewhere."},
+  bias:{risk:"Anchoring + confirmation in ATTRIBUTION: naming a specific group feels satisfying and tidy.",counter:"Stay at 'suspected,' cite the corroborators, and name what would RAISE or LOWER confidence. Attribution is where overconfidence does the most damage — calibrate hard."},
+  reason:{obs:"All four Diamond vertices; two regions, five sectors.",ori:"CTI synthesis.",rel:{v:"linked",b:"Scope hosts linked by deployed detections + capability signature; two independent vendor reports corroborate.",},suf:{lvl:92,gap:"Enough to attribute (suspected) + drive eradication.",move:"CONTAIN",mv:"Execute coordinated C/E/R."}},
+  keypoints:["Scope emerges from applied intel.","Calibrated words; independent reports strengthen it."],
+  take:"One lead → one host → a full profile + completed Diamond. State attribution in calibrated terms; log it.",
+  refs:[["Unit 42: Squidoor","https://unit42.paloaltonetworks.com/advanced-backdoor-squidoor/"]]
+},
+{ phase:"Phase 17 · Respond & Learn  ↻", title:"Contain, eradicate, recover — then feed the next hunt",
+  fw:{kill:"—",nist:"Containment / Eradication / Recovery → Post-Incident",peak:"Act → Prepare (next)",pyramid:"TTPs",diamond:["A","C","I","V"]}, conf:97, gapsOpen:[], gapsClose:["persist"],
+  lead:{tag:"wrap-up",msg:`"Clean work. Turn the lessons into a hunt package — Sigma, YARA, the two network hunts — and make sure the case entry is logged so we match it instantly next time."`},
+  loop:{type:"IR lifecycle closes → reopens",text:"Lessons feed Preparation (NIST) and Prepare (PEAK). Detections + playbook make the next intrusion cheaper."},
+  logcue:"Close the loop: your finished case entry + shipped detections ARE the lessons learned. Reference this entry the next time you see a renamed LOLBin or Outlook dead-drop C2.",
+  newConcept:{term:"Complete, simultaneous eradication",def:"Remove everything at once: all shells, every implant (peers), scheduled-task persistence, the cdb loader — and <b>rotate the stolen refresh token + creds</b>, or the Outlook C2 survives."},
+  scene:`<p>Act decisively, then convert the engagement into durable gains and a logged case.</p>`,
+  panes:[{app:"IR runbook",cls:"note",dr:1,body:`CONTAIN isolate egress + peers TOGETHER\nERADICATE shells · cdb loader · sched-task · implants · <span class="hi">REVOKE token + reset creds</span>\nRECOVER patch + reconcile + validate\nLEARN ship Sigma/YARA/net hunts + <span class="g">log the case entry</span>`}],
+  attacker:{why:"They expect partial cleanups and a live token to walk back in.",weakness:"Simultaneous eradication + token rotation closes every door at once.",next:"If fully evicted, they return later via a new vector — hence your standing hunts."},
+  reason:{obs:"A coordinated takedown + a feedback step.",ori:"NIST C/E/R → Post-Incident.",rel:{v:"linked",b:"Every item traces to confirmed evidence — nothing on a hunch.",},suf:{lvl:97,gap:"Residual: long-tail monitoring. Never 100%.",move:"ADVANCE",mv:"Close the incident; the loops keep running."}},
+  crit:"Isolate the mesh simultaneously, eradicate every redundant foothold, and ROTATE the stolen token/creds — or the Outlook C2 reconnects through your 'clean' network.",
+  keypoints:["Eradication scope = everything the evidence links.","Lessons learned = next quarter's detections + a logged case entry."],
+  take:"Eradicate a mesh all at once and rotate stolen creds. Ship detections + log the case — the loop closing into the next Prepare.",
+  refs:[["NIST SP 800-61r3","https://csrc.nist.gov/pubs/sp/800/61/r3/final"]]
+},
+{ phase:"Debrief", title:"Field notes, kit, glossary, loop map & reading room",
+  fw:{kill:"—",nist:"Post-Incident",peak:"Prepare (next)",pyramid:"TTPs",diamond:["A","C","I","V"]}, conf:100, gapsOpen:[],
+  scene:`<p>You rode a tasked lead to an attributed, eradicated operation — distilling, reasoning, fighting bias, reading the attacker, and logging structured intel. Everything below is for your long-term notes.</p>`,
+  debrief:true
+}
+];
+
+/* ================= GENERATOR ================= */
+const EX_TYPES=[
+ {id:"distill",name:"Distill the direction",diff:"Foundational",task:"Turn the input into ONE queryable hunt: behavior, hypothesis, data source, scope, hit-vs-miss.",
+  approach:["Strip to the BEHAVIOR, not the IOC.","State a testable hypothesis ('a NON-X process does Y').","Name the data source that confirms/refutes.","Scope it: time window + host/user set.","Define hit vs. miss.","Check it's rare-when-malicious AND baseline-able."]},
+ {id:"relevance",name:"Relevance call",diff:"Foundational",task:"Two artifacts — linked, unknown, or unrelated? State the BASIS and what would disprove it.",
+  approach:["List linkage keys present: host·user·lineage·time·hash·config-infra·capability signature·rare TTP.","One match = lead; several INDEPENDENT = linked.","Name what would DISPROVE the link.","Verdict + basis in one sentence."]},
+ {id:"sufficiency",name:"Sufficiency gate (ACH)",diff:"Intermediate",task:"Given partial evidence: enough to CONTAIN? ERADICATE? ATTRIBUTE? Justify.",
+  approach:["List rival hypotheses (espionage/crime/pentest/FP).","Seek evidence that DISPROVES each.","Judge PER DECISION, not once.","Name the gap + next move.","Avoid early action AND paralysis."]},
+ {id:"infer",name:"Infer the intent (behavioral inference)",diff:"Intermediate",task:"From the evidence, infer the attacker's likely goal and NEXT move — disciplined, not a guess.",
+  approach:["State the inference as a hypothesis ('they likely want X, next they'd do Y').","CITE the specific behavior it rests on (not a vibe).","Assign a CALIBRATED confidence (low/moderate/high) + why.","Name what would DISPROVE it.","Flag availability bias: am I pattern-matching to a case I just read? Could a benign/different actor explain this?","Turn it into action: which detection would you pre-position for that next move?"]},
+ {id:"bias",name:"Spot the bias",diff:"Intermediate",task:"A colleague states the conclusion below. Identify which bias(es) may be at play and the counter-move.",
+  approach:["Name the bias (confirmation / anchoring / availability / base-rate neglect).","Explain WHY the conclusion overreaches the evidence.","Prescribe the counter: seek disconfirming evidence, run ACH, consider base rates, demand independent corroboration.","Rewrite the conclusion with calibrated confidence."]},
+ {id:"sitrep",name:"SITREP to the Hunt Lead",diff:"Foundational",task:`3 lines to ${LEAD_NAME}: (1) what you know + confidence, (2) what you're doing, (3) decision needed / ETA.`,
+  approach:["Line 1 — what we know, calibrated confidence word.","Line 2 — current action.","Line 3 — decision needed or ETA. Bottom line first, no jargon dump."]},
+ {id:"scope",name:"Scope & data sources",diff:"Intermediate",task:"For the key hypothesis, list telemetry that PROVES/REFUTES it — and the gaps you can't see.",
+  approach:["Map hypothesis → source: EDR/Sysmon, IIS/web, proxy/DNS, identity, netflow, edge/appliance, cloud audit.","Call out what you CAN'T see + how you'd get it.","Name the single most decisive query first.","Set a timebox."]},
+ {id:"pyramid",name:"Climb the Pyramid",diff:"Advanced",task:"A fragile IOC is handed to you. Raise the hunt to a durable TTP-level detection.",
+  approach:["Ask what BEHAVIOR produced the IOC.","Write the detection on the behavior/TTP.","Key on the most evasion-resistant field.","State one way they could still evade — accept it or not."]},
+ {id:"logit",name:"Log it (structured intel)",diff:"Foundational",task:"Decompose the scenario into the case-log schema: vector, execution/LOLBin, C2, persistence, ATT&CK IDs, Diamond vertices, durable fingerprint, confidence, ruled-out hypotheses. Then say which PRIOR entry you'd reference.",
+  approach:["Fill the fixed fields (enumerated where possible) — not free text.","Tag ATT&CK IDs and the four Diamond vertices.","Record the DURABLE fingerprint (the thing that survives tool swaps).","Record what you RULED OUT (ACH residue).","Say which existing entry shares a durable field — then treat the match as a lead to test, not a verdict."]}
+];
+const EX_PACKS=[
+ {id:"squidoor",name:"Squidoor / FinalDraft (CL-STA-0049)",diff:"Intermediate",
+  intel:'"A suspected Chinese APT exploits unpatched IIS, drops a web shell, and runs a renamed cdb.exe that reflectively loads an in-memory backdoor using Outlook/Graph Drafts for C2."',
+  exec:'"Are our web servers and our Microsoft 365 exposed to this Squidoor thing?"',
+  vector:"Unpatched public IIS → web shell",c2:"Outlook/Graph dead-drop + 10-channel mesh",twist:"Most implants are internal-only; one unpatched host carried it.",
+  hash:"fake-sha256 of config.ini (illustrative)",ip:"203.0.113.44 (illustrative)",
+  biasclaim:'"This is definitely the APT from that report I read last week — the Outlook C2 trick is their signature, so it\'s the same group."',
+  src:"Unit 42 / Elastic (REF7707)"},
+ {id:"salttyphoon",name:"Salt Typhoon (telecom / edge routers)",diff:"Advanced",
+  intel:'"A PRC actor exploits known Cisco IOS XE flaws on provider edge routers, lives off the land on the device, and builds GRE tunnels for years-long covert collection."',
+  exec:'"The news says China is in the phone companies. Could something be living in our routers?"',
+  vector:"Edge router N-day (e.g. CVE-2023-20198)",c2:"Multi-hop pivots / GRE tunneling",twist:"No EDR on the router — evidence is in device configs, NetFlow, syslog.",
+  hash:"n/a (network-layer)",ip:"malicious GRE peer (illustrative)",
+  biasclaim:'"Our NetFlow looks normal, so we\'re clean."',
+  src:"CISA/NSA/FBI AA25-239A (Aug 2025)"},
+ {id:"scatteredspider",name:"Scattered Spider (help-desk social engineering)",diff:"Intermediate",
+  intel:'"Actors phone the IT help desk impersonating an employee, get an MFA/password reset, take over an SSO account, use legit RMM tools to move, and deploy ransomware on ESXi."',
+  exec:'"Our help desk got a weird call about a password reset. Should we worry?"',
+  vector:"Help-desk social engineering + SIM swap",c2:"Legit RMM / tunneling tools",twist:"Initial access is a phone call — endpoint tools miss it; identity logs are the witness.",
+  hash:"n/a (LOTL)",ip:"RMM tunnel endpoint (illustrative)",
+  biasclaim:'"No malware fired on any endpoint, so this was just a user forgetting their password."',
+  src:"CISA/FBI advisory (updated Jul 2025)"},
+ {id:"akira",name:"Akira ransomware (SonicWall SSLVPN)",diff:"Intermediate",
+  intel:'"Akira affiliates log into SonicWall SSL VPN (CVE-2024-40766), recon fast, and exfil ~2GB over SSH to a rare external IP hours before encryption."',
+  exec:'"Our VPN had a CVE. How fast could they hit us, and would we see data leaving?"',
+  vector:"SonicWall SSLVPN (CVE-2024-40766)",c2:"RDP/VPN + SSH exfil to rare IP",twist:"Exfil happens BEFORE encryption, in hours — byte-counts say data left, not what.",
+  hash:"fake-sha256 of encryptor (illustrative)",ip:"rare SSH exfil IP (illustrative)",
+  biasclaim:'"They encrypted us Friday night, so the breach started Friday night."',
+  src:"S-RM / Darktrace / Rapid7 (2025)"},
+ {id:"toolshell",name:"ToolShell (SharePoint RCE chain)",diff:"Advanced",
+  intel:'"Unauth RCE (CVE-2025-53770/53771) on on-prem SharePoint: w3wp.exe spawns cmd→powershell, drops spinstall0.aspx in LAYOUTS, steals the MachineKey for fileless re-entry even after the shell is removed."',
+  exec:'"We patched SharePoint. Are we actually safe now?"',
+  vector:"SharePoint ToolShell (CVE-2025-53770)",c2:"Web shell + stolen MachineKey",twist:"Patching isn\'t enough — rotate MachineKeys or they re-enter fileless.",
+  hash:"publicly-reported compiled shell (verify in source)",ip:"exploit source (illustrative)",
+  biasclaim:'"We removed spinstall0.aspx and patched, so eradication is complete."',
+  src:"MSRC / Eye Security / Unit 42 (Jul 2025)"},
+ {id:"dprkdev",name:"DPRK 'Contagious Interview' (developer supply chain)",diff:"Advanced",
+  intel:'"North Korean actors lure developers with fake coding tests / trojanized npm packages, steal credentials and GitHub identities, and propagate through trusted developer workflows."',
+  exec:'"An engineer got a suspicious take-home coding test. Could that risk our source code?"',
+  vector:"Trojanized dev package / fake interview",c2:"Attacker infra via dev tooling",twist:"The victim is a trusted developer identity — risk propagates downstream to everyone who trusts their commits.",
+  hash:"fake-sha256 of malicious package (illustrative)",ip:"npm-staged C2 (illustrative)",
+  biasclaim:'"It\'s just one developer\'s laptop — contained to them."',
+  src:"DPRK IT-worker / Contagious Interview reporting (2025–26)"},
+ {id:"clickfix",name:"ClickFix → infostealer",diff:"Foundational",
+  intel:'"A fake CAPTCHA tells the user to paste a command to \'verify\'; the clipboard payload runs PowerShell that installs an infostealer harvesting browser creds and wallets."',
+  exec:'"An employee says a website asked them to copy-paste something into a run box. Is that bad?"',
+  vector:"Fake CAPTCHA / clipboard social engineering",c2:"Infostealer exfil",twist:"The user self-executes — evidence is in clipboard, RunMRU, PowerShell logs.",
+  hash:"fake-sha256 of stealer (illustrative)",ip:"stealer exfil (illustrative)",
+  biasclaim:'"The AV is clean, so nothing happened."',
+  src:"Multiple vendors (ClickFix wave, 2025–26)"}
+];
+const COMPLICATIONS=["You're remote with limited tooling — logs only, no console on the host.","The exec is anxious from a headline — manage expectations while you work.","No EDR on the affected asset; only network + appliance logs.","It's 4:55pm Friday — containment windows matter.","Logs only go back 14 days; part of the timeline is gone.","The client insists it's a false positive.","Another team already 'cleaned it' — verify eradication.","One decisive query's budget before standup. Spend it well."];
+const LEAD_TASKS={distill:["\"The one-line hunt, not the headline.\"","\"What will you actually query? Behavior.\""],relevance:["\"Same incident or two things? Basis?\"","\"Linked or coincidence? One sentence.\""],sufficiency:["\"Contain now or keep digging?\"","\"Enough to brief the CISO? Justify.\""],infer:["\"Where do they go next? And how sure are you?\"","\"Get ahead of them — what do we pre-position?\""],bias:["\"Gut-check that conclusion before I repeat it upstairs.\"","\"Is that evidence, or is that a story we like?\""],sitrep:["\"SITREP in three lines — I brief up in ten.\"","\"Bottom line first.\""],scope:["\"What proves this, and what can't we see?\"","\"Your most decisive query?\""],pyramid:["\"This hash changes tomorrow — give me durable.\"","\"Take it up the pyramid.\""],logit:["\"Log it properly so the next shift can match it.\"","\"Which past case does this rhyme with?\""]};
+
+/* ================= CASE LOG DATA ================= */
+const VECTORS=["Public-facing app exploit (web/IIS/SharePoint)","VPN / edge appliance exploit","Phishing / malicious attachment","Help-desk social engineering / SIM swap","Trojanized package / supply chain","Valid accounts / stolen credentials","Drive-by / fake CAPTCHA (ClickFix)","Other / unknown"];
+const C2S=["HTTP(S)","DNS tunneling","ICMP tunneling","Cloud/SaaS dead-drop (Outlook/Graph)","Paste-site dead-drop","Reverse TCP/UDP","Legitimate RMM tool","SSH / custom tunnel","Other / unknown"];
+const PERSISTS=["Web shell","Scheduled task","Service / driver","Registry Run key","Valid accounts","Stolen token / machine key","Rogue VM / cloud resource","Other / none observed"];
+const SECTORS=["Government","Defense","Telecommunications","Aviation","Education","Financial","Healthcare","Manufacturing","Technology / software","Energy / critical infra","Other"];
+let LOG=[]; let lastFind=null;
+
+/* ================= RENDER: WALKTHROUGH ================= */
+let i=0, view='def'; const seen=new Set(); const openGaps=new Set(),closedGaps=new Set(); let prevFw=null;
+const card=document.getElementById('card'),fwstrip=document.getElementById('fwstrip'),bar=document.getElementById('bar'),counter=document.getElementById('counter'),prevBtn=document.getElementById('prev'),nextBtn=document.getElementById('next'),stepsEl=document.getElementById('steps'),confNum=document.getElementById('confNum'),confBar=document.getElementById('confBar'),gapsEl=document.getElementById('gaps');
+
+function buildSteps(){stepsEl.innerHTML=S.map((t,idx)=>{const lp=/↻/.test(t.phase)?'<span class="lp">↻</span>':'';const nm=t.phase.replace(/^Phase [\d0]+ · /,'').replace(/ *↻/,'').replace(/^Mission Brief · .*/,'Mission Brief');return `<li data-idx="${idx}"><span class="n">${idx+1}</span><span>${nm}</span>${lp}</li>`;}).join('');stepsEl.querySelectorAll('li').forEach(li=>li.addEventListener('click',()=>{i=+li.dataset.idx;render();}));}
+function recomputeGaps(){openGaps.clear();closedGaps.clear();for(let k=0;k<=i;k++){(S[k].gapsOpen||[]).forEach(g=>openGaps.add(g));(S[k].gapsClose||[]).forEach(g=>{closedGaps.add(g);openGaps.delete(g);});}}
+function renderGaps(){const all=[...openGaps].map(id=>({id,c:0})).concat([...closedGaps].map(id=>({id,c:1})));if(!all.length){gapsEl.innerHTML='<li class="closed">None open — case closed</li>';return;}gapsEl.innerHTML=all.map(g=>{const d=GAPS.find(x=>x.id===g.id);return `<li class="${g.c?'closed':''}"><span>${g.c?'✓':'●'}</span><span>${d?d.text:g.id}</span></li>`;}).join('');}
+function renderFw(t){const d=t.fw.diamond||[];const dv=['A','C','I','V'].map(x=>`<span class="dv ${d.includes(x)?'on':''}">${x}</span>`).join('');const cells=[['Kill Chain',t.fw.kill],['NIST IR',t.fw.nist],['PEAK',t.fw.peak],['Pyramid of Pain',t.fw.pyramid]];let h=cells.map(c=>{const ch=prevFw&&prevFw[c[0]]!==c[1];return `<div class="fw ${ch?'changed':''}"><div class="k">${c[0]}</div><div class="v">${c[1]}</div></div>`;}).join('');h+=`<div class="fw"><div class="k">Diamond (A·C·I·V)</div><div class="diamond">${dv}</div></div>`;fwstrip.innerHTML=h;prevFw={'Kill Chain':t.fw.kill,'NIST IR':t.fw.nist,'PEAK':t.fw.peak,'Pyramid of Pain':t.fw.pyramid};}
+function paneHTML(p){return `<div class="win ${p.cls||''}"><div class="bar"><div class="dots"><i class="dr"></i><i class="dy"></i><i class="dg"></i></div><div class="app"><b>${p.app}</b></div></div><pre>${p.body}</pre></div>`;}
+function leadHTML(l){return `<div class="lead"><div class="ava">${LEAD_INIT}</div><div class="body"><div class="who">${LEAD_NAME} <span class="role">· ${LEAD_ROLE}</span>${l.tag?`<span class="tag">${l.tag}</span>`:''}</div><div class="msg">${l.msg}</div></div></div>`;}
+function atkHTML(a){let r='';if(a.goal)r+=`<div class="arow"><div class="lbl">Operator goal</div><div class="txt">${a.goal}</div></div>`;if(a.why)r+=`<div class="arow"><div class="lbl">Why this move / method</div><div class="txt">${a.why}</div></div>`;if(a.recon)r+=`<div class="arow"><div class="lbl">What recon told them</div><div class="txt">${a.recon}</div></div>`;if(a.weakness)r+=`<div class="arow"><div class="lbl">Weakness they rely on</div><div class="txt">${a.weakness}</div></div>`;if(a.next)r+=`<div class="arow nextmv"><div class="lbl">▶ Next move — what YOU pre-empt</div><div class="txt">${a.next}</div></div>`;return `<div class="atkpanel"><div class="ah">🗡 Attacker's-eye view — plausible operator reasoning (inference, not a confession)</div><div class="ab">${r}</div></div>`;}
+function reasonHTML(r){return `<div class="reason"><div class="rh">Analyst reasoning — Observe · Orient · Relevance · Sufficiency</div><div class="rb">
+   <div class="rrow"><div class="lbl obs">Observe</div><div class="txt">${r.obs}</div></div>
+   <div class="rrow"><div class="lbl ori">Orient</div><div class="txt">${r.ori}</div></div>
+   <div class="rrow"><div class="lbl rel">Relevance — is this related?<span class="verdict ${r.rel.v}">${r.rel.v}</span></div><div class="txt">${r.rel.b}</div></div>
+   <div class="rrow"><div class="lbl suf">Sufficiency — do I have enough?</div><div class="meter"><i style="width:${r.suf.lvl}%"></i></div><div class="txt">${r.suf.gap}</div><div class="move ${r.suf.move}">▸ ${r.suf.move}</div> <span class="txt" style="font-size:12.5px">${r.suf.mv}</span></div></div></div>`;}
+
+function fieldNotes(){
+ let o="SQUIDOOR / FINALDRAFT (CL-STA-0049) — DFIR FIELD NOTES\nBuild "+BUILD_ID+" | generated "+STAMP_UTC+"\n";
+ o+="Sources: Unit 42 + Elastic (REF7707). Artifacts illustrative; real IOCs in Reading Room.\n"+"=".repeat(72)+"\n\n";
+ o+="TAKEAWAYS\n"+"-".repeat(72)+"\n";S.forEach((t,idx)=>{if(t.take)o+=idx+". "+t.title+"\n   -> "+t.take+"\n\n";});
+ o+="BIAS WATCHLIST (notice it, note it, never lean on it)\n"+"-".repeat(72)+"\n";
+ o+="- Confirmation: seeking only evidence that fits your favored story. -> hunt DISCONFIRMING evidence; run ACH.\n";
+ o+="- Availability: 'I just read about actor X so this is X.' -> consider base rates + borrowed-TTP/copycat; demand independent corroborators.\n";
+ o+="- Anchoring: first theory sticks. -> generate alternatives before committing; re-derive from evidence.\n";
+ o+="- Base-rate neglect: forgetting how common the benign case is. -> ask 'how often is this benign here?'\n";
+ o+="- Attribution overconfidence: naming a group feels tidy. -> stay calibrated (suspected/likely/high); state what would move confidence.\n";
+ o+="Rule: separate OBSERVATION from INFERENCE; tag each; write 'I may be pattern-matching to X; need corroboration.'\n\n";
+ o+="THINK-LIKE-THE-ATTACKER (hypothesis engine, not certainty)\n"+"-".repeat(72)+"\n";
+ o+="Reason from the goal backward: given what they want + what recon showed, which weakness would they pivot off next?\n";
+ o+="Use it to PRE-POSITION detection for the next stage. Cite the behavior, calibrate confidence, keep a rival explanation alive.\n\n";
+ o+="DISTILLATION: behavior (not IOC) -> hypothesis -> data source -> scope -> hit/miss. rare-when-malicious AND baseline-able.\n\n";
+ o+="RELEVANCE: shared host/user/lineage/time/hash/config-infra/capability-sig/rare-TTP. one=lead, several INDEPENDENT=linked.\n\n";
+ o+="SUFFICIENCY: per-decision (contain!=eradicate!=attribute). ACH: disprove rivals; record what killed each.\n\n";
+ o+="STRUCTURED INTEL LOGGING: fixed schema (vector/exec/C2/persistence/ATT&CK IDs/Diamond/fingerprint/confidence/ruled-out).\n";
+ o+="Why fixed fields: free-text 'column B vs XA' never correlates. STIX/MISP/OpenCTI map everyone to one model. A field\n";
+ o+="match is a LEAD to test (copycats/RaaS/shared toolkits), weighted by how rare+specific the overlap is.\n\n";
+ o+="DETECTION CHEAT-SHEET\n"+"-".repeat(72)+"\n";
+ o+="- w3wp.exe->shell->recon = fresh IIS foothold\n- cdb.exe non-standard path -c|-cf|-pd; KEY on PE OriginalFileName=CDB.Exe\n";
+ o+="- 'system' binary from ProgramData + .ini = renamed LOLBAS\n- mspaint/notepad on SERVER w/ net I/O = injection sleeve\n";
+ o+="- NON-browser proc -> graph.microsoft.com AND pastebin.com = Squidoor tell\n- GET polling draft subject R_<id> = Outlook tasking\n";
+ o+="- ERADICATION: all shells + mesh peers + sched task + ROTATE stolen token/creds\n\n";
+ o+="ATT&CK MAP\n"+"-".repeat(72)+"\n";ATTACK.forEach(r=>o+="- ["+r[2]+"] "+r[1]+" ("+r[0]+")\n");
+ return o;
+}
+function loopSvg(){return `<svg viewBox="0 0 680 230" width="100%" style="max-width:680px;margin:6px 0" font-family="monospace" font-size="11"><defs><marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#4ea3ff"/></marker><marker id="aw" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#ffb454"/></marker></defs><text x="10" y="16" fill="#8aa0b4">Nested investigation loops</text>${['Prepare','Detect / Analyze','Contain / Eradicate / Recover','Lessons'].map((t,n)=>{const x=20+n*160;return `<rect x="${x}" y="40" width="140" height="34" rx="7" fill="#111a24" stroke="#2a3a4c"/><text x="${x+70}" y="61" fill="#e7edf3" text-anchor="middle">${t}</text>`;}).join('')}${[0,1,2].map(n=>{const x=20+n*160;return `<line x1="${x+140}" y1="57" x2="${x+160}" y2="57" stroke="#4ea3ff" stroke-width="2" marker-end="url(#ar)"/>`;}).join('')}<path d="M650,74 C650,120 90,120 90,74" fill="none" stroke="#ffb454" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#aw)"/><text x="330" y="112" fill="#ffb454" text-anchor="middle">lessons learned feed the next Prepare (never truly closes)</text><rect x="60" y="150" width="240" height="60" rx="8" fill="#0d141d" stroke="#1f6b47"/><text x="180" y="170" fill="#51d88a" text-anchor="middle">PEAK hunt loop</text><text x="180" y="188" fill="#8aa0b4" text-anchor="middle">hypothesis -> execute -> finding</text><text x="180" y="202" fill="#8aa0b4" text-anchor="middle">-> NEW hypothesis</text><rect x="380" y="150" width="240" height="60" rx="8" fill="#0d141d" stroke="#244a6e"/><text x="500" y="170" fill="#4ea3ff" text-anchor="middle">F3EAD intel loop</text><text x="500" y="188" fill="#8aa0b4" text-anchor="middle">find·fix·finish·exploit</text><text x="500" y="202" fill="#8aa0b4" text-anchor="middle">·analyze·disseminate</text><line x1="300" y1="180" x2="380" y2="180" stroke="#8aa0b4" stroke-width="1.5" marker-end="url(#ar)"/></svg>`;}
+function renderDebrief(){
+ const gl=GLOSS.map(g=>`<dt>${g[0]}</dt><dd>${g[1]}</dd>`).join('');
+ const amap=ATTACK.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td><code>${r[2]}</code></td></tr>`).join('');
+ const read=READING.map(r=>`<li><span class="tag">${r[0]}</span><a href="${r[2]}" target="_blank" rel="noopener">${r[1]}</a></li>`).join('');
+ const kit=KIT.map(k=>`<li><span class="tag ${k[0]}">${k[0]==='must'?'must-have':'good'}</span><a href="${k[3]}" target="_blank" rel="noopener">${k[1]}</a> — <span style="color:#cdd9e5">${k[2]}</span></li>`).join('');
+ return `<div><div class="take"><h4>Methodology in one line</h4><p>Lead → distill to a behavior → triage by victimology → pivot on durable fingerprints → fight bias with ACH + calibrated confidence → read the attacker to get ahead → <b>log it structured so the next case matches instantly.</b></p></div>
+  <div class="sechead">Loop map</div>${loopSvg()}
+  <div class="sechead">Analyst's kit — must-have vs. good-to-have</div><ul class="kit">${kit}</ul>
+  <div class="sechead">Glossary (frameworks, biases, SATs, structured intel)</div><dl class="gl">${gl}</dl>
+  <div class="sechead">ATT&amp;CK map</div><table class="map"><tr><th>Tactic</th><th>Technique</th><th>ID</th></tr>${amap}</table>
+  <div class="sechead">Field notes — editable, copy to your log</div><textarea id="notesArea" spellcheck="false" style="min-height:320px">${fieldNotes().replace(/</g,'&lt;')}</textarea>
+  <div class="copyrow"><button class="btn" id="copyBtn">Copy field notes</button><span class="copied" id="copied">Copied ✓</span></div>
+  <div class="sechead">Reading room</div><ul class="reading">${read}</ul>
+  <div class="disc"><b>Sources &amp; accuracy:</b> Squidoor technical facts are drawn from Unit 42 (Rochberger &amp; Fakterman, 27 Feb 2025) and Elastic Security Labs (FINALDRAFT / REF7707, 13 Feb 2025) and were fact-checked against both reports. The investigative-narrative details (the one-unpatched-host story, the VirusTotal submitter pivots, the YARA livehunt) reflect the researchers' SANS DFIR Summit 2026 talk rather than the written reports, and are attributed as such. Console panels use synthetic hostnames/IPs/hashes for teaching and are labeled illustrative; attacker-view reasoning is plausible inference from observed behavior, not a confession. Generator scenarios paraphrase public reporting — verify against the cited sources before operational use. No fabricated IOC is presented as genuine; pull real IOCs from the Reading Room. This is an independent educational reconstruction and is not affiliated with or endorsed by Unit 42, Elastic, or SANS.</div></div>`;
+}
+
+let toastStep=-1;
+function showToast(msg){const t=document.getElementById('toast');document.getElementById('toastMsg').textContent=msg;t.classList.add('show');}
+function hideToast(){document.getElementById('toast').classList.remove('show');}
+
+function render(){
+ const t=S[i];seen.add(i);recomputeGaps();renderFw(t);
+ let h=`<div class="phase">${t.phase.replace(/↻/,'<span style="color:var(--warn)">↻</span>')}</div><h2 class="title">${t.title}</h2>`;
+ if(view==='atk')h+=`<div class="atkbanner">🗡 Attacker view — toggle back to 🛡 Defender any time</div>`;
+ if(t.loop)h+=`<div class="loopbadge">↻ ${t.loop.type}</div>`;
+ if(t.lead)h+=leadHTML(t.lead);
+ if(t.newConcept)h+=`<div class="newconcept"><div class="lbl">New concept · ${t.newConcept.term}</div>${t.newConcept.def}</div>`;
+ h+=`<div class="scene">${t.scene||''}</div>`;
+ if(t.panes&&t.panes.length)h+=`<div class="workspace ${t.panes.length>1?'ws2':''}">${t.panes.map(paneHTML).join('')}</div>`;
+ if(t.loop)h+=`<div class="crit"><h4>Loop — why this isn't linear</h4><p>${t.loop.text}</p></div>`;
+ // reasoning OR attacker panel depending on view
+ if(view==='atk'&&t.attacker)h+=atkHTML(t.attacker);
+ else if(t.reason)h+=reasonHTML(t.reason);
+ if(view==='atk'&&t.reason)h+=`<details style="margin:10px 0"><summary style="cursor:pointer;color:var(--accent2);font-size:12.5px">Show defender reasoning too</summary>${reasonHTML(t.reason)}</details>`;
+ if(t.bias)h+=`<div class="bias"><h4>⚑ Bias check</h4><p><b>Risk:</b> ${t.bias.risk}</p><p class="ct"><b>Counter:</b> ${t.bias.counter}</p></div>`;
+ if(t.decision){h+=`<div class="decision"><div class="q">⟶ ${t.decision.prompt}</div>`;t.decision.options.forEach((o,idx)=>h+=`<button class="opt" data-opt="${idx}">${o.text}<span class="mk"></span></button>`);h+=`<div class="fb" id="fb"></div></div>`;}
+ if(t.crit)h+=`<div class="crit"><h4>Critical detail</h4><p>${t.crit}</p></div>`;
+ if(t.keypoints&&t.keypoints.length)h+=`<div class="kp"><h4>Key points</h4><ul>${t.keypoints.map(k=>`<li>${k}</li>`).join('')}</ul></div>`;
+ if(t.take)h+=`<div class="take"><h4>Actionable takeaway → notes</h4><p>${t.take}</p></div>`;
+ if(t.refs&&t.refs.length)h+=`<div class="refs">Reference: ${t.refs.map(r=>`<a href="${r[1]}" target="_blank" rel="noopener">${r[0]}</a>`).join(' · ')}</div>`;
+ if(t.debrief)h+=renderDebrief();
+ card.innerHTML=h;
+ if(t.decision){const fb=card.querySelector('#fb');card.querySelectorAll('.opt').forEach(btn=>btn.addEventListener('click',()=>{const ch=t.decision.options[+btn.dataset.opt];card.querySelectorAll('.opt').forEach((b,idx)=>{b.disabled=true;const o=t.decision.options[idx];if(o.correct){b.classList.add('correct');b.querySelector('.mk').textContent='✓';}if(b===btn&&!o.correct){b.classList.add('wrong');b.querySelector('.mk').textContent='✕';}});fb.className='fb show '+(ch.correct?'ok':'no');fb.innerHTML=(ch.correct?'<b>Correct. </b>':'<b>Not quite. </b>')+ch.feedback;}));}
+ if(t.debrief){const ta=card.querySelector('#notesArea'),cp=card.querySelector('#copyBtn'),dn=card.querySelector('#copied');cp.addEventListener('click',async()=>{ta.select();try{await navigator.clipboard.writeText(ta.value);}catch(e){try{document.execCommand('copy');}catch(_){}}dn.classList.add('show');setTimeout(()=>dn.classList.remove('show'),2200);});}
+ bar.style.width=(i/(S.length-1)*100)+'%';counter.textContent=`Turn ${i+1} / ${S.length}`;prevBtn.disabled=(i===0);nextBtn.textContent=(i===S.length-1)?'Done':'Advance ▶';
+ const c=t.conf||0;confNum.textContent=c+'%';confBar.style.width=c+'%';renderGaps();
+ stepsEl.querySelectorAll('li').forEach((li,idx)=>{li.classList.toggle('active',idx===i);li.classList.toggle('done',seen.has(idx)&&idx!==i);});
+ // log-cue toast
+ if(t.logcue && toastStep!==i){toastStep=i;showToast(t.logcue);} else if(!t.logcue){hideToast();}
+ window.scrollTo({top:0,behavior:'smooth'});
+}
+prevBtn.addEventListener('click',()=>{if(i>0){i--;render();}});
+nextBtn.addEventListener('click',()=>{if(i<S.length-1){i++;render();}});
+document.addEventListener('keydown',e=>{if(document.getElementById('walkMode').style.display==='none')return;if(e.key==='ArrowRight'&&i<S.length-1){i++;render();}if(e.key==='ArrowLeft'&&i>0){i--;render();}});
+document.getElementById('vDef').addEventListener('click',()=>{view='def';document.getElementById('vDef').classList.add('on');document.getElementById('vAtk').classList.remove('on');render();});
+document.getElementById('vAtk').addEventListener('click',()=>{view='atk';document.getElementById('vAtk').classList.add('on');document.getElementById('vDef').classList.remove('on');render();});
+
+/* toast wiring */
+document.getElementById('toastX').addEventListener('click',hideToast);
+document.getElementById('toastDismiss').addEventListener('click',hideToast);
+document.getElementById('toastGo').addEventListener('click',()=>{hideToast();switchMode('log');});
+
+/* ================= GENERATOR ================= */
+const promptHost=document.getElementById('promptHost'),selType=document.getElementById('selType'),selPack=document.getElementById('selPack'),selDiff=document.getElementById('selDiff');
+EX_TYPES.forEach(t=>{const o=document.createElement('option');o.value=t.id;o.textContent=t.name;selType.appendChild(o);});
+EX_PACKS.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.name;selPack.appendChild(o);});
+function pick(a){return a[Math.floor(Math.random()*a.length)];}
+function pickF(arr,diff){const f=diff?arr.filter(x=>x.diff===diff):arr;return pick(f.length?f:arr);}
+function genRep(){
+ const type=selType.value?EX_TYPES.find(t=>t.id===selType.value):pickF(EX_TYPES,selDiff.value);
+ const pack=selPack.value?EX_PACKS.find(p=>p.id===selPack.value):pickF(EX_PACKS,selDiff.value);
+ const comp=pick(COMPLICATIONS); const leadLine=pick(LEAD_TASKS[type.id]||["\"Walk me through it.\""]);
+ let inputLabel,inputText;
+ if(type.id==="distill"){if(Math.random()<0.5){inputLabel="Intel excerpt";inputText=pack.intel;}else{inputLabel="Exec / client what-if";inputText=pack.exec;}}
+ else if(type.id==="bias"){inputLabel="Colleague's conclusion";inputText=pack.biasclaim;}
+ else if(type.id==="infer"){inputLabel="What you've observed";inputText=pack.intel+"\n\nTwist: "+pack.twist;}
+ else if(type.id==="relevance"){inputLabel="Two artifacts";inputText="A) "+pack.vector+" (first seen on HOST-A)\nB) "+pack.c2+" (from a process on HOST-A, same day)\n\nTwist: "+pack.twist;}
+ else if(type.id==="pyramid"){inputLabel="Fragile IOC";inputText="hash: "+pack.hash+"\nip:   "+pack.ip+"\ncontext: "+pack.vector;}
+ else if(type.id==="scope"){inputLabel="Hypothesis to prove/refute";inputText=pack.intel;}
+ else if(type.id==="logit"){inputLabel="Incident to decompose";inputText=pack.intel+"\nVector: "+pack.vector+"\nC2: "+pack.c2+"\nTwist: "+pack.twist;}
+ else {inputLabel="Situation";inputText=pack.intel;}
+ promptHost.innerHTML=`<div class="promptcard"><div class="pc-head"><span class="pc-type">${type.name}</span><span class="pc-pack">· ${pack.name}</span><span class="tag" style="margin-left:auto">${type.diff}</span></div><div class="pc-body">
+   <div class="pc-sect"><div class="h">Your task</div><div class="t">${type.task}</div></div>
+   <div class="pc-sect"><div class="h">${inputLabel}</div><div class="pc-input">${inputText}</div></div>
+   <div class="pc-sect"><div class="h">Hunt Lead</div><div class="pc-lead"><div class="ava">${LEAD_INIT}</div><div><div style="font-size:11px;color:#9fc2e6;font-weight:700">${LEAD_NAME} · ${LEAD_ROLE}</div><div style="font-size:13.5px;color:#e4eefb">${leadLine}</div></div></div></div>
+   <div class="pc-sect"><div class="h">Complication</div><div class="pc-twist">⚠ ${comp}</div></div>
+   <div class="pc-sect" style="font-size:11.5px;color:var(--faint)">Grounded in: ${pack.src} — paraphrased for training; verify before operational use.</div>
+   <div class="approach" id="approach"><h4>Model approach (one good way — not the only way)</h4><ol>${type.approach.map(a=>`<li>${a}</li>`).join('')}</ol></div>
+   <div class="genrow"><button class="btn ghost" id="revealBtn">Reveal model approach</button><button class="btn ghost" id="copyPromptBtn">Copy prompt</button><button class="btn" id="againBtn">New rep ▶</button></div>
+ </div></div>`;
+ document.getElementById('revealBtn').addEventListener('click',()=>document.getElementById('approach').classList.add('show'));
+ document.getElementById('againBtn').addEventListener('click',genRep);
+ document.getElementById('copyPromptBtn').addEventListener('click',async()=>{const txt=`EXERCISE: ${type.name} (${type.diff})\nScenario: ${pack.name}\n\nTASK: ${type.task}\n\n${inputLabel}:\n${inputText}\n\nHunt Lead: ${leadLine}\nComplication: ${comp}\nSource: ${pack.src}`;try{await navigator.clipboard.writeText(txt);}catch(e){}const b=document.getElementById('copyPromptBtn');b.textContent='Copied ✓';setTimeout(()=>b.textContent='Copy prompt',1600);});
+ window.scrollTo({top:0,behavior:'smooth'});
+}
+document.getElementById('genBtn').addEventListener('click',genRep);
+
+/* ================= CASE LOG ================= */
+function fillSelect(id,arr){const s=document.getElementById(id);arr.forEach(v=>{const o=document.createElement('option');o.textContent=v;s.appendChild(o);});}
+fillSelect('f_vector',VECTORS);fillSelect('f_c2',C2S);fillSelect('f_persist',PERSISTS);fillSelect('f_sector',SECTORS);
+const FORM_IDS=['f_name','f_date','f_vector','f_c2','f_exec','f_persist','f_sector','f_region','f_conf','f_source','f_attack','f_dA','f_dC','f_dI','f_dV','f_files','f_cmds','f_fprint','f_ach','f_notes'];
+function readForm(){const o={};FORM_IDS.forEach(id=>o[id]=document.getElementById(id).value.trim());return o;}
+function renderLogTable(){const host=document.getElementById('logTableHost');if(!LOG.length){host.innerHTML='<div class="emptyrow">No entries yet. Add one above, or load the Squidoor example.</div>';return;}
+ const rows=LOG.map((e,idx)=>{const m=lastFind&&matchEntry(e,lastFind.field,lastFind.val);return `<tr class="${m?'match':''}"><td>${e.f_name||'—'}</td><td>${e.f_vector||''}</td><td>${e.f_c2||''}</td><td>${e.f_exec||''}</td><td>${e.f_fprint||''}</td><td>${e.f_attack||''}</td><td>${e.f_dA||''}</td><td>${e.f_conf||''}</td></tr>`;}).join('');
+ host.innerHTML=`<table class="logtable"><tr><th>Incident</th><th>Vector</th><th>C2</th><th>Execution</th><th>Fingerprint</th><th>ATT&CK</th><th>Adversary</th><th>Conf</th></tr>${rows}</table>`;}
+function matchEntry(e,field,val){val=(val||'').toLowerCase();if(!val)return false;if(field==='c2')return (e.f_c2||'').toLowerCase().includes(val);if(field==='vector')return (e.f_vector||'').toLowerCase().includes(val);if(field==='attack')return (e.f_attack||'').toLowerCase().includes(val);if(field==='fprint')return (e.f_fprint||'').toLowerCase().includes(val);return false;}
+document.getElementById('addEntry').addEventListener('click',()=>{const e=readForm();if(!e.f_name){alert('Give the entry an incident name/alias first.');return;}LOG.push(e);lastFind=null;renderLogTable();window.scrollTo({top:document.getElementById('logTableHost').offsetTop-80,behavior:'smooth'});});
+document.getElementById('clearForm').addEventListener('click',()=>{FORM_IDS.forEach(id=>{const el=document.getElementById(id);if(el.tagName==='SELECT')el.selectedIndex=(id==='f_conf'?1:0);else el.value='';});});
+document.getElementById('loadDemo').addEventListener('click',()=>{const d={f_name:'HUNT-SEA-DEF (Squidoor)',f_date:'2026-10-15',f_vector:VECTORS[0],f_c2:C2S[3],f_exec:'renamed cdb.exe (LOLBin) -> reflective in-memory DLL',f_persist:PERSISTS[0],f_sector:SECTORS[1],f_region:'SE Asia + South America',f_conf:'Moderate',f_source:'internal IR + Unit 42/Elastic',f_attack:'T1190, T1505.003, T1053.005, T1036.003, T1218, T1620, T1102.003, T1055.002, T1550.002',f_dA:'suspected CL-STA-0049 (Chinese APT)',f_dC:'Squidoor / FinalDraft',f_dI:'Graph mailbox, Pastebin, paste host, VT geo SG/BR',f_dV:'gov/defense/telecom/aviation/edu',f_files:'C:\\ProgramData\\fontdrvhost.exe; config.ini; owa_cert.aspx (wwwroot); mspaint.exe (injected)',f_cmds:'w3wp.exe->cmd->whoami /all; cdb.exe -cf config.ini; GET drafts?$search=subject:R_<id>',f_fprint:'renames a LOLBin (cdb.exe) to a system-process name; P_/R_<id> draft subjects; non-browser proc -> Graph+Pastebin',f_ach:'ruled out: commodity ransomware (no encryptor); pentest (no authz, real exfil); false positive (in-mem backdoor confirmed)',f_notes:'well-engineered tooling; per Elastic REF7707, inconsistent operational hygiene; operators actively curated their Pastebin infra (deleting/replacing files, e.g. early Feb 2025)'};FORM_IDS.forEach(id=>{const el=document.getElementById(id);if(el.tagName==='SELECT'){const idx=[...el.options].findIndex(o=>o.textContent===d[id]);el.selectedIndex=idx>=0?idx:0;}else el.value=d[id]||'';});});
+document.getElementById('findBtn').addEventListener('click',()=>{lastFind={field:document.getElementById('findField').value,val:document.getElementById('findVal').value};renderLogTable();});
+document.getElementById('clearFind').addEventListener('click',()=>{lastFind=null;document.getElementById('findVal').value='';renderLogTable();});
+function copyText(txt,el){(async()=>{try{await navigator.clipboard.writeText(txt);}catch(e){}const c=document.getElementById('logCopied');c.classList.add('show');setTimeout(()=>c.classList.remove('show'),1800);})();}
+document.getElementById('exportJson').addEventListener('click',()=>copyText(JSON.stringify(LOG,null,2)));
+document.getElementById('exportTsv').addEventListener('click',()=>{const cols=FORM_IDS;const head=cols.join('\t');const body=LOG.map(e=>cols.map(c=>(e[c]||'').replace(/\t/g,' ').replace(/\n/g,'; ')).join('\t')).join('\n');copyText(head+'\n'+body);});
+renderLogTable();
+
+/* ================= MODE SWITCH ================= */
+const mWalk=document.getElementById('mWalk'),mGen=document.getElementById('mGen'),mLog=document.getElementById('mLog'),walkMode=document.getElementById('walkMode'),genModeEl=document.getElementById('genMode'),logModeEl=document.getElementById('logMode');
+function switchMode(m){
+ [mWalk,mGen,mLog].forEach(b=>b.classList.remove('on'));
+ walkMode.style.display='none';genModeEl.style.display='none';logModeEl.style.display='none';
+ if(m==='walk'){mWalk.classList.add('on');walkMode.style.display='';}
+ if(m==='gen'){mGen.classList.add('on');genModeEl.style.display='';if(!promptHost.innerHTML)genRep();}
+ if(m==='log'){mLog.classList.add('on');logModeEl.style.display='';}
+}
+mWalk.addEventListener('click',()=>switchMode('walk'));
+mGen.addEventListener('click',()=>switchMode('gen'));
+mLog.addEventListener('click',()=>switchMode('log'));
+
+document.getElementById('footer').innerHTML=`<div>Build <span class="mono">${BUILD_ID}</span> · generated <span class="mono">${STAMP_UTC}</span> · single-file offline HTML · no external dependencies · no fabricated IOCs.</div><div style="margin-top:6px">Case: Squidoor/FinalDraft (CL-STA-0049). Defender + attacker lanes · bias drills · structured case log. Hunt Lead: ${LEAD_NAME}. Keyboard ← → in walkthrough.</div>`;
+buildSteps();render();
+</script>
+</body>
+</html>
