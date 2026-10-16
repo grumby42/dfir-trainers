@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scattered Spider DFIR Trainer — identity-first intrusion, hypervisor ransomware, case log</title>
+<style>
+  :root{
+    --bg:#070b10;--panel:#111a24;--panel2:#0d141d;--ink:#e7edf3;--muted:#8aa0b4;--faint:#5e7183;
+    --line:#1e2b3a;--line2:#2a3a4c;--accent:#37d0a8;--accent2:#4ea3ff;--warn:#ffb454;--bad:#ff6b6b;
+    --good:#51d88a;--purple:#b48cff;--chip:#172231;--evid:#05090d;--evidink:#b7e3cf;--shadow:0 12px 34px rgba(0,0,0,.5);--winbar:#0a1420;--lead:#1b2a3f;--atk:#2a1113;--atkln:#5a2b2f;--atkink:#ffd2cf;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:radial-gradient(1200px 600px at 80% -10%,#0e1a26 0,transparent 60%),radial-gradient(900px 500px at -10% 10%,#0c1622 0,transparent 55%),var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.55;-webkit-font-smoothing:antialiased}
+  code,.mono{font-family:"SF Mono",SFMono-Regular,ui-monospace,"Cascadia Code",Consolas,Menlo,monospace}
+  .wrap{max-width:1180px;margin:0 auto;padding:16px 14px 90px}
+  header.top{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:12px}
+  header.top h1{font-size:18px;margin:0;letter-spacing:.3px}
+  header.top .sub{color:var(--muted);font-size:12.5px}
+  .badge{font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--accent);border:1px solid var(--line2);border-radius:999px;padding:3px 10px;background:var(--chip)}
+  .modebar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+  .modebtn{background:var(--panel2);border:1px solid var(--line2);color:var(--muted);border-radius:9px;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:600}
+  .modebtn.on{background:var(--chip);color:var(--ink);border-color:var(--accent)}
+
+  .viewtoggle{display:inline-flex;border:1px solid var(--line2);border-radius:9px;overflow:hidden;margin-bottom:12px}
+  .viewtoggle button{background:var(--panel2);border:none;color:var(--muted);padding:7px 14px;cursor:pointer;font-size:12.5px;font-weight:700}
+  .viewtoggle button.on.def{background:#0f1e2c;color:var(--accent2)}
+  .viewtoggle button.on.atk{background:var(--atk);color:#ff8f8a}
+
+  .fwstrip{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px}
+  @media(max-width:760px){.fwstrip{grid-template-columns:repeat(2,1fr)}}
+  .fw{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+  .fw .k{font-size:9.5px;text-transform:uppercase;letter-spacing:.7px;color:var(--faint)}
+  .fw .v{font-size:12.5px;font-weight:600;margin-top:2px}
+  .fw.changed{border-color:var(--accent);box-shadow:0 0 0 1px rgba(55,208,168,.25)}
+  .diamond{display:flex;gap:5px;margin-top:4px}
+  .dv{width:16px;height:16px;border-radius:4px;border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--faint);background:#0a121b}
+  .dv.on{background:#10251a;border-color:var(--good);color:var(--good)}
+  .layout{display:grid;grid-template-columns:1fr 310px;gap:16px}
+  @media(max-width:980px){.layout{grid-template-columns:1fr}}
+  .progress{height:5px;background:var(--panel);border-radius:999px;overflow:hidden;margin:2px 0 12px}
+  .progress>i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0;transition:width .35s}
+  .phase{font-size:10.5px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+  h2.title{margin:3px 0 4px;font-size:19px}
+  .loopbadge{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#1a1024;background:var(--warn);border-radius:999px;padding:3px 10px;font-weight:700;margin:6px 0}
+  .atkbanner{display:inline-flex;align-items:center;gap:7px;font-size:11px;color:#ffd2cf;background:var(--atk);border:1px solid var(--atkln);border-radius:999px;padding:3px 11px;font-weight:700;margin:6px 0}
+
+  .lead{display:flex;gap:10px;align-items:flex-start;background:var(--lead);border:1px solid #2b4360;border-radius:12px;padding:11px 13px;margin:12px 0}
+  .lead .ava{flex:0 0 34px;width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#4ea3ff,#b48cff);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#06101c}
+  .lead .who{font-size:11px;color:#9fc2e6;font-weight:700;margin-bottom:2px}.lead .who .role{color:var(--faint);font-weight:500}
+  .lead .msg{font-size:13.5px;color:#e4eefb}
+  .lead .tag{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--warn);border:1px solid #5a4a22;border-radius:5px;padding:1px 6px;margin-left:6px}
+
+  .newconcept{border:1px solid #33314a;background:#161327;border-radius:10px;padding:10px 12px;margin:10px 0}
+  .newconcept .lbl{font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--purple);font-weight:700}
+  .newconcept b{color:#e9e2ff}
+  .scene{margin:10px 0}.scene p{margin:8px 0}.scene strong{color:#fff}
+
+  .workspace{display:grid;gap:12px;margin:14px 0}.ws2{grid-template-columns:1fr 1fr}@media(max-width:720px){.ws2{grid-template-columns:1fr}}
+  .win{background:var(--evid);border:1px solid var(--line2);border-radius:10px;overflow:hidden;box-shadow:var(--shadow)}
+  .win .bar{display:flex;align-items:center;gap:8px;background:var(--winbar);border-bottom:1px solid var(--line);padding:7px 11px}
+  .win .bar .dots{display:flex;gap:5px}.win .bar .dots i{width:9px;height:9px;border-radius:50%}
+  .dr{background:#ff5f56}.dy{background:#ffbd2e}.dg{background:#27c93f}
+  .win .bar .app{font-size:11px;color:var(--muted);letter-spacing:.4px;text-transform:uppercase}.win .bar .app b{color:var(--accent2);font-weight:700}
+  .win pre{margin:0;padding:11px 13px;overflow-x:auto;font-size:12px;color:var(--evidink);line-height:1.5;font-family:ui-monospace,Menlo,Consolas,monospace}
+  .win pre .c{color:#56708a}.win pre .hi{color:var(--warn);font-weight:600}.win pre .r{color:var(--bad);font-weight:600}.win pre .g{color:var(--good)}.win pre .b{color:var(--accent2)}.win pre .p{color:var(--purple)}
+  .win.note pre{color:#cfe8dd}
+
+  .reason{border:1px solid var(--line2);border-radius:12px;overflow:hidden;margin:14px 0;background:var(--panel2)}
+  .reason .rh{background:#0c1622;padding:8px 12px;font-size:11px;letter-spacing:.7px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line)}
+  .reason .rb{padding:4px 12px 12px}
+  .rrow{padding:10px 0;border-bottom:1px dashed #1b2735}.rrow:last-child{border-bottom:none}
+  .rrow .lbl{font-size:10px;letter-spacing:.8px;text-transform:uppercase;font-weight:700;margin-bottom:3px}
+  .lbl.obs{color:var(--accent2)}.lbl.ori{color:var(--purple)}.lbl.rel{color:var(--warn)}.lbl.suf{color:var(--accent)}
+  .rrow .txt{font-size:13px;color:#d4e2ee}
+  .verdict{display:inline-block;font-size:10.5px;font-weight:700;border-radius:5px;padding:1px 7px;margin-left:6px;vertical-align:middle}
+  .verdict.linked{background:#10251a;color:var(--good);border:1px solid #1f6b47}.verdict.unknown{background:#2a2410;color:var(--warn);border:1px solid #6b561f}.verdict.unrelated{background:#241315;color:var(--bad);border:1px solid #6b2630}
+  .meter{height:8px;background:#0a121b;border-radius:999px;overflow:hidden;margin:6px 0;border:1px solid var(--line)}.meter>i{display:block;height:100%;background:linear-gradient(90deg,var(--bad),var(--warn),var(--good));transition:width .4s}
+  .move{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;border-radius:6px;padding:3px 9px;margin-top:4px}
+  .move.PIVOT{background:#12243a;color:var(--accent2);border:1px solid #244a6e}.move.COLLECT{background:#2a2410;color:var(--warn);border:1px solid #6b561f}.move.CONTAIN{background:#241315;color:var(--bad);border:1px solid #6b2630}.move.ADVANCE{background:#10251a;color:var(--good);border:1px solid #1f6b47}.move.LOOP{background:#2a1410;color:#ff9f6b;border:1px solid #7a3b1f}
+
+  /* attacker panel */
+  .atkpanel{border:1px solid var(--atkln);border-radius:12px;overflow:hidden;margin:14px 0;background:#160b0c}
+  .atkpanel .ah{background:#20100f;padding:8px 12px;font-size:11px;letter-spacing:.7px;text-transform:uppercase;color:#ff9f9a;border-bottom:1px solid var(--atkln)}
+  .atkpanel .ab{padding:4px 12px 12px}
+  .arow{padding:9px 0;border-bottom:1px dashed #3a2020}.arow:last-child{border-bottom:none}
+  .arow .lbl{font-size:10px;letter-spacing:.8px;text-transform:uppercase;font-weight:700;margin-bottom:3px;color:#ff8f8a}
+  .arow .txt{font-size:13px;color:var(--atkink)}
+  .arow.nextmv{background:#1c0d0e;margin:6px -12px -12px;padding:10px 12px}
+  .arow.nextmv .lbl{color:#ffb454}
+
+  .bias{border-left:3px solid #d98cff;background:#17121f;padding:9px 13px;border-radius:0 8px 8px 0;margin:13px 0}
+  .bias h4{margin:0 0 5px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#c9a6ff}
+  .bias p{margin:3px 0;font-size:13px;color:#e3d7f5}
+  .bias .ct{color:#9fe6c9}
+
+  .decision{border:1px solid #2a3a2f;background:#0f1a14;border-radius:10px;padding:13px;margin:14px 0}
+  .decision .q{font-weight:600;margin-bottom:9px}
+  .opt{display:block;width:100%;text-align:left;background:var(--panel2);color:var(--ink);border:1px solid var(--line2);border-radius:8px;padding:10px 12px;margin:6px 0;cursor:pointer;font-size:13.5px;transition:.12s}
+  .opt:hover{border-color:var(--accent)}.opt.correct{border-color:var(--good);background:#10251a}.opt.wrong{border-color:var(--bad);background:#261213}
+  .opt .mk{float:right;font-weight:700}
+  .fb{display:none;margin-top:9px;padding:10px 12px;border-radius:8px;font-size:13px}.fb.show{display:block}.fb.ok{background:#10251a;border:1px solid #1f6b47}.fb.no{background:#241317;border:1px solid #7a2b33}
+  .crit{border-left:3px solid var(--warn);background:#1c1710;padding:9px 13px;border-radius:0 8px 8px 0;margin:13px 0}
+  .crit h4,.kp h4,.take h4{margin:0 0 5px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+  .crit p{margin:3px 0;font-size:13.5px}
+  .kp{margin:13px 0 4px}.kp ul{margin:0;padding-left:18px}.kp li{margin:4px 0;font-size:13.5px}
+  .take{border-left:3px solid var(--accent);background:#0e1a18;padding:9px 13px;border-radius:0 8px 8px 0;margin:13px 0}.take p{margin:3px 0;color:#d7f3ea;font-size:13.5px}
+  .refs{font-size:12px;color:var(--muted);margin:12px 0 2px}.refs a{color:var(--accent2);text-decoration:none}.refs a:hover{text-decoration:underline}
+  .nav{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:16px}
+  .btn{background:var(--accent);color:#04231b;border:none;border-radius:9px;padding:11px 18px;font-weight:700;cursor:pointer;font-size:14px}.btn:hover{filter:brightness(1.08)}
+  .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line2);font-weight:600}.btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn.sm{padding:7px 12px;font-size:12.5px}
+
+  .rail .box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px;margin-bottom:12px}
+  .rail h3{margin:0 0 9px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+  .confnum{font-size:26px;font-weight:800;color:var(--accent)}.confsub{font-size:11px;color:var(--faint)}
+  .gaps{list-style:none;margin:8px 0 0;padding:0;font-size:12px}
+  .gaps li{padding:5px 8px;border-radius:6px;background:#1a1409;border:1px solid #3a2e12;color:var(--warn);margin:4px 0;display:flex;gap:7px}
+  .gaps li.closed{background:#0e1a14;border-color:#1f4a37;color:var(--good);text-decoration:line-through;opacity:.75}
+  .steps{list-style:none;margin:0;padding:0;font-size:12px;max-height:250px;overflow:auto}
+  .steps li{padding:5px 7px;border-radius:6px;color:var(--muted);cursor:pointer;display:flex;gap:8px;align-items:center}
+  .steps li .n{font-size:10px;width:16px;text-align:center;color:#3f5467}
+  .steps li.active{background:var(--chip);color:var(--ink)}.steps li.done{color:var(--accent)}.steps li.done .n::before{content:"✓"}.steps li.done .n{color:var(--accent)}
+  .steps li .lp{color:var(--warn);font-size:10px}
+  .biaswatch{font-size:11.5px;color:#c9a6ff;line-height:1.5}
+
+  .gl{font-size:12.5px}.gl dt{color:var(--accent);font-weight:700;margin-top:9px}.gl dd{margin:2px 0 0;color:#cdd9e5}
+  table.map{width:100%;border-collapse:collapse;font-size:12px;margin:10px 0}
+  table.map th,table.map td{border:1px solid var(--line2);padding:6px 8px;text-align:left;vertical-align:top}
+  table.map th{background:var(--chip);color:var(--muted);text-transform:uppercase;font-size:10px;letter-spacing:.5px}
+  table.map td code{color:var(--accent)}
+  textarea{width:100%;background:var(--evid);color:var(--evidink);border:1px solid var(--line2);border-radius:10px;padding:11px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;resize:vertical}
+  .copyrow{display:flex;gap:10px;align-items:center;margin-top:8px}
+  .copied{color:var(--good);font-size:13px;display:none}.copied.show{display:inline}
+  .reading a,.kit a{color:var(--accent2);text-decoration:none}.reading a:hover,.kit a:hover{text-decoration:underline}
+  .reading li,.kit li{margin:6px 0;font-size:13px}
+  .tag{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--faint);border:1px solid var(--line2);border-radius:4px;padding:1px 6px;margin-right:6px}
+  .tag.must{color:#06101c;background:var(--good);border-color:var(--good);font-weight:700}.tag.good{color:var(--warn);border-color:#5a4a22}
+  .disc{font-size:11.5px;color:#6a7f91;background:#0e141d;border:1px dashed var(--line2);border-radius:8px;padding:10px 12px;margin:14px 0}
+  .sechead{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:18px 0 6px;border-top:1px solid var(--line);padding-top:12px}
+  footer.stamp{margin-top:24px;border-top:1px solid var(--line);padding-top:12px;color:var(--faint);font-size:11px}footer.stamp .mono{color:#7fd8bd}
+
+  /* generator */
+  .gen{max-width:900px}.genctl{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+  .genctl select{background:var(--panel2);color:var(--ink);border:1px solid var(--line2);border-radius:8px;padding:9px 11px;font-size:13px}
+  .genctl label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-right:4px}
+  .promptcard{background:var(--panel);border:1px solid var(--line2);border-radius:14px;overflow:hidden;box-shadow:var(--shadow)}
+  .pc-head{background:var(--winbar);border-bottom:1px solid var(--line);padding:11px 15px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .pc-type{font-size:12px;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:.6px}.pc-pack{font-size:11px;color:var(--muted)}
+  .pc-body{padding:15px}.pc-sect{margin:0 0 14px}
+  .pc-sect .h{font-size:10.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--faint);margin-bottom:4px;font-weight:700}
+  .pc-sect .t{font-size:14px;color:#e6eef6}
+  .pc-input{background:var(--evid);border:1px solid var(--line2);border-radius:9px;padding:12px;font-size:13px;color:var(--evidink);font-family:ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap}
+  .pc-lead{display:flex;gap:10px;align-items:flex-start;background:var(--lead);border:1px solid #2b4360;border-radius:10px;padding:10px 12px}
+  .pc-lead .ava{flex:0 0 30px;width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#4ea3ff,#b48cff);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;color:#06101c}
+  .pc-twist{font-size:12.5px;color:var(--warn);background:#1c1710;border:1px solid #5a4a22;border-radius:8px;padding:8px 11px}
+  .approach{display:none;margin-top:12px;border-top:1px dashed var(--line2);padding-top:12px}.approach.show{display:block}
+  .approach h4{margin:0 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--good)}
+  .approach ol{margin:0;padding-left:18px}.approach li{margin:4px 0;font-size:13px}
+  .genrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+
+  /* case log */
+  .clog{max-width:1000px}
+  .guidebar{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+  @media(max-width:760px){.guidebar{grid-template-columns:1fr}}
+  .guide{background:var(--panel2);border:1px solid var(--line2);border-radius:10px;padding:10px 12px;font-size:12px}
+  .guide b{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px}
+  .guide.create b{color:var(--good)}.guide.update b{color:var(--warn)}.guide.ref b{color:var(--accent2)}
+  .form{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .fg{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}
+  @media(max-width:720px){.fg{grid-template-columns:1fr}}
+  .field label{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:3px}
+  .field input,.field select,.field textarea{width:100%;background:var(--panel2);color:var(--ink);border:1px solid var(--line2);border-radius:7px;padding:8px 9px;font-size:13px;font-family:inherit}
+  .field textarea{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;min-height:46px}
+  .field.full{grid-column:1 / -1}
+  .diamondgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;grid-column:1/-1}
+  .logtable{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:10px}
+  .logtable th,.logtable td{border:1px solid var(--line2);padding:5px 7px;text-align:left;vertical-align:top}
+  .logtable th{background:var(--chip);color:var(--muted);text-transform:uppercase;font-size:9.5px;letter-spacing:.4px}
+  .logtable tr.match{background:#10251a}
+  .findrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0 4px}
+  .findrow input,.findrow select{background:var(--panel2);color:var(--ink);border:1px solid var(--line2);border-radius:7px;padding:7px 9px;font-size:12.5px}
+  .emptyrow{color:var(--faint);font-size:12.5px;padding:8px 2px}
+
+  /* toast */
+  #toast{position:fixed;right:16px;bottom:16px;max-width:330px;background:#13202e;border:1px solid var(--accent2);border-radius:12px;box-shadow:var(--shadow);padding:12px 14px;z-index:50;display:none}
+  #toast.show{display:block;animation:slidein .25s ease}
+  @keyframes slidein{from{transform:translateY(12px);opacity:0}to{transform:none;opacity:1}}
+  #toast .tt{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--accent2);font-weight:700;margin-bottom:4px}
+  #toast .tm{font-size:13px;color:#dbe8f4;margin-bottom:9px}
+  #toast .tr{display:flex;gap:8px}
+  #toast .x{position:absolute;top:8px;right:11px;color:var(--faint);cursor:pointer;font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <span class="badge">DFIR Trainer · Scattered Spider</span>
+    <h1>Scattered Spider Hunt &amp; IR Trainer — identity-first intrusion · attacker lane · bias drills · case log</h1>
+    <span class="sub">Rogue VM Chronicles · a phone call to hypervisor ransomware · no-malware != no-incident · log structured intel</span>
+  </header>
+
+  <div class="modebar">
+    <button class="modebtn on" id="mWalk">▶ Case walkthrough</button>
+    <button class="modebtn" id="mGen">⚙ Exercise generator</button>
+    <button class="modebtn" id="mLog">🗃 Case log</button>
+  </div>
+
+  <!-- WALKTHROUGH -->
+  <div id="walkMode">
+    <div class="viewtoggle"><button class="def on" id="vDef">🛡 Defender view</button><button class="atk" id="vAtk">🗡 Attacker view</button></div>
+    <div class="fwstrip" id="fwstrip"></div>
+    <div class="progress"><i id="bar"></i></div>
+    <div class="layout">
+      <main><div id="card"></div>
+        <div class="nav"><button class="btn ghost" id="prev">◀ Back</button><div class="confsub" id="counter"></div><button class="btn" id="next">Advance ▶</button></div>
+      </main>
+      <aside class="rail">
+        <div class="box"><h3>Case confidence</h3><div class="confnum" id="confNum">5%</div><div class="confsub">closeness to a defensible, actionable conclusion</div><div class="meter" style="margin-top:8px"><i id="confBar" style="width:5%"></i></div></div>
+        <div class="box"><h3>Open collection gaps</h3><ul class="gaps" id="gaps"></ul></div>
+        <div class="box"><h3>Bias watch</h3><div class="biaswatch">At every step ask: am I <b>seeking disconfirming evidence</b>, or just evidence that fits my favored story? Note the bias, don't lean on it.</div></div>
+        <div class="box"><h3>Investigation phases</h3><ul class="steps" id="steps"></ul></div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- GENERATOR -->
+  <div id="genMode" style="display:none">
+    <div class="gen">
+      <p class="confsub" style="font-size:13px;color:var(--muted);margin-top:0">A "prompt book" of reps. Includes behavioral-inference and bias-spotting drills. Lock a type/scenario or leave random. Work it in your notebook, then reveal a model approach.</p>
+      <div class="genctl">
+        <div><label>Exercise</label><select id="selType"><option value="">Random</option></select></div>
+        <div><label>Scenario</label><select id="selPack"><option value="">Random</option></select></div>
+        <div><label>Difficulty</label><select id="selDiff"><option value="">Any</option><option>Foundational</option><option>Intermediate</option><option>Advanced</option></select></div>
+        <button class="btn" id="genBtn">Generate rep ▶</button>
+      </div>
+      <div id="promptHost"></div>
+    </div>
+  </div>
+
+  <!-- CASE LOG -->
+  <div id="logMode" style="display:none">
+    <div class="clog">
+      <div class="guidebar">
+        <div class="guide create"><b>Create an entry when…</b>you've confirmed a distinct incident/campaign — enough to fill the durable fields with evidence, not guesses.</div>
+        <div class="guide update"><b>Update an entry when…</b>new evidence changes a field, a rival hypothesis is ruled out, confidence shifts, or a sibling sample is found.</div>
+        <div class="guide ref"><b>Reference an entry when…</b>a new case shares a durable field (C2 method, naming convention, LOLBin). Search BEFORE you attribute — a match is a hypothesis, not a verdict.</div>
+      </div>
+      <div class="disc" style="margin-top:0"><b>Why the fixed schema:</b> this form IS your controlled vocabulary. Your "column B vs. column XA" problem is schema drift — if everyone free-texts, nothing correlates and nobody can clean it later. Enumerated fields + ATT&amp;CK IDs + Diamond vertices force alignment at entry time; that's exactly what shared standards (STIX, MISP, OpenCTI) do at scale by mapping everyone's data to one model. Trade-off: fixed fields can't capture every nuance — that's what <b>Notes</b> is for. Keep structured data structured; keep prose in Notes.</div>
+
+      <div class="form">
+        <div class="fg">
+          <div class="field"><label>Incident / alias</label><input id="f_name" placeholder="HUNT-IDENTITY-01 / Scattered Spider"></div>
+          <div class="field"><label>Date (first seen)</label><input id="f_date" placeholder="2026-10-15"></div>
+          <div class="field"><label>Initial access vector</label><select id="f_vector"></select></div>
+          <div class="field"><label>C2 method</label><select id="f_c2"></select></div>
+          <div class="field"><label>Execution / notable binary (LOLBin?)</label><input id="f_exec" placeholder="help-desk reset -> SSO takeover; teleport/ngrok RMM; ESXi NTDS.dit"></div>
+          <div class="field"><label>Persistence</label><select id="f_persist"></select></div>
+          <div class="field"><label>Victim sector</label><select id="f_sector"></select></div>
+          <div class="field"><label>Victim region</label><input id="f_region" placeholder="SE Asia / South America"></div>
+          <div class="field"><label>Confidence (calibrated)</label><select id="f_conf"><option>Low</option><option selected>Moderate</option><option>High</option></select></div>
+          <div class="field"><label>Source</label><input id="f_source" placeholder="internal IR / Unit 42 / Elastic"></div>
+          <div class="field full"><label>ATT&amp;CK technique IDs (comma-separated — the shared vocabulary)</label><input id="f_attack" placeholder="T1598, T1199, T1621, T1556.006, T1484.002, T1486"></div>
+          <div class="diamondgrid">
+            <div class="field"><label>Diamond — Adversary</label><input id="f_dA" placeholder="Scattered Spider / UNC3944 / Octo Tempest (suspected)"></div>
+            <div class="field"><label>Diamond — Capability</label><input id="f_dC" placeholder="social engineering + legit RMM + hypervisor ransomware"></div>
+            <div class="field"><label>Diamond — Infrastructure</label><input id="f_dI" placeholder="lookalike domains, teleport C2, VCSA/ESXi"></div>
+            <div class="field"><label>Diamond — Victim</label><input id="f_dV" placeholder="enterprise identity + VMware estate"></div>
+          </div>
+          <div class="field full"><label>Files / processes / paths touched</label><textarea id="f_files" placeholder="net group ESX Admins add; VCSA GRUB init=/bin/bash; /tmp/encrypt_.out; NTDS.dit"></textarea></div>
+          <div class="field full"><label>Commands / patterns</label><textarea id="f_cmds" placeholder="reset+new-device SSO; teleport systemd; vim-cmd power-off; sleep 14400 && encrypt"></textarea></div>
+          <div class="field full"><label>Naming conventions / durable fingerprints (the stuff that survives tool swaps)</label><input id="f_fprint" placeholder="help-desk reset -> new-device SSO -> federation change -> vCenter -> hypervisor ransomware"></div>
+          <div class="field full"><label>Hypotheses ruled out (ACH residue — your anti-bias record)</label><textarea id="f_ach" placeholder="ruled out: insider/misconfig; false positive; kept alive (calibrated): other identity actor"></textarea></div>
+          <div class="field full"><label>Notes (nuance that doesn't fit a field)</label><textarea id="f_notes" placeholder="identity-first (clean EDR != clean); hypervisor blind spot; eradicate the identity fabric; hours not days"></textarea></div>
+        </div>
+        <div class="genrow">
+          <button class="btn" id="addEntry">Add entry to log</button>
+          <button class="btn ghost" id="loadDemo">Load Scattered Spider as example</button>
+          <button class="btn ghost" id="clearForm">Clear form</button>
+        </div>
+      </div>
+
+      <div class="findrow">
+        <b style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Find matches (\"I see X → who else did X?\")</b>
+        <select id="findField"><option value="c2">C2 method</option><option value="vector">Initial access</option><option value="attack">ATT&amp;CK ID contains</option><option value="fprint">Fingerprint contains</option></select>
+        <input id="findVal" placeholder="value to match…">
+        <button class="btn ghost sm" id="findBtn">Highlight matches</button>
+        <button class="btn ghost sm" id="clearFind">Clear</button>
+      </div>
+      <div id="logTableHost"></div>
+      <div class="copyrow"><button class="btn ghost sm" id="exportJson">Copy log as JSON</button><button class="btn ghost sm" id="exportTsv">Copy log as TSV</button><span class="copied" id="logCopied">Copied ✓</span></div>
+      <div class="disc">Entries live in this browser session only (nothing leaves your machine). Export to carry them into MISP/OpenCTI or a spreadsheet. Remember: a shared field match is a <b>lead to test</b> — borrowed TTPs, RaaS affiliates, and copycats mean "same technique" ≠ "same actor." Weight by how rare and specific the overlap is, and seek independent corroboration.</div>
+    </div>
+  </div>
+
+  <div id="toast"><span class="x" id="toastX">✕</span><div class="tt" id="toastTitle">Case-log cue</div><div class="tm" id="toastMsg"></div><div class="tr"><button class="btn sm" id="toastGo">Open Case Log</button><button class="btn ghost sm" id="toastDismiss">Later</button></div></div>
+
+  <footer class="stamp" id="footer"></footer>
+</div>
+
+<script>
+/* ============================================================
+   SCATTERED SPIDER DFIR HUNT & IR TRAINER ("Rogue VM Chronicles")
+   An identity-first intrusion-to-hypervisor-ransomware investigation.
+   Fact-checked against primary sources: CISA/FBI AA23-320A (TTPs +
+   ATT&CK), Microsoft "Octo Tempest" (Jul 2025), and Mandiant/GTIG
+   "Defending vSphere from UNC3944" (the ESXi/vCenter attack chain).
+   ATT&CK IDs are taken from CISA AA23-320A; ESXi-specific steps are
+   mapped in prose to Mandiant. All consoles use SYNTHETIC names
+   (ACME-CORP, OLD-APPSRV-01), RFC 5737 IPs, and example domains — no
+   real IOCs. The attacker lane is PLAUSIBLE INFERENCE, not a confession.
+   ============================================================ */
+const BUILD_ID="HUNT-20261016-0337Z (fact-checked)";
+const STAMP_UTC="2026-10-16T03:37Z";
+const LEAD_NAME="Dana R.",LEAD_INIT="DR",LEAD_ROLE="Hunt Lead";
+
+const GAPS=[{id:"access",text:"Reconstruct initial access (the help-desk call)"},{id:"identity",text:"Map the identity takeover (MFA, federation, hybrid)"},{id:"tools",text:"Enumerate the remote-access / LOTL tooling"},{id:"hypervisor",text:"Determine whether they reached vCenter / ESXi"},{id:"exfil",text:"Determine what data left, and how"},{id:"impact",text:"Assess backups + ransomware staging"},{id:"attrib",text:"Attribute the activity (calibrated)"}];
+
+const GLOSS=[
+ ["Confirmation bias","Seeking, weighting, or remembering evidence that fits your favored hypothesis while discounting the rest. The #1 analyst failure mode. Counter: hunt DISCONFIRMING evidence; run ACH."],
+ ["Anchoring bias","Over-weighting the first impression — here, 'EDR is clean, so there's no incident.' Counter: generate alternatives; re-derive from the IDENTITY evidence, not the endpoint."],
+ ["Availability bias","The headline you just read colors everything — 'MGM got hit, so this is Scattered Spider.' Counter: consider base rates (a real forgotten password) and other identity actors; demand corroborators."],
+ ["Base-rate neglect","Ignoring how common the benign explanation is. Help desks reset passwords all day. Counter: ask 'is this a routine reset, or a reset + a login from a new device + privilege escalation?'"],
+ ["No-malware fallacy","The dangerous belief that 'no EDR alert = nothing happened.' Scattered Spider's initial access is a PHONE CALL, and their endgame runs at the HYPERVISOR layer — both outside typical endpoint telemetry. Identity logs and vCenter logs are the witnesses."],
+ ["Structured analytic techniques (SATs)","Methods (ACH, devil's advocate, key-assumptions check, red-teaming your own conclusion) that force rigor and expose bias. From Heuer's 'Psychology of Intelligence Analysis.'"],
+ ["Analysis of Competing Hypotheses (ACH)","List plausible explanations, then seek evidence that DISPROVES each. 'Done enough' is relative to the DECISION — and here the decision clock is HOURS, not days."],
+ ["Think-like-the-attacker","Reasoning from the adversary's goal backward: given valid identity and admin to vCenter, what's the fastest path to domain creds + hypervisor-level ransomware? A hypothesis engine for getting ahead, never a certainty."],
+ ["Identity-first intrusion","The modern pattern: compromise an IDENTITY (via the help desk), not a machine. Access, persistence, and lateral movement all ride valid credentials + SSO/federation — so the evidence is in identity logs (Okta/Entra/AD), not malware."],
+ ["Hybrid identity takeover","Register your own MFA, add a federated IdP with auto-linking (sign in as anyone), pivot via the Entra Connect server, read ADFS DKM keys / DCSync / plant an ADFS backdoor. Owning the identity fabric outlasts any single password reset."],
+ ["Living off the land (legit RMM)","Scattered Spider uses legitimate remote tools (ScreenConnect, TeamViewer, Splashtop, Tailscale, Ngrok, Chisel, teleport) and built-ins — 'using these tools is not itself malicious,' which is exactly the detection challenge. Hunt the CONTEXT, not the binary."],
+ ["Hypervisor blind spot","EDR runs INSIDE guest operating systems. By gaining vCenter/ESXi admin and operating at the hypervisor layer — mounting a DC's virtual disk to steal NTDS.dit, then encrypting datastores — the actor works BELOW every in-guest sensor. Your telemetry has to reach the hypervisor, or you're blind."],
+ ["Structured threat intel","Recording incidents in a FIXED schema (ATT&CK IDs, Diamond vertices, enumerated fields) so they correlate across cases and teams. Free-text spreadsheets don't scale; standards (STIX/MISP/OpenCTI) map everyone's data to one model."],
+ ["PEAK","Prepare → Execute → Act. Splunk/SURGe (Bianco & Fetterman). Hunt types: Flames (hypothesis), Embers (baseline), Alchemy (model-assisted)."],
+ ["Diamond Model","Adversary, Capability, Infrastructure, Victim — pivot across edges to find related events; predictive when 3 vertices are known. Keep aliases (Scattered Spider / UNC3944 / Octo Tempest) straight."],
+ ["Pyramid of Pain","Indicators ranked by pain-to-adversary: hashes/IPs → domains → network/host artifacts → tools → TTPs. The durable signal here is the behavior (help-desk reset → new-device SSO → vCenter), not a tool or domain."],
+ ["F3EAD","Find, Fix, Finish, Exploit, Analyze, Disseminate — the loop that turns findings into intel that feeds the next Find."]
+];
+
+const ATTACK=[
+ ["Reconnaissance","Gather Victim Identity Information","T1589"],
+ ["Resource Development","Acquire Infrastructure: Domains (lookalike SSO/okta domains)","T1583.001"],
+ ["Initial Access","Phishing for Information / Spearphishing Voice (vishing)","T1598 / T1566.004"],
+ ["Initial Access","Trusted Relationship (contracted help desk)","T1199"],
+ ["Initial Access","Impersonation","T1656"],
+ ["Credential Access","MFA Request Generation (push bombing)","T1621"],
+ ["Persistence / Cred Access","Modify Authentication Process: MFA (register own token)","T1556.006"],
+ ["Privilege Escalation","Domain Trust Modification (add federated IdP + auto-link)","T1484.002"],
+ ["Defense Evasion / Persistence","Valid Accounts (Domain)","T1078.002 / T1078"],
+ ["Execution / Persistence","Remote Access Software (RMM: teleport, ngrok, ScreenConnect…)","T1219"],
+ ["Discovery","Remote System Discovery (vCenter, hosts)","T1018"],
+ ["Discovery","Data from Info Repositories: SharePoint / Code Repos","T1213.002 / .003"],
+ ["Credential Access","Unsecured Credentials: in files / certs (Vault, PAM)","T1552.001 / .004"],
+ ["Lateral Movement","Remote Services: Cloud Services","T1021.007"],
+ ["Resource Development / Lateral","Modify Cloud Compute: Create Cloud Instance","T1578.002"],
+ ["Collection / Exfil","Data Staged; Data from Cloud Storage","T1074 / T1530"],
+ ["Exfiltration","Exfiltration to Cloud Storage (MEGA, attacker cloud)","T1567.002"],
+ ["Collection","Email Collection (watch the IR response)","T1114"],
+ ["Impact","Data Encrypted for Impact (ESXi datastores)","T1486"],
+ ["Impact","Financial Theft (extortion)","T1657"]
+];
+
+const READING=[
+ ["Primary","CISA/FBI AA23-320A — Scattered Spider (TTPs + ATT&CK)","https://www.cisa.gov/sites/default/files/2023-11/aa23-320a_scattered_spider.pdf"],
+ ["Primary","Microsoft — Protecting customers from Octo Tempest (Jul 2025)","https://www.microsoft.com/en-us/security/blog/2025/07/16/protecting-customers-from-octo-tempest-attacks-across-multiple-industries"],
+ ["Primary","Mandiant / GTIG — Defending vSphere from UNC3944 (the ESXi chain)","https://cloud.google.com/blog/topics/threat-intelligence/defending-vsphere-from-unc3944/"],
+ ["Bias","Heuer — Psychology of Intelligence Analysis (CIA, free)","https://www.cia.gov/resources/csi/books-monographs/psychology-of-intelligence-analysis/"],
+ ["Intel platform","MISP","https://www.misp-project.org/"],
+ ["Intel model","MITRE/CTID Attack Flow","https://center-for-threat-informed-defense.github.io/attack-flow/"],
+ ["Rules","SigmaHQ","https://github.com/SigmaHQ/sigma"],
+ ["KEV","CISA Known Exploited Vulnerabilities","https://www.cisa.gov/known-exploited-vulnerabilities-catalog"],
+ ["Hardening","VMware vSphere lockdown mode / security hardening","https://cloud.google.com/blog/topics/threat-intelligence/defending-vsphere-from-unc3944/"],
+ ["Framework","PEAK","https://www.splunk.com/en_us/blog/security/peak-threat-hunting-framework.html"],
+ ["Framework","Diamond Model (paper)","https://apps.dtic.mil/sti/pdfs/ADA586960.pdf"],
+ ["Framework","Pyramid of Pain","https://detect-respond.blogspot.com/2013/03/the-pyramid-of-pain.html"],
+ ["Framework","MITRE ATT&CK","https://attack.mitre.org/"],
+ ["Standard","NIST SP 800-61 Rev.3","https://csrc.nist.gov/pubs/sp/800/61/r3/final"],
+ ["Standard","RFC 3227 — order of volatility","https://www.rfc-editor.org/rfc/rfc3227"]
+];
+
+const KIT=[
+ ["must","HEARTH (hypothesis bank)","Community-curated PEAK hunt hypotheses; paste a CTI link, get a drafted hunt.","https://github.com/THORCollective/HEARTH"],
+ ["must","MITRE ATT&CK","Shared language for TTPs; tag every hunt and log entry.","https://attack.mitre.org/"],
+ ["must","Identity logs (Okta/Entra/AD) + a SIEM","For an identity-first intrusion this IS your primary telemetry — centralize sign-in, MFA, and federation events.","https://www.cisa.gov/"],
+ ["must","vCenter / ESXi + VCSA audit logs (remote syslog)","The hypervisor layer is the blind spot — ship VCSA/ESXi logs off-box or you can't see the endgame.","https://cloud.google.com/blog/topics/threat-intelligence/defending-vsphere-from-unc3944/"],
+ ["must","Sigma (SigmaHQ)","Portable detection rules / ready-made hunts.","https://github.com/SigmaHQ/sigma"],
+ ["must","MISP or OpenCTI","Structured threat-intel DB — where your case log grows up.","https://www.misp-project.org/"],
+ ["good","Attack Flow (CTID)","Model incidents as action sequences — anticipate next steps.","https://center-for-threat-informed-defense.github.io/attack-flow/"],
+ ["good","Atomic Red Team","Safe ATT&CK-mapped tests to generate telemetry + validate detections.","https://github.com/redcanaryco/atomic-red-team"],
+ ["good","AADInternals / ROADtools (for defenders)","Understand Entra/ADFS attack paths to detect them.","https://aadinternals.com/"],
+ ["good","abuse.ch (MalwareBazaar/ThreatFox/URLhaus)","Free community IOC + sample feeds.","https://bazaar.abuse.ch/"],
+ ["good","The DFIR Report + vendor blogs","Your lead pipeline — detailed public case studies.","https://thedfirreport.com/"],
+ ["good","Heuer — Psychology of Intelligence Analysis","The bias/SAT bible; free from CIA.","https://www.cia.gov/resources/csi/books-monographs/psychology-of-intelligence-analysis/"]
+];
+
+/* ---------- walkthrough steps (Scattered Spider · identity-first intrusion-IR) ---------- */
+const S=[
+{ phase:"Mission Brief · PEAK Prepare", title:"You sit down at the hunt desk",
+  fw:{kill:"Reconnaissance",nist:"Preparation",peak:"Prepare",pyramid:"Behaviors",diamond:[]}, conf:5, gapsOpen:["access"],
+  lead:{tag:"tasking",msg:`"Morning — and move fast. Help desk reset an exec's password an hour ago after a phone call; now SSO shows that account signing in from a new device, and vCenter just threw odd admin alerts. <b>EDR is clean everywhere.</b> This smells like Scattered Spider, and they go from a phone call to ransomware in <b>hours</b>. Tell me what's happening and where to cut. SITREP before you contain."`},
+  newConcept:{term:"Identity-first intrusion (new rules)",def:`Forget hunting malware on a box. Scattered Spider compromises an <b>identity</b> through the <b>help desk</b> — access, persistence and lateral movement all ride valid credentials and SSO. Your evidence is in <b>identity logs</b> (Okta/Entra/AD) and <b>vCenter</b>, not an EDR alert. And the clock is hours.`},
+  scene:`<p>Flip the <strong>🗡 Attacker view</strong> on any phase to see the operator's likely reasoning — a hypothesis engine for getting ahead of a fast actor, never a certainty.</p>`,
+  panes:[{app:"case notebook",cls:"note",dr:1,body:`CASE HUNT-IDENTITY-01  lead: Scattered Spider? (via ${LEAD_NAME})\nsignal: help-desk reset -> new-device SSO login -> vCenter admin alerts\nEDR: CLEAN (that is NOT reassuring here)\nclock: HOURS. witnesses: identity logs + vCenter, not malware\nstatus: PREPARE`}],
+  attacker:{goal:"Own an identity, ride it to vCenter, and ransom the hypervisor — fast, before anyone correlates the help-desk call to the vCenter alert.",why:"People and help desks are easier than exploits, and the hypervisor is below the defenders' sensors.",recon:"Harvest employee names/roles from LinkedIn + leaks; learn the help-desk reset process.",next:"Call the help desk and get a password reset."},
+  reason:{obs:"A tasked lead, a fast clock, and a 'clean EDR' that means little here.",ori:"PEAK Prepare: scope the hunt around IDENTITY telemetry.",rel:{v:"unknown",b:"Nothing correlated yet. Relevance calls begin in the identity logs."},suf:{lvl:5,gap:"No evidence correlated. Pull identity + vCenter logs now.",move:"COLLECT",mv:"Centralize Okta/Entra/AD + vCenter logs."}},
+  keypoints:["Identity-first: the witnesses are sign-in/MFA/federation logs + vCenter, not EDR.","'EDR is clean' is not 'nothing happened' — their tradecraft lives outside it.","The decision clock is HOURS."],
+  take:"For an identity-first actor, hunt in identity + hypervisor telemetry, not endpoint malware. Treat 'clean EDR' as uninformative, and move fast.",
+  refs:[["PEAK","https://www.splunk.com/en_us/blog/security/peak-threat-hunting-framework.html"],["CISA AA23-320A","https://www.cisa.gov/sites/default/files/2023-11/aa23-320a_scattered_spider.pdf"]]
+},
+{ phase:"Phase 0 · Distillation", title:"From 'a weird help-desk call' to a hunt",
+  fw:{kill:"Reconnaissance",nist:"Preparation",peak:"Prepare",pyramid:"Behaviors",diamond:[]}, conf:6, gapsOpen:[],
+  lead:{tag:"question",msg:`"One line — the behavior you'll actually query. Not 'did we get phished.'"`},
+  newConcept:{term:"Distillation (identity edition)",def:"Strip to a queryable behavior: a <b>help-desk password/MFA reset</b> immediately followed by a <b>sign-in from a new device/geo</b>, then a <b>new MFA method or federation change</b>, then <b>privileged access toward vCenter</b>. Each step is an identity-log query."},
+  scene:`<p>'Did we get phished' isn't a hunt. 'A reset → new-device SSO → MFA/federation change → vCenter admin' is — every step lives in a log you can pull.</p>`,
+  panes:[{app:"help-desk ticket (paraphrased)",cls:"",dr:1,body:`TICKET: caller claims to be j.rivera (exec), locked out,\n needs password + MFA reset. Agent reset both. Caller\n 'verified' with data from a lookalike HR page.`},{app:"the behavior chain",cls:"note",dr:1,body:`1 help-desk reset        -> AD/Okta admin logs\n2 new-device SSO login    -> sign-in logs (device/geo)\n3 new MFA / federation    -> Entra/ADFS audit\n4 privileged -> vCenter   -> vCenter events`}],
+  attacker:{why:"They distill too: 'exploits are noisy' became 'just ask the help desk to reset it.'",weakness:"The help-desk reset + a new-device login is a rare, queryable pairing.",next:"Sign in with the reset credential from their own device."},
+  decision:{prompt:"Best-distilled hunt?",options:[
+    {text:"Block the lookalike phishing domains",correct:false,feedback:"An IOC — domains are disposable and it doesn't tell you if the identity is already compromised."},
+    {text:"Alert on all password resets",correct:false,feedback:"Help desks reset passwords constantly; no signal without the follow-on."},
+    {text:"Help-desk reset FOLLOWED BY sign-in from a new device + a new MFA/federation change",correct:true,feedback:"Yes — the rare, queryable pairing in identity logs that separates 'forgot password' from 'account takeover.'"}]},
+  crit:"Distillation fails at an IOC ('block the domain') or too broad ('all resets'). Aim for the reset + new-device + MFA/federation pairing.",
+  keypoints:["Advisory text and a help-desk ticket distill the same way.","The signal is the PAIRING (reset + new-device + MFA change), not any one event."],
+  take:"Recipe: behavior → hypothesis → data source → scope → hit/miss. Here: reset → new-device SSO → MFA/federation change → vCenter.",
+  refs:[["Attack Flow","https://center-for-threat-informed-defense.github.io/attack-flow/"]]
+},
+{ phase:"Phase 1 · PEAK Execute", title:"Three hypotheses in identity telemetry",
+  fw:{kill:"Reconnaissance",nist:"Detection & Analysis",peak:"Execute",pyramid:"Behaviors",diamond:[]}, conf:8, gapsOpen:[],
+  newConcept:{term:"Hypothesis-driven (identity edition)",def:"Each hypothesis names the identity log that confirms or refutes it."},
+  scene:`<p>Three queryable hypotheses, each tied to an identity/vCenter log.</p>`,
+  panes:[{app:"hunt console — identity + vCenter",cls:"",dr:1,body:`<span class="c"># H1 (sign-in)</span> user=j.rivera login from <span class="hi">new device/geo</span> right after help-desk reset\n<span class="c"># H2 (MFA/fed)</span> <span class="hi">new MFA method</span> registered | <span class="hi">federated IdP added</span> / auto-link enabled\n<span class="c"># H3 (RMM/vCenter)</span> <span class="hi">RMM install</span> (teleport/ngrok/ScreenConnect) OR vCenter login from the account`}],
+  attacker:{why:"Keep everything on valid identity + legit tools so no malware verdict ever fires.",weakness:"Every step still writes an identity/vCenter log — if you collect them.",next:"Register own MFA to make the access durable."},
+  reason:{obs:"Three hypotheses, each mapped to a specific log source.",ori:"PEAK Execute. Pyramid: behaviors (high pain).",rel:{v:"unknown",b:"Pre-data. Linkage keys: user, device, session/token, time, source IP/geo.",},suf:{lvl:8,gap:"Untested — run them across identity + vCenter logs.",move:"ADVANCE",mv:"Start with the sign-in pairing (H1)."}},
+  keypoints:["Name the exact log that settles each hypothesis.","The binding constraint is whether identity + vCenter logs are centralized."],
+  take:"Identity hunt set: reset+new-device sign-in; new MFA/federation; RMM install / vCenter login. Each hypothesis points at one log.",
+  refs:[["Pyramid of Pain","https://detect-respond.blogspot.com/2013/03/the-pyramid-of-pain.html"]]
+},
+{ phase:"Phase 2 · Triage", title:"The clean-EDR trap",
+  fw:{kill:"Initial Access",nist:"Detection & Analysis",peak:"Execute",pyramid:"Host artifacts",diamond:["V"]}, conf:18, gapsOpen:[],
+  lead:{tag:"reporting up",msg:`"Security says EDR is clean, so it's probably just a locked-out exec. You disagree. Why? One line."`},
+  newConcept:{term:"No malware ≠ no incident",def:"The whole case hinges on this. Scattered Spider's access is a <b>phone call</b> and their tooling is <b>legitimate</b> — a clean EDR is EXPECTED, not exculpatory. The sign-in log tells the real story: a reset, then a login from an unmanaged device with impossible travel, then a new MFA method."},
+  scene:`<p>EDR is clean. But the sign-in log shows <code>j.rivera</code> logging in from an <strong>unmanaged device</strong> in a new country minutes after the reset, then registering a new authenticator. That's your one-liner.</p>`,
+  panes:[{app:"Okta/Entra sign-in log",cls:"",dr:1,body:`09:58 help-desk reset (pwd + MFA) for j.rivera\n10:04 login OK j.rivera dev=<span class="r">UNMANAGED</span> ip=203.0.113.47 geo=<span class="r">new</span> (impossible travel)\n10:07 <span class="hi">new MFA authenticator registered</span>\n<span class="c"># EDR: nothing — because nothing ran on a managed endpoint</span>`}],
+  attacker:{why:"A clean endpoint is the point — nothing to detect if you never drop malware.",weakness:"But the identity logs capture the reset → new-device → new-MFA sequence.",next:"Lock in access by adding a federated IdP so a password change won't help defenders."},
+  bias:{risk:"Anchoring on the tool: 'EDR is clean, so no incident' — the exact assumption this actor exploits.",counter:"Treat 'clean EDR' as uninformative for an identity-first actor. Base the call on the sign-in sequence, not the absence of an endpoint alert."},
+  reason:{obs:"A reset, then a new-device login with impossible travel, then a new MFA method — EDR silent.",ori:"NIST Detection & Analysis.",rel:{v:"linked",b:"The reset + new-device + new-MFA sequence on one account in minutes is the relevant, correlated story — that's your one-liner. Clean EDR is expected.",},suf:{lvl:18,gap:"Account takeover evident; not the full identity blast radius or lateral path.",move:"PIVOT",mv:"Reconstruct the initial access — the call."}},
+  keypoints:["'Clean EDR' is uninformative for a phone-call + legit-tools actor.","Triage identity incidents in the sign-in/MFA logs, not the endpoint."],
+  take:"Reject the clean-EDR trap: a reset + new-device login + new MFA is an account takeover regardless of endpoint silence. Identity logs are the witness.",
+  refs:[["Heuer (bias/SATs)","https://www.cia.gov/resources/csi/books-monographs/psychology-of-intelligence-analysis/"]]
+},
+{ phase:"Phase 3 · Initial Access", title:"The attack was a phone call",
+  fw:{kill:"Initial Access",nist:"Detection & Analysis",peak:"Execute",pyramid:"TTPs",diamond:["V","I"]}, conf:30, gapsOpen:[], gapsClose:["access"],
+  newConcept:{term:"Help-desk social engineering",def:"CISA/Mandiant: impersonate an employee → convince the help desk to <b>reset the password</b>, then impersonate a <b>privileged</b> user for a second reset. Often backed by <b>lookalike domains</b> (<code>victim-okta[.]com</code>), <b>MFA fatigue</b>, or a <b>SIM swap</b>. The 'exploit' is a human process."},
+  scene:`<p>You reconstruct the access: the caller 'verified' with data from a lookalike HR portal, the agent reset the exec, and the actor was in. No vulnerability — a procedure.</p>`,
+  panes:[{app:"reconstruction",cls:"",dr:1,body:`lookalike domain seen in proxy: <span class="hi">acme-hr-portal[.]com</span> (RFC-doc example)\nhelp-desk call -> pwd+MFA reset (employee), then 2nd reset (privileged)\n(variants: MFA push-bombing; SIM swap to intercept SMS codes)`},{app:"order of volatility",cls:"note",dr:1,body:`grab FIRST: active sessions/tokens, sign-in logs, help-desk\n call recording/ticket, MFA registration events\n(before a session refreshes or a log rolls)`}],
+  attacker:{why:"Help desks are optimized to be helpful under pressure; a confident caller with a few facts gets a reset.",recon:"Names/roles/manager from LinkedIn + breach data; the reset script from a quick pretext call.",weakness:"The call + reset + lookalike domain all leave traces (ticket, proxy, sign-in).",next:"Make access durable before the real user notices."},
+  reason:{obs:"A help-desk reset driven by a lookalike-domain pretext; no exploit.",ori:"Initial Access via Trusted Relationship + Impersonation.",rel:{v:"linked",b:"The ticket + the lookalike domain in proxy logs + the sign-in tie to the same account/time — corroborated human-process access.",},suf:{lvl:30,gap:"Entry understood; identity persistence + lateral path still open.",move:"PIVOT",mv:"Follow the identity takeover."}},
+  crit:"There's no CVE to patch here — the control is help-desk identity-proofing. Preserve volatile identity evidence (sessions, MFA events, call records) first.",
+  keypoints:["Initial access is a human process, not an exploit.","Preserve sessions/tokens + MFA events + the help-desk ticket early."],
+  take:"Reconstruct access from the help-desk ticket + lookalike domain + sign-in logs. The fix is identity-proofing the help desk, not a patch.",
+  refs:[["CISA AA23-320A","https://www.cisa.gov/sites/default/files/2023-11/aa23-320a_scattered_spider.pdf"],["RFC 3227","https://www.rfc-editor.org/rfc/rfc3227"]]
+},
+{ phase:"Phase 4 · Identity takeover  ↻", title:"Own the identity fabric",
+  fw:{kill:"Persistence / Priv Esc",nist:"Detection & Analysis",peak:"Execute",pyramid:"TTPs (max pain)",diamond:["V","C","I"]}, conf:42, gapsOpen:["identity"],
+  lead:{tag:"question",msg:`"If we reset that password again, are we clean? Yes or no, and why."`},
+  loop:{type:"Hunt loop iterates",text:"Account takeover raises a bigger question — did they make it DURABLE at the identity-fabric level? — which becomes the federation/ADFS hunt."},
+  logcue:"You confirmed identity-fabric persistence. Log it as the durable fingerprint — it changes the eradication plan from 'reset a password' to 'reset the whole identity trust fabric.'",
+  newConcept:{term:"Hybrid identity takeover",def:"CISA/MS: register their <b>own MFA</b> (T1556.006); <b>add a federated IdP</b> + auto-account-linking so they can sign in as <b>any</b> user (T1484.002); pivot via the <b>Entra Connect</b> server; read <b>ADFS DKM keys</b> / run <b>DCSync</b> / plant an <b>ADFS backdoor</b>. A password reset won't evict this."},
+  scene:`<p>The Entra/ADFS audit shows a new federated domain added and auto-linking enabled — the actor can now authenticate as anyone. Resetting one password does nothing.</p>`,
+  panes:[{app:"Entra / ADFS audit",cls:"",dr:1,body:`+ <span class="r">federated domain added</span> + auto-account-linking ENABLED  <span class="c"># sign in as any user</span>\nADFS: <span class="hi">DKM key read</span> | suspected DCSync | 'ADFS persistent backdoor' detection\nEntra Connect server: anomalous activity`}],
+  attacker:{why:"A single credential is fragile; owning federation/ADFS is durable and quiet.",weakness:"These are high-signal admin events — federation changes and DKM reads are rare and auditable.",next:"Use the identity to pull admin creds and head for vCenter."},
+  bias:{risk:"Relief + anchoring: 'we reset the password, so we're clean.' The comfortable conclusion.",counter:"Argue the opposite: a federated-IdP + ADFS backdoor survives any password reset. Confirm the identity-fabric state before declaring containment — the easy answer is the dangerous one."},
+  reason:{obs:"A federated IdP added + ADFS key activity — identity-fabric persistence.",ori:"Pyramid APEX: a persistence TTP that redefines eradication. (To ${LEAD_NAME}: no — a password reset does NOT clean this.)",rel:{v:"linked",b:"The federation change + ADFS activity tie to the taken-over account + timeframe — one incident, identity-fabric deep.",},suf:{lvl:42,gap:"Persistence confirmed; lateral path to crown jewels (vCenter) open.",move:"LOOP",mv:"Spawn the vCenter hunt AND scope identity persistence."}},
+  crit:"Federation + ADFS persistence outlasts password resets. Eradication will mean resetting the identity TRUST FABRIC, not one credential.",
+  keypoints:["Identity-fabric persistence (federation/ADFS) is the max-pain finding.","'Reset the password' is not eradication here."],
+  take:"Hunt new federated IdPs, auto-linking, ADFS DKM reads, DCSync. Log identity-fabric persistence — it sets the eradication bar.",
+  refs:[["Microsoft Octo Tempest","https://www.microsoft.com/en-us/security/blog/2025/07/16/protecting-customers-from-octo-tempest-attacks-across-multiple-industries"]]
+},
+{ phase:"Phase 5 · Living off the land", title:"Legitimate tools, illegitimate context",
+  fw:{kill:"Execution / Discovery",nist:"Detection & Analysis",peak:"Execute",pyramid:"Tools",diamond:["V","C","I"]}, conf:50, gapsOpen:["tools"],
+  newConcept:{term:"Legit RMM + LOTL",def:"CISA/MS: the actor installs <b>legitimate</b> remote tools (ScreenConnect, TeamViewer, Splashtop, Tailscale, <b>Ngrok, Chisel, teleport</b>) and uses built-ins + <b>Mimikatz / ADExplorer / AADInternals</b>. 'Using these tools is not itself malicious' — so you hunt the <b>context</b> (who installed it, where, when), not the binary."},
+  scene:`<p>You find a fresh <code>teleport</code> service and <code>ngrok</code> on a jump host, plus AD recon via ADExplorer. All legitimate software — wildly out of context here.</p>`,
+  panes:[{app:"EDR / install telemetry",cls:"",dr:1,body:`new service: <span class="hi">teleport</span> (reverse shell) ; <span class="hi">ngrok</span> tunnel outbound\nADExplorer snapshot of AD ; recon: SharePoint, <span class="hi">HashiCorp Vault</span>, VPN docs, backups\nsearch for group <span class="hi">"ESX Admins"</span> / "vSphere Admins"`}],
+  attacker:{why:"Legitimate tools raise no malware verdict and blend into IT's own toolset.",weakness:"But an RMM install by a just-reset account, tunneling out, is wildly out of baseline — and the vCenter/Vault recon reveals the objective.",next:"Map an identity into the 'ESX Admins' group and head for vCenter."},
+  reason:{obs:"Legit RMM + AD recon aimed at vCenter/Vault/backups.",ori:"Pyramid: Tools — but hunted by context.",rel:{v:"linked",b:"The tools were installed by the taken-over account on in-scope hosts — context, not signature, makes them malicious.",},suf:{lvl:50,gap:"Tooling + objective (vCenter) clear; hypervisor access not yet confirmed.",move:"PIVOT",mv:"Follow the path into vCenter."}},
+  decision:{prompt:"teleport + ngrok installed by a just-reset exec account — benign IT tools?",options:[
+    {text:"Yes — they're legitimate remote-admin tools",correct:false,feedback:"Legitimate software, illegitimate context. A just-reset account installing a reverse-shell tool and tunneling out is the anomaly."},
+    {text:"No — hunt the context (who/where/when), not the binary",correct:true,feedback:"Correct. The install actor + host + timing + the vCenter recon make it malicious."}]},
+  keypoints:["Hunt RMM/LOTL by context (actor + host + timing), not by the binary.","vCenter / Vault / backup recon reveals the objective: the hypervisor."],
+  take:"Flag legit RMM by context: a just-reset account installing teleport/ngrok and recon'ing vCenter/Vault/backups is the incident. The target is the hypervisor.",
+  refs:[["CISA AA23-320A","https://www.cisa.gov/sites/default/files/2023-11/aa23-320a_scattered_spider.pdf"]]
+},
+{ phase:"Phase 6 · Into the hypervisor  ↻", title:"vCenter has no MFA",
+  fw:{kill:"Lateral Movement / Priv Esc",nist:"Detection & Analysis",peak:"Execute",pyramid:"TTPs",diamond:["V","C","I"]}, conf:60, gapsOpen:["hypervisor"],
+  newConcept:{term:"The hypervisor blind spot",def:"Mandiant: the actor maps an AD identity into <b>“ESX Admins”</b>, logs into <b>vCenter</b> (initial GUI login often <b>not MFA-protected</b>), reboots the <b>VCSA</b>, edits <b>GRUB</b> to <code>init=/bin/bash</code> for a root shell, resets root + enables <b>SSH</b>, and installs <b>teleport</b> as persistence. EDR runs <i>inside</i> guests — none of this is visible to it."},
+  scene:`<p>You correlate an <code>net group "ESX Admins"</code> add (via WinRM) with a vCenter login and a VCSA reboot into a root shell. The actor now controls the virtualization layer — below every in-guest sensor.</p>`,
+  panes:[{app:"AD + vCenter + VCSA",cls:"",dr:1,body:`net.exe group "ESX Admins" ACME-CORP\\temp-adm-bkdr /add  <span class="c"># via wsmprovhost.exe (WinRM)</span>\nvCenter GUI login (mapped AD creds) — <span class="r">no MFA</span>\nVCSA reboot -> GRUB <span class="hi">init=/bin/bash</span> -> reset root -> enable SSH -> install teleport (systemd)`}],
+  attacker:{why:"vCenter is the master key to every VM, and its console login often lacks MFA.",weakness:"The group-add, the vCenter login, and the VCSA reboot are all loggable — if VCSA/ESXi logs are shipped off-box.",next:"Enable SSH on the ESXi hosts and steal domain creds at the hypervisor layer."},
+  bias:{risk:"Scope anchoring: treating this as 'a compromised account' rather than 'the hypervisor is owned.'",counter:"Escalate scope: control of vCenter means control of every VM, including the DCs. The blast radius is the whole virtual estate, not one identity."},
+  reason:{obs:"An ESX-Admins group-add correlated to a vCenter login + VCSA root-shell reboot.",ori:"Lateral Movement into the virtualization layer.",rel:{v:"linked",b:"The group-add account = the taken-over identity; the vCenter/VCSA events follow in sequence — one chain into the hypervisor.",},suf:{lvl:60,gap:"Hypervisor control confirmed; credential theft + impact still ahead.",move:"PIVOT",mv:"Follow them onto the ESXi hosts."}},
+  crit:"vCenter login without MFA is the hinge. Once the hypervisor is owned, in-guest EDR is blind — your telemetry must include VCSA/ESXi logs.",
+  keypoints:["'ESX Admins' group-add + vCenter login + VCSA root shell = hypervisor takeover.","In-guest EDR cannot see hypervisor-layer activity."],
+  take:"Correlate ESX-Admins group changes + vCenter logins + VCSA reboots. Owning vCenter owns every VM — and blinds in-guest EDR.",
+  refs:[["Mandiant — Defending vSphere","https://cloud.google.com/blog/topics/threat-intelligence/defending-vsphere-from-unc3944/"]]
+},
+{ phase:"Phase 7 · The staging VM + NTDS.dit", title:"Steal the domain below the OS",
+  fw:{kill:"Credential Access",nist:"Detection & Analysis",peak:"Execute",pyramid:"TTPs (max pain)",diamond:["V","C","I"]}, conf:70, gapsOpen:[], gapsClose:["hypervisor","identity"],
+  newConcept:{term:"The 'rogue VM' disk-mount (invisible to EDR)",def:"Mandiant: the actor enables SSH on the ESXi hosts, reuses an <b>orphaned/abandoned VM</b> as a <b>staging box</b>, then <b>powers off a Domain Controller, detaches its <code>.vmdk</code>, attaches it to the staging VM, and copies <code>NTDS.dit</code></b> — then reattaches and powers the DC back on. It happens <b>at the hypervisor layer, invisible to any EDR inside the DC's OS.</b>"},
+  scene:`<p>This is the move that names the talk. There's no malware on the DC and no alert — because the theft happened to the DC's <em>virtual disk</em>, from another VM, below the guest OS entirely.</p>`,
+  panes:[{app:"ESXi shell (reconstructed)",cls:"",dr:1,body:`staging VM: reuse <span class="hi">OLD-APPSRV-01</span> (orphaned)\npower off DC-01 -> detach DC-01.vmdk -> attach to OLD-APPSRV-01\ncopy <span class="r">NTDS.dit</span> -> reattach -> power DC-01 back on\n<span class="c"># DC's own EDR sees NOTHING — theft was below the OS</span>`}],
+  attacker:{why:"NTDS.dit = every domain hash. Taking it at the disk layer sidesteps all in-guest protections (LSASS/EDR).",weakness:"But ESXi SSH enablement, VM power events, and disk attach/detach are logged at the hypervisor — if you collect VCSA/ESXi logs.",next:"Exfiltrate the data, then kill backups and ransom the datastores."},
+  decision:{prompt:"The DC's EDR shows nothing. Is the domain safe?",options:[
+    {text:"Yes — no alert on the DC",correct:false,feedback:"This is the case's central trap. The theft happened to the DC's virtual disk from another VM — the in-guest EDR can't see it. Assume the domain is compromised."},
+    {text:"No — hypervisor-layer disk theft is invisible to in-guest EDR; treat the whole domain as compromised",correct:true,feedback:"Correct. Pivot to VCSA/ESXi logs (SSH enable, VM power, disk attach) — and plan a domain-wide credential reset."}]},
+  bias:{risk:"Tool-faith again: 'the DC's EDR would have caught credential theft.'",counter:"Not here — the sensor runs inside an OS that never touched the theft. Base the call on hypervisor logs + the assumption that NTDS.dit left."},
+  reason:{obs:"ESXi SSH + a DC power-cycle + a disk attach to an orphaned VM + NTDS.dit copy.",ori:"Pyramid APEX: hypervisor-layer credential theft.",rel:{v:"linked",b:"The VM power events + disk attach on ESXi, tied to the actor's vCenter session, chain to the NTDS.dit theft — corroborated at the hypervisor layer.",},suf:{lvl:70,gap:"Domain creds presumed stolen; exfil + impact next.",move:"CONTAIN",mv:"Assume domain compromise; plan domain-wide reset + hypervisor eviction."}},
+  crit:"NTDS.dit stolen at the disk layer = assume EVERY domain credential is compromised, invisibly. Eradication now includes a domain-wide credential reset (krbtgt x2) and rebuilding trust.",
+  keypoints:["The 'rogue/staging VM' + disk-mount steals the domain below in-guest EDR.","Hypervisor logs (SSH, VM power, disk attach) are the only witnesses — collect them."],
+  take:"Treat a hypervisor-layer NTDS.dit theft as total domain compromise. Hunt ESXi SSH + VM power + disk-attach events; plan domain-wide credential reset.",
+  refs:[["Mandiant — Defending vSphere","https://cloud.google.com/blog/topics/threat-intelligence/defending-vsphere-from-unc3944/"]]
+},
+{ phase:"Phase 8 · Exfiltration", title:"Out through a legitimate tunnel",
+  fw:{kill:"Exfiltration",nist:"Detection & Analysis",peak:"Execute",pyramid:"TTPs",diamond:["V","C","I"]}, conf:76, gapsOpen:["exfil"],
+  newConcept:{term:"Double extortion, legit channel",def:"CISA/Mandiant: stage data, move it internally (e.g. <b>sftp to the VCSA</b>), then exfiltrate through the <b>teleport</b> channel to attacker cloud, or to <b>MEGA[.]nz</b> / US data centers. They often exfiltrate BEFORE encrypting, to extort even if you restore."},
+  scene:`<p>Flow logs show an internal sftp to the VCSA, then an outbound teleport/ngrok tunnel to an external host. The data is leaving before any ransomware fires.</p>`,
+  panes:[{app:"flow / proxy",cls:"",dr:1,body:`internal: sftp -> <span class="hi">VCSA</span> (staging)\noutbound: <span class="hi">teleport</span>/ngrok tunnel -> attacker cloud  (CISA: also MEGA[.]nz)\n<span class="c"># exfil BEFORE encryption = double extortion</span>`}],
+  attacker:{why:"Exfil first so extortion works even if the victim restores from backup.",weakness:"Egress of large archives via a tunnel from the VCSA is abnormal — visible in flow if monitored.",next:"Destroy backups so restoration isn't an option, then encrypt."},
+  reason:{obs:"Internal staging to VCSA + an outbound tunnel carrying archives.",ori:"Kill chain: Exfiltration.",rel:{v:"linked",b:"The exfil tunnel is the same teleport persistence from Phase 6, from the VCSA the actor controls — one infrastructure thread.",},suf:{lvl:76,gap:"Exfil channel known; backup + ransomware impact ahead.",move:"PIVOT",mv:"Check backups and ransomware staging."}},
+  keypoints:["Exfil usually precedes encryption (double extortion).","Egress from the VCSA via a tunnel is a strong, abnormal signal."],
+  take:"Expect exfil before encryption. Hunt large egress from VCSA/ESXi via RMM tunnels; it enables extortion even after restore.",
+  refs:[["CISA AA23-320A","https://www.cisa.gov/sites/default/files/2023-11/aa23-320a_scattered_spider.pdf"]]
+},
+{ phase:"Phase 9 · Kill the backups", title:"Remove the escape hatch",
+  fw:{kill:"Impact",nist:"Detection & Analysis",peak:"Execute",pyramid:"TTPs",diamond:["V","C","I"]}, conf:80, gapsOpen:[], gapsClose:["exfil"],
+  newConcept:{term:"Backup sabotage",def:"Mandiant: the actor adds their account to the <b>“Veeam Administrators”</b> group (or reuses Domain Admin via RDP) and <b>deletes all backup jobs, snapshots, and repositories</b> — so you can't restore, maximizing extortion leverage."},
+  scene:`<p>The backup console shows jobs and repositories deleted by a newly-added admin account. The escape hatch is being welded shut just before encryption.</p>`,
+  panes:[{app:"backup server audit",cls:"",dr:1,body:`+ account added to <span class="r">"Veeam Administrators"</span>\n- all backup jobs DELETED\n- snapshots + <span class="r">repositories DELETED</span>\n<span class="c"># restoration path being destroyed pre-encryption</span>`}],
+  attacker:{why:"No backups = pay the ransom. Destroying recovery is as important as encryption.",weakness:"Backup-admin group changes + mass job/repo deletion are loud, auditable events — and immutable backups defeat this entirely.",next:"Push the ransomware to the hypervisor and encrypt the datastores."},
+  reason:{obs:"A new backup-admin account deleting jobs/snapshots/repositories.",ori:"Kill chain: Impact (recovery denial).",rel:{v:"linked",b:"The backup-admin add ties to the actor's domain creds + timeframe, immediately pre-encryption — same chain.",},suf:{lvl:80,gap:"Recovery being destroyed; encryption imminent.",move:"CONTAIN",mv:"This is the containment trigger — act NOW."}},
+  crit:"Backup destruction is the last warning before encryption. Immutable, isolated backups are the single best control — and a backup-admin group change is a high-priority alert.",
+  keypoints:["Backups are destroyed just before encryption to force payment.","Immutable/isolated backups defeat this; alert on backup-admin changes."],
+  take:"Treat backup-admin changes + mass repo deletion as an imminent-ransomware trigger. Immutable, isolated backups are the decisive control.",
+  refs:[["Mandiant — Defending vSphere","https://cloud.google.com/blog/topics/threat-intelligence/defending-vsphere-from-unc3944/"]]
+},
+{ phase:"Phase 10 · Ransomware from the hypervisor", title:"Encrypt the datastores",
+  fw:{kill:"Impact",nist:"Detection & Analysis",peak:"Execute",pyramid:"TTPs",diamond:["V","C","I"]}, conf:84, gapsOpen:["impact"],
+  newConcept:{term:"Ransomware at the hypervisor layer",def:"Mandiant: push a binary via SCP into <code>/tmp</code>, use <code>vim-cmd</code> to force power-off every VM, then run the encryptor (with a delay + a <code>-skip_vms</code> exclusion list) to encrypt <code>.vmdk/.vmx</code> across datastores. Families seen: <b>BlackCat/ALPHV</b> (CISA), <b>DragonForce</b> (MS, ESX-focused), RansomHub/Qilin."},
+  scene:`<p>The ESXi shell history shows the encryptor staged in <code>/tmp</code>, a mass power-off via <code>vim-cmd</code>, and a delayed launch that skips the VCSA and a passive DC — so the actor keeps control while everything else encrypts.</p>`,
+  panes:[{app:"ESXi shell (reconstructed)",cls:"",dr:1,body:`scp encrypt_.out -> <span class="hi">/tmp</span>\nvim-cmd ... force power-off ALL VMs\n<span class="r">nohup sh -c 'sleep 14400 && /encrypt_.out -skip_vms /list.txt' &</span>\nlist.txt excludes: VCSA-01-PROD, DC-01-PASSIVE  # keep control`}],
+  attacker:{why:"Encrypting at the hypervisor hits every VM at once, far faster than per-endpoint ransomware.",weakness:"The chain is fast but noisy at the ESXi layer — SSH, SCP, vim-cmd power-offs are all loggable.",next:"Extort: they have your data (exfil) AND your datastores (encrypted) AND your backups (deleted)."},
+  reason:{obs:"Encryptor in /tmp, mass vim-cmd power-off, delayed encrypt with a skip list.",ori:"Kill chain: Impact. The whole chain can take mere HOURS.",rel:{v:"linked",b:"The ESXi commands run from the actor's hypervisor access (Phase 6–7) — the same chain, now at impact.",},suf:{lvl:84,gap:"Impact understood; full scope + attribution to finalize.",move:"CONTAIN",mv:"Execute coordinated containment + recovery."}},
+  crit:"Hypervisor ransomware encrypts the whole estate at once — and the exclusion list keeps the actor in control. Response must be as fast as the attack (hours).",
+  keypoints:["One hypervisor encrypt = every VM, fast.","The skip-list preserves the actor's foothold — account for it in eradication."],
+  take:"Hunt ESXi SSH + SCP-to-/tmp + vim-cmd mass power-off as imminent/active hypervisor ransomware. Response speed must match the hours-long chain.",
+  refs:[["Mandiant — Defending vSphere","https://cloud.google.com/blog/topics/threat-intelligence/defending-vsphere-from-unc3944/"],["Microsoft Octo Tempest","https://www.microsoft.com/en-us/security/blog/2025/07/16/protecting-customers-from-octo-tempest-attacks-across-multiple-industries"]]
+},
+{ phase:"Phase 11 · The Sufficiency Gate", title:"Cut it off — in hours, not days",
+  fw:{kill:"Actions on Objectives",nist:"Analysis → Containment decision",peak:"Execute",pyramid:"TTPs",diamond:["V","C","I"]}, conf:74, gapsOpen:[],
+  lead:{tag:"SITREP",msg:`"SITREP — three lines. We may have minutes, not hours, left. What do we cut, and are you sure enough to cut it?"`},
+  loop:{type:"ACH loop (fast)",text:"With an hours-long actor you still run ACH — but the sufficiency bar is 'enough to act NOW,' because waiting for certainty guarantees encryption."},
+  newConcept:{term:"ACH under a fast clock",def:"List the explanations, disprove each, and set 'enough' by the DECISION — here, containment can't wait for perfect knowledge. The move: disable the identity, revoke all sessions/tokens, lock vCenter, and cut the egress tunnel — coordinated, so you don't tip them into accelerating encryption."},
+  scene:`<p>Confidence dips as you list alternatives — but the clock forces a decision. You contain on the strongly-supported hypothesis while keeping a rival alive.</p>`,
+  panes:[{app:"notebook — ACH",cls:"note",dr:1,body:`H-A Scattered Spider / UNC3944 identity-first intrusion <span class="g">strongly supported</span>\nH-B other identity actor <span class="hi">keep alive</span> (TTPs overlap across crews)\nH-C insider/misconfig <span class="r">weak</span> (lookalike domain + federation + ESXi chain)\nH-D false positive <span class="r">NO</span> (hypervisor cred theft + backup deletion)\ncontain? <span class="g">YES, NOW</span>  eradicate fully? <span class="hi">identity-fabric + hypervisor rebuild</span>  attribute? <span class="hi">calibrated</span>`}],
+  attacker:{why:"They bet you'll deliberate while they finish; a tip-off makes them encrypt immediately.",weakness:"A fast, COORDINATED cut (identity + sessions + vCenter + egress at once) beats them; a partial cut tips them.",next:"If tipped, trigger encryption early."},
+  bias:{risk:"Analysis paralysis under pressure — or, the opposite, a panicky partial action that tips them.",counter:"ACH gives you a defensible 'act now' on H-A while you keep H-B alive. Cut everything together; don't half-contain an actor who can retaliate with ransomware."},
+  reason:{obs:"One hypothesis strongly supported; the clock forbids waiting.",ori:"NIST pivot: Analysis → Containment. Sufficiency is per-decision, under time pressure.",rel:{v:"linked",b:"Core chain settled (call → identity → vCenter → NTDS.dit → backups). Open: full scope + attribution — which don't block containment.",},suf:{lvl:74,gap:"Enough to contain NOW; attribution + full scope continue after.",move:"CONTAIN",mv:"Coordinated cut: disable identity + revoke sessions + lock vCenter + sever egress. Your 3 lines to ${LEAD_NAME}."}},
+  decision:{prompt:"Active hypervisor actor, minutes left. Best move?",options:[
+    {text:"Keep investigating until you've mapped everything",correct:false,feedback:"Guarantees encryption. Perfect knowledge never comes; per-decision sufficiency says act now."},
+    {text:"Reset just the one exec password",correct:false,feedback:"Useless — federation/ADFS persistence + hypervisor access survive it, and it tips them."},
+    {text:"Coordinated simultaneous cut: disable the identity, revoke all sessions/tokens, lock vCenter, sever the egress tunnel",correct:true,feedback:"Right — act on the strongly-supported hypothesis, all at once, so you don't tip them into encrypting."}]},
+  crit:"Two failure modes: paralysis (they encrypt) and a partial cut (they get tipped and encrypt). Coordinate a simultaneous cut across identity + hypervisor + egress.",
+  keypoints:["'Enough' = enough to act NOW against a fast actor.","Cut identity + sessions + vCenter + egress together, or not at all."],
+  take:"Gate with ACH but act in hours: a coordinated, simultaneous cut (identity, sessions, vCenter, egress). A partial cut tips a ransomware-capable actor.",
+  refs:[["NIST SP 800-61r3","https://csrc.nist.gov/pubs/sp/800/61/r3/final"]]
+},
+{ phase:"Phase 12 · Scope, Attribution & Respond", title:"Reset the fabric, rebuild the hypervisor",
+  fw:{kill:"Containment / Eradication / Recovery",nist:"C/E/R → Post-Incident",peak:"Act → Prepare (next)",pyramid:"TTPs (max pain)",diamond:["A","C","I","V"]}, conf:95, gapsOpen:[], gapsClose:["impact","attrib"],
+  lead:{tag:"wrap-up",msg:`"Clean work under fire. Give me calibrated attribution for the board, then the eradication + the lessons — I want this to never work on us again."`},
+  loop:{type:"IR lifecycle closes → reopens",text:"Lessons feed Prepare: help-desk identity-proofing, phishing-resistant MFA, vSphere lockdown, immutable backups — the next attempt gets far harder."},
+  logcue:"Finalize the case entry: identity-fabric persistence, the hypervisor chain, aliases + calibrated confidence, ruled-out hypotheses. Reference it next time a help-desk reset precedes a vCenter alert.",
+  newConcept:{term:"Calibrated attribution + fabric-level eradication",def:"Attribute in calibrated terms: activity <b>consistent with Scattered Spider / UNC3944 / Octo Tempest</b> (aliases: 0ktapus, Muddled Libra) — a financially-motivated collective. Eradication = reset the <b>identity trust fabric</b> (passwords, MFA, federation, tokens, <b>krbtgt x2</b>), <b>rebuild vCenter/ESXi</b> (don't trust them), restore from <b>immutable</b> backups, enforce <b>phishing-resistant MFA</b>, and harden the <b>help desk</b>."},
+  scene:`<p>You brief calibrated attribution and run a fabric-level eradication — because a stolen NTDS.dit + federation backdoor + owned hypervisor can't be fixed with a password reset.</p>`,
+  panes:[{app:"IR runbook + profile",cls:"note",dr:1,body:`attribution: consistent with <span class="b">Scattered Spider / UNC3944 / Octo Tempest</span> (suspected) — financially motivated\nERADICATE reset identity fabric (pwd/MFA/<span class="hi">federation</span>/tokens, <span class="hi">krbtgt x2</span>) · rebuild vCenter/ESXi · remove rogue federation/ADFS + teleport\nRECOVER restore from <span class="hi">immutable</span> backups · rotate all secrets (Vault/PAM)\nLEARN phishing-resistant MFA · help-desk identity-proofing · vSphere lockdown mode / execInstalledOnly · <span class="g">log the case</span>`}],
+  attacker:{why:"Broad, fast, financially-motivated extortion — and they'll re-target via the help desk if the process isn't fixed.",weakness:"Phishing-resistant MFA + help-desk identity-proofing + vSphere lockdown + immutable backups remove almost every step of this chain.",next:"If fully evicted, they try another org — or your help desk again later."},
+  reason:{obs:"A coordinated fabric-level eradication + calibrated attribution.",ori:"NIST C/E/R → Post-Incident.",rel:{v:"linked",b:"Every action traces to confirmed evidence; attribution stated as 'consistent with,' aliases kept distinct.",},suf:{lvl:95,gap:"Residual: long-tail identity monitoring; recipient-side data exposure. Never 100%.",move:"ADVANCE",mv:"Close the incident; the controls carry forward."}},
+  bias:{risk:"Attribution overconfidence: 'it's definitely Scattered Spider' — and eradication underreach: resetting passwords but not the fabric.",counter:"Say 'consistent with' + aliases + what would move confidence. And eradicate at the FABRIC level — a stolen NTDS.dit + federation backdoor survive a password reset."},
+  keypoints:["Attribute calibrated; keep Scattered Spider / UNC3944 / Octo Tempest aliases straight.","Eradication = reset the identity fabric + rebuild the hypervisor + immutable restore + phishing-resistant MFA + help-desk hardening."],
+  take:"Brief 'consistent with Scattered Spider/UNC3944/Octo Tempest.' Eradicate at the fabric level (identity + hypervisor), restore from immutable backups, and fix the help desk.",
+  refs:[["CISA AA23-320A","https://www.cisa.gov/sites/default/files/2023-11/aa23-320a_scattered_spider.pdf"],["Mandiant — Defending vSphere","https://cloud.google.com/blog/topics/threat-intelligence/defending-vsphere-from-unc3944/"]]
+},
+{ phase:"Debrief", title:"Field notes, kit, glossary, loop map & reading room",
+  fw:{kill:"—",nist:"Post-Incident",peak:"Prepare (next)",pyramid:"TTPs",diamond:["A","C","I","V"]}, conf:100, gapsOpen:[],
+  scene:`<p>You rode a help-desk phone call to an attributed, contained, hypervisor-level ransomware intrusion — rejecting the clean-EDR trap, hunting identity instead of malware, seeing into the hypervisor blind spot, and eradicating at the fabric level under a clock measured in hours. Everything below is for your long-term notes.</p>`,
+  debrief:true
+}
+];
+
+/* ================= GENERATOR ================= */
+const EX_TYPES=[
+ {id:"distill",name:"Distill the direction",diff:"Foundational",task:"Turn the input into ONE queryable hunt: behavior, hypothesis, data source, scope, hit-vs-miss.",
+  approach:["Strip to the BEHAVIOR, not the IOC.","State a testable hypothesis ('a NON-X process does Y').","Name the data source that confirms/refutes.","Scope it: time window + host/user set.","Define hit vs. miss.","Check it's rare-when-malicious AND baseline-able."]},
+ {id:"relevance",name:"Relevance call",diff:"Foundational",task:"Two artifacts — linked, unknown, or unrelated? State the BASIS and what would disprove it.",
+  approach:["List linkage keys present: host·user·lineage·time·hash·config-infra·capability signature·rare TTP.","One match = lead; several INDEPENDENT = linked.","Name what would DISPROVE the link.","Verdict + basis in one sentence."]},
+ {id:"sufficiency",name:"Sufficiency gate (ACH)",diff:"Intermediate",task:"Given partial evidence: enough to CONTAIN? ERADICATE? ATTRIBUTE? Justify.",
+  approach:["List rival hypotheses (espionage/crime/pentest/FP).","Seek evidence that DISPROVES each.","Judge PER DECISION, not once.","Name the gap + next move.","Avoid early action AND paralysis."]},
+ {id:"infer",name:"Infer the intent (behavioral inference)",diff:"Intermediate",task:"From the evidence, infer the attacker's likely goal and NEXT move — disciplined, not a guess.",
+  approach:["State the inference as a hypothesis ('they likely want X, next they'd do Y').","CITE the specific behavior it rests on (not a vibe).","Assign a CALIBRATED confidence (low/moderate/high) + why.","Name what would DISPROVE it.","Flag availability bias: am I pattern-matching to a case I just read? Could a benign/different actor explain this?","Turn it into action: which detection would you pre-position for that next move?"]},
+ {id:"bias",name:"Spot the bias",diff:"Intermediate",task:"A colleague states the conclusion below. Identify which bias(es) may be at play and the counter-move.",
+  approach:["Name the bias (confirmation / anchoring / availability / base-rate neglect).","Explain WHY the conclusion overreaches the evidence.","Prescribe the counter: seek disconfirming evidence, run ACH, consider base rates, demand independent corroboration.","Rewrite the conclusion with calibrated confidence."]},
+ {id:"sitrep",name:"SITREP to the Hunt Lead",diff:"Foundational",task:`3 lines to ${LEAD_NAME}: (1) what you know + confidence, (2) what you're doing, (3) decision needed / ETA.`,
+  approach:["Line 1 — what we know, calibrated confidence word.","Line 2 — current action.","Line 3 — decision needed or ETA. Bottom line first, no jargon dump."]},
+ {id:"scope",name:"Scope & data sources",diff:"Intermediate",task:"For the key hypothesis, list telemetry that PROVES/REFUTES it — and the gaps you can't see.",
+  approach:["Map hypothesis → source: EDR/Sysmon, IIS/web, proxy/DNS, identity, netflow, edge/appliance, cloud audit.","Call out what you CAN'T see + how you'd get it.","Name the single most decisive query first.","Set a timebox."]},
+ {id:"pyramid",name:"Climb the Pyramid",diff:"Advanced",task:"A fragile IOC is handed to you. Raise the hunt to a durable TTP-level detection.",
+  approach:["Ask what BEHAVIOR produced the IOC.","Write the detection on the behavior/TTP.","Key on the most evasion-resistant field.","State one way they could still evade — accept it or not."]},
+ {id:"logit",name:"Log it (structured intel)",diff:"Foundational",task:"Decompose the scenario into the case-log schema: vector, execution/LOLBin, C2, persistence, ATT&CK IDs, Diamond vertices, durable fingerprint, confidence, ruled-out hypotheses. Then say which PRIOR entry you'd reference.",
+  approach:["Fill the fixed fields (enumerated where possible) — not free text.","Tag ATT&CK IDs and the four Diamond vertices.","Record the DURABLE fingerprint (the thing that survives tool swaps).","Record what you RULED OUT (ACH residue).","Say which existing entry shares a durable field — then treat the match as a lead to test, not a verdict."]}
+];
+const EX_PACKS=[
+ {id:"squidoor",name:"Squidoor / FinalDraft (CL-STA-0049)",diff:"Intermediate",
+  intel:'"A suspected Chinese APT exploits unpatched IIS, drops a web shell, and runs a renamed cdb.exe that reflectively loads an in-memory backdoor using Outlook/Graph Drafts for C2."',
+  exec:'"Are our web servers and our Microsoft 365 exposed to this Squidoor thing?"',
+  vector:"Unpatched public IIS → web shell",c2:"Outlook/Graph dead-drop + 10-channel mesh",twist:"Most implants are internal-only; one unpatched host carried it.",
+  hash:"fake-sha256 of config.ini (illustrative)",ip:"203.0.113.44 (illustrative)",
+  biasclaim:'"This is definitely the APT from that report I read last week — the Outlook C2 trick is their signature, so it\'s the same group."',
+  src:"Unit 42 / Elastic (REF7707)"},
+ {id:"salttyphoon",name:"Salt Typhoon (telecom / edge routers)",diff:"Advanced",
+  intel:'"A PRC actor exploits known Cisco IOS XE flaws on provider edge routers, lives off the land on the device, and builds GRE tunnels for years-long covert collection."',
+  exec:'"The news says China is in the phone companies. Could something be living in our routers?"',
+  vector:"Edge router N-day (e.g. CVE-2023-20198)",c2:"Multi-hop pivots / GRE tunneling",twist:"No EDR on the router — evidence is in device configs, NetFlow, syslog.",
+  hash:"n/a (network-layer)",ip:"malicious GRE peer (illustrative)",
+  biasclaim:'"Our NetFlow looks normal, so we\'re clean."',
+  src:"CISA/NSA/FBI AA25-239A (Aug 2025)"},
+ {id:"scatteredspider",name:"Scattered Spider (help-desk social engineering)",diff:"Intermediate",
+  intel:'"Actors phone the IT help desk impersonating an employee, get an MFA/password reset, take over an SSO account, use legit RMM tools to move, and deploy ransomware on ESXi."',
+  exec:'"Our help desk got a weird call about a password reset. Should we worry?"',
+  vector:"Help-desk social engineering + SIM swap",c2:"Legit RMM / tunneling tools",twist:"Initial access is a phone call — endpoint tools miss it; identity logs are the witness.",
+  hash:"n/a (LOTL)",ip:"RMM tunnel endpoint (illustrative)",
+  biasclaim:'"No malware fired on any endpoint, so this was just a user forgetting their password."',
+  src:"CISA/FBI advisory (updated Jul 2025)"},
+ {id:"akira",name:"Akira ransomware (SonicWall SSLVPN)",diff:"Intermediate",
+  intel:'"Akira affiliates log into SonicWall SSL VPN (CVE-2024-40766), recon fast, and exfil ~2GB over SSH to a rare external IP hours before encryption."',
+  exec:'"Our VPN had a CVE. How fast could they hit us, and would we see data leaving?"',
+  vector:"SonicWall SSLVPN (CVE-2024-40766)",c2:"RDP/VPN + SSH exfil to rare IP",twist:"Exfil happens BEFORE encryption, in hours — byte-counts say data left, not what.",
+  hash:"fake-sha256 of encryptor (illustrative)",ip:"rare SSH exfil IP (illustrative)",
+  biasclaim:'"They encrypted us Friday night, so the breach started Friday night."',
+  src:"S-RM / Darktrace / Rapid7 (2025)"},
+ {id:"toolshell",name:"ToolShell (SharePoint RCE chain)",diff:"Advanced",
+  intel:'"Unauth RCE (CVE-2025-53770/53771) on on-prem SharePoint: w3wp.exe spawns cmd→powershell, drops spinstall0.aspx in LAYOUTS, steals the MachineKey for fileless re-entry even after the shell is removed."',
+  exec:'"We patched SharePoint. Are we actually safe now?"',
+  vector:"SharePoint ToolShell (CVE-2025-53770)",c2:"Web shell + stolen MachineKey",twist:"Patching isn\'t enough — rotate MachineKeys or they re-enter fileless.",
+  hash:"publicly-reported compiled shell (verify in source)",ip:"exploit source (illustrative)",
+  biasclaim:'"We removed spinstall0.aspx and patched, so eradication is complete."',
+  src:"MSRC / Eye Security / Unit 42 (Jul 2025)"},
+ {id:"dprkdev",name:"DPRK 'Contagious Interview' (developer supply chain)",diff:"Advanced",
+  intel:'"North Korean actors lure developers with fake coding tests / trojanized npm packages, steal credentials and GitHub identities, and propagate through trusted developer workflows."',
+  exec:'"An engineer got a suspicious take-home coding test. Could that risk our source code?"',
+  vector:"Trojanized dev package / fake interview",c2:"Attacker infra via dev tooling",twist:"The victim is a trusted developer identity — risk propagates downstream to everyone who trusts their commits.",
+  hash:"fake-sha256 of malicious package (illustrative)",ip:"npm-staged C2 (illustrative)",
+  biasclaim:'"It\'s just one developer\'s laptop — contained to them."',
+  src:"DPRK IT-worker / Contagious Interview reporting (2025–26)"},
+ {id:"clickfix",name:"ClickFix → infostealer",diff:"Foundational",
+  intel:'"A fake CAPTCHA tells the user to paste a command to \'verify\'; the clipboard payload runs PowerShell that installs an infostealer harvesting browser creds and wallets."',
+  exec:'"An employee says a website asked them to copy-paste something into a run box. Is that bad?"',
+  vector:"Fake CAPTCHA / clipboard social engineering",c2:"Infostealer exfil",twist:"The user self-executes — evidence is in clipboard, RunMRU, PowerShell logs.",
+  hash:"fake-sha256 of stealer (illustrative)",ip:"stealer exfil (illustrative)",
+  biasclaim:'"The AV is clean, so nothing happened."',
+  src:"Multiple vendors (ClickFix wave, 2025–26)"}
+];
+const COMPLICATIONS=["You're remote with limited tooling — logs only, no console on the host.","The exec is anxious from a headline — manage expectations while you work.","No EDR on the affected asset; only network + appliance logs.","It's 4:55pm Friday — containment windows matter.","Logs only go back 14 days; part of the timeline is gone.","The client insists it's a false positive.","Another team already 'cleaned it' — verify eradication.","One decisive query's budget before standup. Spend it well."];
+const LEAD_TASKS={distill:["\"The one-line hunt, not the headline.\"","\"What will you actually query? Behavior.\""],relevance:["\"Same incident or two things? Basis?\"","\"Linked or coincidence? One sentence.\""],sufficiency:["\"Contain now or keep digging?\"","\"Enough to brief the CISO? Justify.\""],infer:["\"Where do they go next? And how sure are you?\"","\"Get ahead of them — what do we pre-position?\""],bias:["\"Gut-check that conclusion before I repeat it upstairs.\"","\"Is that evidence, or is that a story we like?\""],sitrep:["\"SITREP in three lines — I brief up in ten.\"","\"Bottom line first.\""],scope:["\"What proves this, and what can't we see?\"","\"Your most decisive query?\""],pyramid:["\"This hash changes tomorrow — give me durable.\"","\"Take it up the pyramid.\""],logit:["\"Log it properly so the next shift can match it.\"","\"Which past case does this rhyme with?\""]};
+
+/* ================= CASE LOG DATA ================= */
+const VECTORS=["Public-facing app exploit (web/IIS/SharePoint)","VPN / edge appliance exploit","Phishing / malicious attachment","Help-desk social engineering / SIM swap","Trojanized package / supply chain","Valid accounts / stolen credentials","Drive-by / fake CAPTCHA (ClickFix)","Other / unknown"];
+const C2S=["HTTP(S)","DNS tunneling","ICMP tunneling","Cloud/SaaS dead-drop (Outlook/Graph)","Paste-site dead-drop","Reverse TCP/UDP","Legitimate RMM tool","SSH / custom tunnel","Other / unknown"];
+const PERSISTS=["Web shell","Scheduled task","Service / driver","Registry Run key","Valid accounts","Stolen token / machine key","Rogue VM / cloud resource","Other / none observed"];
+const SECTORS=["Government","Defense","Telecommunications","Aviation","Education","Financial","Healthcare","Manufacturing","Technology / software","Energy / critical infra","Other"];
+let LOG=[]; let lastFind=null;
+
+/* ================= RENDER: WALKTHROUGH ================= */
+let i=0, view='def'; const seen=new Set(); const openGaps=new Set(),closedGaps=new Set(); let prevFw=null;
+const card=document.getElementById('card'),fwstrip=document.getElementById('fwstrip'),bar=document.getElementById('bar'),counter=document.getElementById('counter'),prevBtn=document.getElementById('prev'),nextBtn=document.getElementById('next'),stepsEl=document.getElementById('steps'),confNum=document.getElementById('confNum'),confBar=document.getElementById('confBar'),gapsEl=document.getElementById('gaps');
+
+function buildSteps(){stepsEl.innerHTML=S.map((t,idx)=>{const lp=/↻/.test(t.phase)?'<span class="lp">↻</span>':'';const nm=t.phase.replace(/^Phase [\d0]+ · /,'').replace(/ *↻/,'').replace(/^Mission Brief · .*/,'Mission Brief');return `<li data-idx="${idx}"><span class="n">${idx+1}</span><span>${nm}</span>${lp}</li>`;}).join('');stepsEl.querySelectorAll('li').forEach(li=>li.addEventListener('click',()=>{i=+li.dataset.idx;render();}));}
+function recomputeGaps(){openGaps.clear();closedGaps.clear();for(let k=0;k<=i;k++){(S[k].gapsOpen||[]).forEach(g=>openGaps.add(g));(S[k].gapsClose||[]).forEach(g=>{closedGaps.add(g);openGaps.delete(g);});}}
+function renderGaps(){const all=[...openGaps].map(id=>({id,c:0})).concat([...closedGaps].map(id=>({id,c:1})));if(!all.length){gapsEl.innerHTML='<li class="closed">None open — case closed</li>';return;}gapsEl.innerHTML=all.map(g=>{const d=GAPS.find(x=>x.id===g.id);return `<li class="${g.c?'closed':''}"><span>${g.c?'✓':'●'}</span><span>${d?d.text:g.id}</span></li>`;}).join('');}
+function renderFw(t){const d=t.fw.diamond||[];const dv=['A','C','I','V'].map(x=>`<span class="dv ${d.includes(x)?'on':''}">${x}</span>`).join('');const cells=[['Kill Chain',t.fw.kill],['NIST IR',t.fw.nist],['PEAK',t.fw.peak],['Pyramid of Pain',t.fw.pyramid]];let h=cells.map(c=>{const ch=prevFw&&prevFw[c[0]]!==c[1];return `<div class="fw ${ch?'changed':''}"><div class="k">${c[0]}</div><div class="v">${c[1]}</div></div>`;}).join('');h+=`<div class="fw"><div class="k">Diamond (A·C·I·V)</div><div class="diamond">${dv}</div></div>`;fwstrip.innerHTML=h;prevFw={'Kill Chain':t.fw.kill,'NIST IR':t.fw.nist,'PEAK':t.fw.peak,'Pyramid of Pain':t.fw.pyramid};}
+function paneHTML(p){return `<div class="win ${p.cls||''}"><div class="bar"><div class="dots"><i class="dr"></i><i class="dy"></i><i class="dg"></i></div><div class="app"><b>${p.app}</b></div></div><pre>${p.body}</pre></div>`;}
+function leadHTML(l){return `<div class="lead"><div class="ava">${LEAD_INIT}</div><div class="body"><div class="who">${LEAD_NAME} <span class="role">· ${LEAD_ROLE}</span>${l.tag?`<span class="tag">${l.tag}</span>`:''}</div><div class="msg">${l.msg}</div></div></div>`;}
+function atkHTML(a){let r='';if(a.goal)r+=`<div class="arow"><div class="lbl">Operator goal</div><div class="txt">${a.goal}</div></div>`;if(a.why)r+=`<div class="arow"><div class="lbl">Why this move / method</div><div class="txt">${a.why}</div></div>`;if(a.recon)r+=`<div class="arow"><div class="lbl">What recon told them</div><div class="txt">${a.recon}</div></div>`;if(a.weakness)r+=`<div class="arow"><div class="lbl">Weakness they rely on</div><div class="txt">${a.weakness}</div></div>`;if(a.next)r+=`<div class="arow nextmv"><div class="lbl">▶ Next move — what YOU pre-empt</div><div class="txt">${a.next}</div></div>`;return `<div class="atkpanel"><div class="ah">🗡 Attacker's-eye view — plausible operator reasoning (inference, not a confession)</div><div class="ab">${r}</div></div>`;}
+function reasonHTML(r){return `<div class="reason"><div class="rh">Analyst reasoning — Observe · Orient · Relevance · Sufficiency</div><div class="rb">
+   <div class="rrow"><div class="lbl obs">Observe</div><div class="txt">${r.obs}</div></div>
+   <div class="rrow"><div class="lbl ori">Orient</div><div class="txt">${r.ori}</div></div>
+   <div class="rrow"><div class="lbl rel">Relevance — is this related?<span class="verdict ${r.rel.v}">${r.rel.v}</span></div><div class="txt">${r.rel.b}</div></div>
+   <div class="rrow"><div class="lbl suf">Sufficiency — do I have enough?</div><div class="meter"><i style="width:${r.suf.lvl}%"></i></div><div class="txt">${r.suf.gap}</div><div class="move ${r.suf.move}">▸ ${r.suf.move}</div> <span class="txt" style="font-size:12.5px">${r.suf.mv}</span></div></div></div>`;}
+
+function fieldNotes(){
+ let o="SCATTERED SPIDER / UNC3944 / OCTO TEMPEST \u2014 DFIR FIELD NOTES\nBuild "+BUILD_ID+" | generated "+STAMP_UTC+"\n";
+ o+="Sources: CISA/FBI AA23-320A + Microsoft (Octo Tempest, Jul 2025) + Mandiant/GTIG (Defending vSphere from UNC3944). Consoles synthetic; real IOCs in the reports.\n"+"=".repeat(72)+"\n\n";
+ o+="TAKEAWAYS\n"+"-".repeat(72)+"\n";S.forEach((t,idx)=>{if(t.take)o+=idx+". "+t.title+"\n   -> "+t.take+"\n\n";});
+ o+="BIAS WATCHLIST (notice it, note it, never lean on it)\n"+"-".repeat(72)+"\n";
+ o+="- No-malware fallacy: 'clean EDR = no incident.' -> access is a phone call + legit tools; identity + vCenter logs are the witnesses.\n";
+ o+="- Anchoring/relief: 'we reset the password, so we are clean.' -> federation/ADFS persistence + hypervisor access survive a reset.\n";
+ o+="- Tool-faith: 'the DC EDR would catch credential theft.' -> NTDS.dit stolen at the disk layer is invisible to in-guest EDR.\n";
+ o+="- Availability: 'MGM got hit, so this is Scattered Spider.' -> keep a rival actor alive; attribute calibrated (aliases overlap).\n";
+ o+="- Paralysis vs panic under a fast clock: wait and they encrypt; half-contain and they get tipped. -> coordinated simultaneous cut.\n";
+ o+="Rule: hunt IDENTITY + HYPERVISOR, not endpoint malware; the clock is HOURS.\n\n";
+ o+="THE CHAIN (CISA + Mandiant)\n"+"-".repeat(72)+"\n";
+ o+="help-desk reset (impersonation) -> new-device SSO -> register own MFA + add federated IdP (sign in as anyone)\n";
+ o+="-> legit RMM (teleport/ngrok/ScreenConnect) + AD recon (ADExplorer) -> map identity into \"ESX Admins\" (net group add via WinRM)\n";
+ o+="-> vCenter login (no MFA) -> VCSA reboot -> GRUB init=/bin/bash -> reset root + enable SSH -> teleport persistence\n";
+ o+="-> enable ESXi SSH -> reuse orphaned VM as staging -> power off DC, detach .vmdk, copy NTDS.dit (invisible to in-guest EDR), reattach\n";
+ o+="-> exfil (sftp to VCSA -> teleport/MEGA) -> delete backups (Veeam Admins) -> vim-cmd power-off all VMs -> encrypt datastores. HOURS, not days.\n\n";
+ o+="DETECTION CHEAT-SHEET (identity + hypervisor)\n"+"-".repeat(72)+"\n";
+ o+="- help-desk reset FOLLOWED BY sign-in from a new/unmanaged device + impossible travel = account takeover\n";
+ o+="- new MFA method registered | new federated IdP + auto-linking | ADFS DKM read / DCSync = identity-fabric persistence\n";
+ o+="- RMM install (teleport/ngrok/Chisel) by a just-reset account, tunneling out = LOTL in illegit context\n";
+ o+="- net group \"ESX Admins\" <acct> /add (via wsmprovhost/WinRM) + vCenter login + VCSA reboot = hypervisor takeover\n";
+ o+="- ESXi SSH enable + VM power-off + .vmdk attach/detach = disk-layer cred theft (collect VCSA/ESXi syslog off-box!)\n";
+ o+="- backup-admin group change + mass repo/snapshot deletion = imminent ransomware\n";
+ o+="- ERADICATION: reset identity FABRIC (pwd/MFA/federation/tokens, krbtgt x2) + rebuild vCenter/ESXi + immutable-backup restore + phishing-resistant MFA + help-desk identity-proofing\n\n";
+ o+="ATT&CK MAP (verified against CISA AA23-320A; ESXi steps mapped in prose to Mandiant)\n"+"-".repeat(72)+"\n";ATTACK.forEach(r=>o+="- ["+r[2]+"] "+r[1]+" ("+r[0]+")\n");
+ return o;
+}
+function loopSvg(){return `<svg viewBox="0 0 680 230" width="100%" style="max-width:680px;margin:6px 0" font-family="monospace" font-size="11"><defs><marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#4ea3ff"/></marker><marker id="aw" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#ffb454"/></marker></defs><text x="10" y="16" fill="#8aa0b4">Nested investigation loops</text>${['Prepare','Detect / Analyze','Contain / Eradicate / Recover','Lessons'].map((t,n)=>{const x=20+n*160;return `<rect x="${x}" y="40" width="140" height="34" rx="7" fill="#111a24" stroke="#2a3a4c"/><text x="${x+70}" y="61" fill="#e7edf3" text-anchor="middle">${t}</text>`;}).join('')}${[0,1,2].map(n=>{const x=20+n*160;return `<line x1="${x+140}" y1="57" x2="${x+160}" y2="57" stroke="#4ea3ff" stroke-width="2" marker-end="url(#ar)"/>`;}).join('')}<path d="M650,74 C650,120 90,120 90,74" fill="none" stroke="#ffb454" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#aw)"/><text x="330" y="112" fill="#ffb454" text-anchor="middle">lessons learned feed the next Prepare (never truly closes)</text><rect x="60" y="150" width="240" height="60" rx="8" fill="#0d141d" stroke="#1f6b47"/><text x="180" y="170" fill="#51d88a" text-anchor="middle">PEAK hunt loop</text><text x="180" y="188" fill="#8aa0b4" text-anchor="middle">hypothesis -> execute -> finding</text><text x="180" y="202" fill="#8aa0b4" text-anchor="middle">-> NEW hypothesis</text><rect x="380" y="150" width="240" height="60" rx="8" fill="#0d141d" stroke="#244a6e"/><text x="500" y="170" fill="#4ea3ff" text-anchor="middle">F3EAD intel loop</text><text x="500" y="188" fill="#8aa0b4" text-anchor="middle">find·fix·finish·exploit</text><text x="500" y="202" fill="#8aa0b4" text-anchor="middle">·analyze·disseminate</text><line x1="300" y1="180" x2="380" y2="180" stroke="#8aa0b4" stroke-width="1.5" marker-end="url(#ar)"/></svg>`;}
+function renderDebrief(){
+ const gl=GLOSS.map(g=>`<dt>${g[0]}</dt><dd>${g[1]}</dd>`).join('');
+ const amap=ATTACK.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td><code>${r[2]}</code></td></tr>`).join('');
+ const read=READING.map(r=>`<li><span class="tag">${r[0]}</span><a href="${r[2]}" target="_blank" rel="noopener">${r[1]}</a></li>`).join('');
+ const kit=KIT.map(k=>`<li><span class="tag ${k[0]}">${k[0]==='must'?'must-have':'good'}</span><a href="${k[3]}" target="_blank" rel="noopener">${k[1]}</a> — <span style="color:#cdd9e5">${k[2]}</span></li>`).join('');
+ return `<div><div class="take"><h4>Methodology in one line</h4><p>Lead → distill to a behavior → triage by victimology → pivot on durable fingerprints → fight bias with ACH + calibrated confidence → read the attacker to get ahead → <b>log it structured so the next case matches instantly.</b></p></div>
+  <div class="sechead">Loop map</div>${loopSvg()}
+  <div class="sechead">Analyst's kit — must-have vs. good-to-have</div><ul class="kit">${kit}</ul>
+  <div class="sechead">Glossary (frameworks, biases, SATs, structured intel)</div><dl class="gl">${gl}</dl>
+  <div class="sechead">ATT&amp;CK map</div><table class="map"><tr><th>Tactic</th><th>Technique</th><th>ID</th></tr>${amap}</table>
+  <div class="sechead">Field notes — editable, copy to your log</div><textarea id="notesArea" spellcheck="false" style="min-height:320px">${fieldNotes().replace(/</g,'&lt;')}</textarea>
+  <div class="copyrow"><button class="btn" id="copyBtn">Copy field notes</button><span class="copied" id="copied">Copied ✓</span></div>
+  <div class="sechead">Reading room</div><ul class="reading">${read}</ul>
+  <div class="disc"><b>Sources &amp; accuracy:</b> Scattered Spider facts are drawn from and fact-checked against primary reporting: <b>CISA/FBI AA23-320A</b> (TTPs + the ATT&amp;CK mapping used here), <b>Microsoft</b> “Protecting customers from Octo Tempest” (Jul 2025), and <b>Mandiant/GTIG</b> “Defending vSphere from UNC3944” (the vCenter/ESXi attack chain — the help-desk-to-hypervisor-ransomware path, the orphaned staging VM, the NTDS.dit disk-mount, and the ESXi ransomware). The ATT&amp;CK technique IDs shown are taken from AA23-320A; the ESXi-specific steps are mapped in prose to the Mandiant report. Note of accuracy: the “rogue VM” in Mandiant’s report is a <b>reused orphaned VM</b> used for staging, not a newly-created one (CISA separately documents cloud-instance creation, T1578.002, in AWS/EC2 contexts). Every console panel uses <b>synthetic</b> names (ACME-CORP, OLD-APPSRV-01), RFC 5737 documentation IPs, and example domains — no real IOCs; the report-sourced technique artifacts (GRUB <code>init=/bin/bash</code>, <code>vim-cmd</code>, <code>net group “ESX Admins”</code>, NTDS.dit, teleport) are technique facts, not IOCs. The attacker lane is plausible inference from observed behavior, not a confession. This is an independent educational reconstruction and is not affiliated with or endorsed by CISA, the FBI, Microsoft, Mandiant/Google, SANS, or any other party named here.</div></div>`;
+}
+
+let toastStep=-1;
+function showToast(msg){const t=document.getElementById('toast');document.getElementById('toastMsg').textContent=msg;t.classList.add('show');}
+function hideToast(){document.getElementById('toast').classList.remove('show');}
+
+function render(){
+ const t=S[i];seen.add(i);recomputeGaps();renderFw(t);
+ let h=`<div class="phase">${t.phase.replace(/↻/,'<span style="color:var(--warn)">↻</span>')}</div><h2 class="title">${t.title}</h2>`;
+ if(view==='atk')h+=`<div class="atkbanner">🗡 Attacker view — toggle back to 🛡 Defender any time</div>`;
+ if(t.loop)h+=`<div class="loopbadge">↻ ${t.loop.type}</div>`;
+ if(t.lead)h+=leadHTML(t.lead);
+ if(t.newConcept)h+=`<div class="newconcept"><div class="lbl">New concept · ${t.newConcept.term}</div>${t.newConcept.def}</div>`;
+ h+=`<div class="scene">${t.scene||''}</div>`;
+ if(t.panes&&t.panes.length)h+=`<div class="workspace ${t.panes.length>1?'ws2':''}">${t.panes.map(paneHTML).join('')}</div>`;
+ if(t.loop)h+=`<div class="crit"><h4>Loop — why this isn't linear</h4><p>${t.loop.text}</p></div>`;
+ // reasoning OR attacker panel depending on view
+ if(view==='atk'&&t.attacker)h+=atkHTML(t.attacker);
+ else if(t.reason)h+=reasonHTML(t.reason);
+ if(view==='atk'&&t.reason)h+=`<details style="margin:10px 0"><summary style="cursor:pointer;color:var(--accent2);font-size:12.5px">Show defender reasoning too</summary>${reasonHTML(t.reason)}</details>`;
+ if(t.bias)h+=`<div class="bias"><h4>⚑ Bias check</h4><p><b>Risk:</b> ${t.bias.risk}</p><p class="ct"><b>Counter:</b> ${t.bias.counter}</p></div>`;
+ if(t.decision){h+=`<div class="decision"><div class="q">⟶ ${t.decision.prompt}</div>`;t.decision.options.forEach((o,idx)=>h+=`<button class="opt" data-opt="${idx}">${o.text}<span class="mk"></span></button>`);h+=`<div class="fb" id="fb"></div></div>`;}
+ if(t.crit)h+=`<div class="crit"><h4>Critical detail</h4><p>${t.crit}</p></div>`;
+ if(t.keypoints&&t.keypoints.length)h+=`<div class="kp"><h4>Key points</h4><ul>${t.keypoints.map(k=>`<li>${k}</li>`).join('')}</ul></div>`;
+ if(t.take)h+=`<div class="take"><h4>Actionable takeaway → notes</h4><p>${t.take}</p></div>`;
+ if(t.refs&&t.refs.length)h+=`<div class="refs">Reference: ${t.refs.map(r=>`<a href="${r[1]}" target="_blank" rel="noopener">${r[0]}</a>`).join(' · ')}</div>`;
+ if(t.debrief)h+=renderDebrief();
+ card.innerHTML=h;
+ if(t.decision){const fb=card.querySelector('#fb');card.querySelectorAll('.opt').forEach(btn=>btn.addEventListener('click',()=>{const ch=t.decision.options[+btn.dataset.opt];card.querySelectorAll('.opt').forEach((b,idx)=>{b.disabled=true;const o=t.decision.options[idx];if(o.correct){b.classList.add('correct');b.querySelector('.mk').textContent='✓';}if(b===btn&&!o.correct){b.classList.add('wrong');b.querySelector('.mk').textContent='✕';}});fb.className='fb show '+(ch.correct?'ok':'no');fb.innerHTML=(ch.correct?'<b>Correct. </b>':'<b>Not quite. </b>')+ch.feedback;}));}
+ if(t.debrief){const ta=card.querySelector('#notesArea'),cp=card.querySelector('#copyBtn'),dn=card.querySelector('#copied');cp.addEventListener('click',async()=>{ta.select();try{await navigator.clipboard.writeText(ta.value);}catch(e){try{document.execCommand('copy');}catch(_){}}dn.classList.add('show');setTimeout(()=>dn.classList.remove('show'),2200);});}
+ bar.style.width=(i/(S.length-1)*100)+'%';counter.textContent=`Turn ${i+1} / ${S.length}`;prevBtn.disabled=(i===0);nextBtn.textContent=(i===S.length-1)?'Done':'Advance ▶';
+ const c=t.conf||0;confNum.textContent=c+'%';confBar.style.width=c+'%';renderGaps();
+ stepsEl.querySelectorAll('li').forEach((li,idx)=>{li.classList.toggle('active',idx===i);li.classList.toggle('done',seen.has(idx)&&idx!==i);});
+ // log-cue toast
+ if(t.logcue && toastStep!==i){toastStep=i;showToast(t.logcue);} else if(!t.logcue){hideToast();}
+ window.scrollTo({top:0,behavior:'smooth'});
+}
+prevBtn.addEventListener('click',()=>{if(i>0){i--;render();}});
+nextBtn.addEventListener('click',()=>{if(i<S.length-1){i++;render();}});
+document.addEventListener('keydown',e=>{if(document.getElementById('walkMode').style.display==='none')return;if(e.key==='ArrowRight'&&i<S.length-1){i++;render();}if(e.key==='ArrowLeft'&&i>0){i--;render();}});
+document.getElementById('vDef').addEventListener('click',()=>{view='def';document.getElementById('vDef').classList.add('on');document.getElementById('vAtk').classList.remove('on');render();});
+document.getElementById('vAtk').addEventListener('click',()=>{view='atk';document.getElementById('vAtk').classList.add('on');document.getElementById('vDef').classList.remove('on');render();});
+
+/* toast wiring */
+document.getElementById('toastX').addEventListener('click',hideToast);
+document.getElementById('toastDismiss').addEventListener('click',hideToast);
+document.getElementById('toastGo').addEventListener('click',()=>{hideToast();switchMode('log');});
+
+/* ================= GENERATOR ================= */
+const promptHost=document.getElementById('promptHost'),selType=document.getElementById('selType'),selPack=document.getElementById('selPack'),selDiff=document.getElementById('selDiff');
+EX_TYPES.forEach(t=>{const o=document.createElement('option');o.value=t.id;o.textContent=t.name;selType.appendChild(o);});
+EX_PACKS.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.name;selPack.appendChild(o);});
+function pick(a){return a[Math.floor(Math.random()*a.length)];}
+function pickF(arr,diff){const f=diff?arr.filter(x=>x.diff===diff):arr;return pick(f.length?f:arr);}
+function genRep(){
+ const type=selType.value?EX_TYPES.find(t=>t.id===selType.value):pickF(EX_TYPES,selDiff.value);
+ const pack=selPack.value?EX_PACKS.find(p=>p.id===selPack.value):pickF(EX_PACKS,selDiff.value);
+ const comp=pick(COMPLICATIONS); const leadLine=pick(LEAD_TASKS[type.id]||["\"Walk me through it.\""]);
+ let inputLabel,inputText;
+ if(type.id==="distill"){if(Math.random()<0.5){inputLabel="Intel excerpt";inputText=pack.intel;}else{inputLabel="Exec / client what-if";inputText=pack.exec;}}
+ else if(type.id==="bias"){inputLabel="Colleague's conclusion";inputText=pack.biasclaim;}
+ else if(type.id==="infer"){inputLabel="What you've observed";inputText=pack.intel+"\n\nTwist: "+pack.twist;}
+ else if(type.id==="relevance"){inputLabel="Two artifacts";inputText="A) "+pack.vector+" (first seen on HOST-A)\nB) "+pack.c2+" (from a process on HOST-A, same day)\n\nTwist: "+pack.twist;}
+ else if(type.id==="pyramid"){inputLabel="Fragile IOC";inputText="hash: "+pack.hash+"\nip:   "+pack.ip+"\ncontext: "+pack.vector;}
+ else if(type.id==="scope"){inputLabel="Hypothesis to prove/refute";inputText=pack.intel;}
+ else if(type.id==="logit"){inputLabel="Incident to decompose";inputText=pack.intel+"\nVector: "+pack.vector+"\nC2: "+pack.c2+"\nTwist: "+pack.twist;}
+ else {inputLabel="Situation";inputText=pack.intel;}
+ promptHost.innerHTML=`<div class="promptcard"><div class="pc-head"><span class="pc-type">${type.name}</span><span class="pc-pack">· ${pack.name}</span><span class="tag" style="margin-left:auto">${type.diff}</span></div><div class="pc-body">
+   <div class="pc-sect"><div class="h">Your task</div><div class="t">${type.task}</div></div>
+   <div class="pc-sect"><div class="h">${inputLabel}</div><div class="pc-input">${inputText}</div></div>
+   <div class="pc-sect"><div class="h">Hunt Lead</div><div class="pc-lead"><div class="ava">${LEAD_INIT}</div><div><div style="font-size:11px;color:#9fc2e6;font-weight:700">${LEAD_NAME} · ${LEAD_ROLE}</div><div style="font-size:13.5px;color:#e4eefb">${leadLine}</div></div></div></div>
+   <div class="pc-sect"><div class="h">Complication</div><div class="pc-twist">⚠ ${comp}</div></div>
+   <div class="pc-sect" style="font-size:11.5px;color:var(--faint)">Grounded in: ${pack.src} — paraphrased for training; verify before operational use.</div>
+   <div class="approach" id="approach"><h4>Model approach (one good way — not the only way)</h4><ol>${type.approach.map(a=>`<li>${a}</li>`).join('')}</ol></div>
+   <div class="genrow"><button class="btn ghost" id="revealBtn">Reveal model approach</button><button class="btn ghost" id="copyPromptBtn">Copy prompt</button><button class="btn" id="againBtn">New rep ▶</button></div>
+ </div></div>`;
+ document.getElementById('revealBtn').addEventListener('click',()=>document.getElementById('approach').classList.add('show'));
+ document.getElementById('againBtn').addEventListener('click',genRep);
+ document.getElementById('copyPromptBtn').addEventListener('click',async()=>{const txt=`EXERCISE: ${type.name} (${type.diff})\nScenario: ${pack.name}\n\nTASK: ${type.task}\n\n${inputLabel}:\n${inputText}\n\nHunt Lead: ${leadLine}\nComplication: ${comp}\nSource: ${pack.src}`;try{await navigator.clipboard.writeText(txt);}catch(e){}const b=document.getElementById('copyPromptBtn');b.textContent='Copied ✓';setTimeout(()=>b.textContent='Copy prompt',1600);});
+ window.scrollTo({top:0,behavior:'smooth'});
+}
+document.getElementById('genBtn').addEventListener('click',genRep);
+
+/* ================= CASE LOG ================= */
+function fillSelect(id,arr){const s=document.getElementById(id);arr.forEach(v=>{const o=document.createElement('option');o.textContent=v;s.appendChild(o);});}
+fillSelect('f_vector',VECTORS);fillSelect('f_c2',C2S);fillSelect('f_persist',PERSISTS);fillSelect('f_sector',SECTORS);
+const FORM_IDS=['f_name','f_date','f_vector','f_c2','f_exec','f_persist','f_sector','f_region','f_conf','f_source','f_attack','f_dA','f_dC','f_dI','f_dV','f_files','f_cmds','f_fprint','f_ach','f_notes'];
+function readForm(){const o={};FORM_IDS.forEach(id=>o[id]=document.getElementById(id).value.trim());return o;}
+function renderLogTable(){const host=document.getElementById('logTableHost');if(!LOG.length){host.innerHTML='<div class="emptyrow">No entries yet. Add one above, or load the Scattered Spider example.</div>';return;}
+ const rows=LOG.map((e,idx)=>{const m=lastFind&&matchEntry(e,lastFind.field,lastFind.val);return `<tr class="${m?'match':''}"><td>${e.f_name||'—'}</td><td>${e.f_vector||''}</td><td>${e.f_c2||''}</td><td>${e.f_exec||''}</td><td>${e.f_fprint||''}</td><td>${e.f_attack||''}</td><td>${e.f_dA||''}</td><td>${e.f_conf||''}</td></tr>`;}).join('');
+ host.innerHTML=`<table class="logtable"><tr><th>Incident</th><th>Vector</th><th>C2</th><th>Execution</th><th>Fingerprint</th><th>ATT&CK</th><th>Adversary</th><th>Conf</th></tr>${rows}</table>`;}
+function matchEntry(e,field,val){val=(val||'').toLowerCase();if(!val)return false;if(field==='c2')return (e.f_c2||'').toLowerCase().includes(val);if(field==='vector')return (e.f_vector||'').toLowerCase().includes(val);if(field==='attack')return (e.f_attack||'').toLowerCase().includes(val);if(field==='fprint')return (e.f_fprint||'').toLowerCase().includes(val);return false;}
+document.getElementById('addEntry').addEventListener('click',()=>{const e=readForm();if(!e.f_name){alert('Give the entry an incident name/alias first.');return;}LOG.push(e);lastFind=null;renderLogTable();window.scrollTo({top:document.getElementById('logTableHost').offsetTop-80,behavior:'smooth'});});
+document.getElementById('clearForm').addEventListener('click',()=>{FORM_IDS.forEach(id=>{const el=document.getElementById(id);if(el.tagName==='SELECT')el.selectedIndex=(id==='f_conf'?1:0);else el.value='';});});
+document.getElementById('loadDemo').addEventListener('click',()=>{const d={f_name:'HUNT-IDENTITY-01 (Scattered Spider)',f_date:'2026-10-16',f_vector:VECTORS[3],f_c2:C2S[6],f_exec:'help-desk social engineering -> SSO/identity takeover; legit RMM (teleport/ngrok); vCenter/ESXi; NTDS.dit via disk-mount',f_persist:PERSISTS[4],f_sector:SECTORS[8],f_region:'enterprise (identity + VMware estate); hours-long chain',f_conf:'Moderate',f_source:'internal IR + CISA AA23-320A + Microsoft Octo Tempest + Mandiant/GTIG (Defending vSphere)',f_attack:"T1598, T1566.004, T1199, T1656, T1621, T1556.006, T1484.002, T1078, T1219, T1018, T1021.007, T1074, T1567.002, T1486, T1657",f_dA:'consistent with Scattered Spider / UNC3944 / Octo Tempest (aliases: 0ktapus, Muddled Libra) \u2014 financially motivated; calibrated',f_dC:'help-desk social engineering + hybrid identity takeover + legit RMM + hypervisor-layer ransomware',f_dI:"lookalike domains (victim-okta[.]com); teleport/ngrok C2; VCSA/ESXi; MEGA[.]nz exfil",f_dV:'enterprise identity fabric (AD/Entra/ADFS) + VMware vSphere estate',f_files:"net group \"ESX Admins\" add (WinRM); VCSA GRUB init=/bin/bash; teleport systemd; staging VM OLD-APPSRV-01; NTDS.dit; /tmp/encrypt_.out",f_cmds:'help-desk pwd+MFA reset -> new-device SSO; register own MFA; add federated IdP; enable ESXi SSH; detach DC .vmdk -> copy NTDS.dit; vim-cmd power-off; sleep 14400 && encrypt -skip_vms',f_fprint:'help-desk reset -> new-device SSO + new MFA/federation -> vCenter (no MFA) -> hypervisor-layer NTDS.dit theft + ESXi ransomware; identity-first, legit tools',f_ach:'ruled out: insider/misconfig (lookalike domain + federation + ESXi chain); false positive (hypervisor cred theft + backup deletion); kept alive (calibrated): another identity actor (TTPs overlap)',f_notes:'IDENTITY-FIRST: clean EDR != clean (access is a phone call; endgame is below the guest OS). Hypervisor blind spot (in-guest EDR cannot see disk-mount NTDS.dit theft / ESXi ransomware). Eradicate the IDENTITY FABRIC (pwd/MFA/federation/tokens, krbtgt x2) + rebuild vCenter/ESXi + immutable-backup restore. Clock = HOURS.'};FORM_IDS.forEach(id=>{const el=document.getElementById(id);if(el.tagName==='SELECT'){const idx=[...el.options].findIndex(o=>o.textContent===d[id]);el.selectedIndex=idx>=0?idx:0;}else el.value=d[id]||'';});});
+document.getElementById('findBtn').addEventListener('click',()=>{lastFind={field:document.getElementById('findField').value,val:document.getElementById('findVal').value};renderLogTable();});
+document.getElementById('clearFind').addEventListener('click',()=>{lastFind=null;document.getElementById('findVal').value='';renderLogTable();});
+function copyText(txt,el){(async()=>{try{await navigator.clipboard.writeText(txt);}catch(e){}const c=document.getElementById('logCopied');c.classList.add('show');setTimeout(()=>c.classList.remove('show'),1800);})();}
+document.getElementById('exportJson').addEventListener('click',()=>copyText(JSON.stringify(LOG,null,2)));
+document.getElementById('exportTsv').addEventListener('click',()=>{const cols=FORM_IDS;const head=cols.join('\t');const body=LOG.map(e=>cols.map(c=>(e[c]||'').replace(/\t/g,' ').replace(/\n/g,'; ')).join('\t')).join('\n');copyText(head+'\n'+body);});
+renderLogTable();
+
+/* ================= MODE SWITCH ================= */
+const mWalk=document.getElementById('mWalk'),mGen=document.getElementById('mGen'),mLog=document.getElementById('mLog'),walkMode=document.getElementById('walkMode'),genModeEl=document.getElementById('genMode'),logModeEl=document.getElementById('logMode');
+function switchMode(m){
+ [mWalk,mGen,mLog].forEach(b=>b.classList.remove('on'));
+ walkMode.style.display='none';genModeEl.style.display='none';logModeEl.style.display='none';
+ if(m==='walk'){mWalk.classList.add('on');walkMode.style.display='';}
+ if(m==='gen'){mGen.classList.add('on');genModeEl.style.display='';if(!promptHost.innerHTML)genRep();}
+ if(m==='log'){mLog.classList.add('on');logModeEl.style.display='';}
+}
+mWalk.addEventListener('click',()=>switchMode('walk'));
+mGen.addEventListener('click',()=>switchMode('gen'));
+mLog.addEventListener('click',()=>switchMode('log'));
+
+document.getElementById('footer').innerHTML=`<div>Build <span class="mono">${BUILD_ID}</span> · generated <span class="mono">${STAMP_UTC}</span> · single-file offline HTML · no external dependencies · no fabricated IOCs.</div><div style="margin-top:6px">Case: Scattered Spider / UNC3944 / Octo Tempest (identity-first intrusion). Defender + attacker lanes · bias drills · structured case log. Hunt Lead: ${LEAD_NAME}. Keyboard ← → in walkthrough.</div>`;
+buildSteps();render();
+</script>
+</body>
+</html>

@@ -3,8 +3,8 @@
 Interactive, **single-file, fully-offline** HTML trainers that walk you through
 real DFIR investigations **turn-by-turn** — intrusions and insider data-exfil —
 the reasoning, the frameworks, the bias checks, and the detection engineering,
-not just a list of IOCs. Four cases, four distinct evidence domains: endpoint,
-web-app, network, and cloud-sync/file-provenance.
+not just a list of IOCs. Five cases across distinct evidence domains: endpoint,
+web-app, network, cloud-sync/file-provenance, and identity + hypervisor.
 
 Each trainer is built to a shared template and a strict fact-check standard (see
 **[`TRAINER_SPEC.md`](TRAINER_SPEC.md)**). Every technical claim is checked
@@ -25,6 +25,7 @@ dependencies, no network calls, no telemetry.
 | **[ToolShell / SharePoint](toolshell/)** | CVE-2025-49704/49706 + 53770/53771 — on-prem SharePoint RCE; stolen MachineKey; multi-actor | ✅ Published |
 | **[Salt Typhoon](salt-typhoon/)** | PRC-affiliated intrusions into telecom core (network-device DFIR, no EDR, LOTL, long dwell) | ✅ Published |
 | **[OneDrive Data-Exfil](onedrive/)** | Insider exfiltration to a personal OneDrive (cloud-sync/file-provenance forensics; proves-vs-doesn't; version drift) | ✅ Published |
+| **[Scattered Spider](scattered-spider/)** | UNC3944 / Octo Tempest — identity-first intrusion (help-desk social engineering → hypervisor-layer ransomware) | ✅ Published |
 
 ---
 
