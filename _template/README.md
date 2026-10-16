@@ -1,4 +1,5 @@
 # _template — starting a new trainer
+*How to start a new trainer: there’s no boilerplate to copy — squidoor/ is the template (architecture, not content).*
 
 There is no separate boilerplate file to copy yet: the **`squidoor/` trainer is
 the template.** It's built as *architecture, not content* — vanilla JS data
