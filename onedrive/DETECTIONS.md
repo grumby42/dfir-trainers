@@ -1,5 +1,23 @@
 # OneDrive data-exfil — detection & collection appendix
 
+> **How these detections are structured — the "play" schema.** Each starter below is a *detection play* in
+> the sense of Bollinger, Enright & Valites, *Crafting the InfoSec Playbook* (O'Reilly) and Don Murdoch,
+> *Blue Team Handbook: SOC, SIEM, and Threat Hunting Use Cases*: a reusable unit you author, tune, and hand
+> off — not a one-off query. Read each starter against these seven fields, and fill all seven when you write
+> your own:
+>
+> 1. **Objective** — the attacker behavior this catches, and why it matters in this case.
+> 2. **Hypothesis** — the testable statement ("a NON-X does Y").
+> 3. **Data source** — the exact log/table that proves or refutes it.
+> 4. **Logic** — the query/rule (the pseudocode here is a starting point, not a drop-in).
+> 5. **Known false positives** — what legitimately looks like this, and how you scope it out.
+> 6. **Response / triage** — what the analyst does on a hit (the play's "then").
+> 7. **Maintenance & trend** — how you baseline/tune it, and the trend signal that says it's drifting.
+>
+> The starters below already carry the objective, data source, logic, and baseline/tune/trend. When you
+> operationalize one, add the two fields a console can't guess for you: **known false positives** and the
+> **response** step.
+
 **Teach yourself to investigate and detect this channel — don't copy-paste rules.** Each card gives the
 behavior/artifact, a tool-agnostic starter, the real anchors to verify against, how to evolve it, how to
 baseline/tune it, and the trend signals worth watching. You supply the field names, thresholds, and query
@@ -237,3 +255,13 @@ exception to investigate.
 *Generated 2026-10-16T03:18Z · accompanies trainer build HUNT-20261016-0318Z · all data synthetic (no real
 case data); artifact names/paths are documented technique facts, not IOCs · ATT&CK mapped to MITRE
 (T1567.002 Exfiltration to Cloud Storage).*
+
+
+## Further reading (from the DFIR bookshelf)
+
+Methodology and authoring discipline these plays draw on:
+
+- Bollinger, Enright & Valites — *Crafting the InfoSec Playbook* (O'Reilly) — detection-as-plays.
+- Don Murdoch — *Blue Team Handbook: SOC, SIEM, and Threat Hunting Use Cases* — use-case authoring + tuning.
+- Scott J. Roberts & Rebekah Brown — *Intelligence-Driven Incident Response* (O'Reilly) — F3EAD + Diamond, the intel loop these trainers run on.
+- Steve Anson — *Applied Incident Response* (Wiley) — evidence acquisition, host/network artifacts, lateral-movement detection.
