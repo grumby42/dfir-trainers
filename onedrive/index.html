@@ -6,12 +6,15 @@
 <title>OneDrive Data-Exfil DFIR Trainer — artifacts, proves-vs-doesn't, case log</title>
 <style>
   :root{
-    --bg:#070b10;--panel:#111a24;--panel2:#0d141d;--ink:#e7edf3;--muted:#8aa0b4;--faint:#5e7183;
-    --line:#1e2b3a;--line2:#2a3a4c;--accent:#37d0a8;--accent2:#4ea3ff;--warn:#ffb454;--bad:#ff6b6b;
-    --good:#51d88a;--purple:#b48cff;--chip:#172231;--evid:#05090d;--evidink:#b7e3cf;--shadow:0 12px 34px rgba(0,0,0,.5);--winbar:#0a1420;--lead:#1b2a3f;--atk:#2a1113;--atkln:#5a2b2f;--atkink:#ffd2cf;
+    /* case-dossier palette: warm-neutral charcoal, bone text, one restrained brass accent */
+    --bg:#191a1c;--panel:#232528;--panel2:#1d1f21;--ink:#e8e3d7;--muted:#a19a8a;--faint:#6f6a5e;
+    --line:#2d2c2a;--line2:#3c3a36;--accent:#c89b3c;--accent2:#8c96a8;--warn:#cf9f52;--bad:#b45a5d;
+    --good:#7f9d6a;--purple:#9c86b8;--chip:#26272a;--evid:#111215;--evidink:#cbc4b2;--shadow:none;--winbar:#1b1d20;--lead:#1f2228;--atk:#241617;--atkln:#4d2f30;--atkink:#e7cbc9;
+    --serif:Georgia,"Hoefler Text",Cambria,"Times New Roman",serif;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   }
   *{box-sizing:border-box}
-  html,body{margin:0;background:radial-gradient(1200px 600px at 80% -10%,#0e1a26 0,transparent 60%),radial-gradient(900px 500px at -10% 10%,#0c1622 0,transparent 55%),var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.55;-webkit-font-smoothing:antialiased}
+  html,body{margin:0;background-color:var(--bg);background-image:linear-gradient(rgba(255,255,255,.016) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.016) 1px,transparent 1px);background-size:32px 32px;background-position:center top;color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased}
   code,.mono{font-family:"SF Mono",SFMono-Regular,ui-monospace,"Cascadia Code",Consolas,Menlo,monospace}
   .wrap{max-width:1180px;margin:0 auto;padding:16px 14px 90px}
   header.top{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:12px}
@@ -190,6 +193,43 @@
   #toast .tm{font-size:13px;color:#dbe8f4;margin-bottom:9px}
   #toast .tr{display:flex;gap:8px}
   #toast .x{position:absolute;top:8px;right:11px;color:var(--faint);cursor:pointer;font-size:14px}
+
+  /* ============================================================
+     Case-dossier design pass (2026-10-16) — deliberate, non-templated.
+     Serif document headings; warm charcoal + a single brass accent;
+     graph-paper texture; hairline edges instead of soft shadows.
+     ============================================================ */
+  h1, h2.title{ font-family:var(--serif); font-weight:600; letter-spacing:0; }
+  header.top h1{ font-size:20px; }
+  h2.title{ font-size:23px; line-height:1.24; margin:4px 0 6px; }
+  .phase{ text-transform:none; letter-spacing:.2px; font-style:italic; color:var(--muted); font-size:12.5px; }
+  .sechead{ font-family:var(--serif); font-style:italic; text-transform:none; letter-spacing:0; font-size:14px; color:var(--ink); border-top:1px solid var(--line2); }
+  /* crisper document edges; vary radius by role instead of one bubble everywhere */
+  .fw,.box,.newconcept,.reason,.atkpanel,.decision,.promptcard,.lead,.form,.guide,.bias,.crit,.take{ border-radius:5px; }
+  .win,.pc-input,textarea,.opt,.fb,.logtable,table.map{ border-radius:4px; }
+  .btn,.modebtn,.badge,.tag,.move,.verdict,.loopbadge,.atkbanner{ border-radius:3px; }
+  .viewtoggle{ border-radius:4px; }
+  /* no soft drop-shadows anywhere; use hairline borders */
+  .win,.promptcard,#toast{ box-shadow:none; border:1px solid var(--line2); }
+  header.top{ border-bottom:1px solid var(--line2); padding-bottom:14px; }
+  /* badge as a stamped case marker, not a SaaS pill */
+  .badge{ text-transform:none; letter-spacing:.5px; color:var(--accent); border:1px solid var(--line2); background:transparent; font-family:var(--mono); font-size:10px; padding:3px 8px; }
+  .sub{ color:var(--muted); font-style:italic; }
+  /* quiet the uppercase eyebrows: lighter tracking (kept as small structural labels, not shouting) */
+  .fw .k,.rail h3,.reason .rh,.atkpanel .ah,.rrow .lbl,.arow .lbl,.crit h4,.kp h4,.take h4,.bias h4,.guide b,.pc-type,.pc-sect .h,.field label,.logtable th,table.map th,.disc b{ letter-spacing:.3px; }
+  /* buttons + accents in brass (readable dark text on brass) */
+  .btn{ background:var(--accent); color:#1b1710; font-weight:700; }
+  .btn:hover{ filter:brightness(1.06); }
+  .btn.ghost{ background:transparent; color:var(--ink); }
+  .progress>i{ background:var(--accent); }
+  .confnum{ color:var(--accent); font-family:var(--serif); }
+  /* flat persona avatars, not a blue->purple gradient */
+  .lead .ava,.pc-lead .ava{ background:var(--accent2); color:#17181b; }
+  .modebtn.on{ border-color:var(--accent); color:var(--ink); }
+  .viewtoggle button.on.def{ background:var(--panel); color:var(--accent2); }
+  .steps li.active{ background:var(--chip); }
+  /* links underline on hover only; brass, no arrow glyphs */
+  .refs a,.reading a,.kit a{ color:var(--accent); }
 </style>
 </head>
 <body>
@@ -201,19 +241,19 @@
   </header>
 
   <div class="modebar">
-    <button class="modebtn on" id="mWalk">▶ Case walkthrough</button>
-    <button class="modebtn" id="mGen">⚙ Exercise generator</button>
-    <button class="modebtn" id="mLog">🗃 Case log</button>
+    <button class="modebtn on" id="mWalk">Case walkthrough</button>
+    <button class="modebtn" id="mGen">Exercise generator</button>
+    <button class="modebtn" id="mLog">Case log</button>
   </div>
 
   <!-- WALKTHROUGH -->
   <div id="walkMode">
-    <div class="viewtoggle"><button class="def on" id="vDef">🛡 Defender view</button><button class="atk" id="vAtk">🗡 Attacker view</button></div>
+    <div class="viewtoggle"><button class="def on" id="vDef">Defender view</button><button class="atk" id="vAtk">Attacker view</button></div>
     <div class="fwstrip" id="fwstrip"></div>
     <div class="progress"><i id="bar"></i></div>
     <div class="layout">
       <main><div id="card"></div>
-        <div class="nav"><button class="btn ghost" id="prev">◀ Back</button><div class="confsub" id="counter"></div><button class="btn" id="next">Advance ▶</button></div>
+        <div class="nav"><button class="btn ghost" id="prev">Back</button><div class="confsub" id="counter"></div><button class="btn" id="next">Advance</button></div>
       </main>
       <aside class="rail">
         <div class="box"><h3>Case confidence</h3><div class="confnum" id="confNum">5%</div><div class="confsub">closeness to a defensible, actionable conclusion</div><div class="meter" style="margin-top:8px"><i id="confBar" style="width:5%"></i></div></div>
@@ -232,7 +272,7 @@
         <div><label>Exercise</label><select id="selType"><option value="">Random</option></select></div>
         <div><label>Scenario</label><select id="selPack"><option value="">Random</option></select></div>
         <div><label>Difficulty</label><select id="selDiff"><option value="">Any</option><option>Foundational</option><option>Intermediate</option><option>Advanced</option></select></div>
-        <button class="btn" id="genBtn">Generate rep ▶</button>
+        <button class="btn" id="genBtn">Generate rep</button>
       </div>
       <div id="promptHost"></div>
     </div>
@@ -312,8 +352,8 @@
    confession. The core discipline throughout: state what each artifact
    PROVES, and what it does NOT.
    ============================================================ */
-const BUILD_ID="HUNT-20261016-0318Z (fact-checked)";
-const STAMP_UTC="2026-10-16T03:18Z";
+const BUILD_ID="HUNT-20261016-0318Z (fact-checked) · design-rev 2026-10-16";
+const STAMP_UTC="2026-10-16T10:45Z";
 const LEAD_NAME="Dana R.",LEAD_INIT="DR",LEAD_ROLE="Hunt Lead";
 
 const GAPS=[{id:"personal",text:"Confirm a PERSONAL OneDrive is signed in on this managed host"},{id:"namespace",text:"Determine whether CORPORATE files are in that namespace"},{id:"local",text:"Establish local availability (downloaded vs online-only placeholder)"},{id:"upload",text:"Find log evidence the files actually synced/uploaded"},{id:"version",text:"Match the parser/field assumptions to the OneDrive client version"},{id:"deleted",text:"Recover deleted/previous namespace state"},{id:"scope",text:"Corroborate beyond OneDrive (browser, USB, email, file bytes)"}];
@@ -385,7 +425,7 @@ const S=[
   fw:{kill:"Reconnaissance",nist:"Preparation",peak:"Prepare",pyramid:"Behaviors",diamond:[]}, conf:5, gapsOpen:["scope"],
   lead:{tag:"tasking",msg:`"Morning. A developer resigns today — going to a competitor Friday. DLP threw a couple of alerts about a <b>personal</b> cloud account on their work laptop. HR and Legal want to know: did company files leave on a <b>personal OneDrive</b>? Give me what the artifacts actually support — nothing you can't defend. SITREP before you brief anyone."`},
   newConcept:{term:"Artifact forensics, not a hunt",def:`This case is different from an intrusion hunt. There's no adversary to chase across the network — there's an <b>authorized user</b> and a question of evidence: what left, and can you prove it? Your job is to say exactly what each OneDrive artifact <b>supports</b>, and exactly what it does <b>not</b>.`},
-  scene:`<p>The <strong>🗡 Attacker view</strong> here is the <b>insider's</b> likely reasoning — still inference, never a confession, and doubly so because a real person's job (and maybe a lawsuit) rides on your calibration.</p>`,
+  scene:`<p>The <strong>Attacker view</strong> here is the <b>insider's</b> likely reasoning — still inference, never a confession, and doubly so because a real person's job (and maybe a lawsuit) rides on your calibration.</p>`,
   panes:[{app:"case notebook",cls:"note",dr:1,body:`CASE HUNT-EXFIL-OD  subject: departing dev (authorized user)\nquestion: did CORPORATE data go to a PERSONAL OneDrive?\nhost: managed laptop (sanctioned tenant = Business1)\naudience: HR + Legal -> findings must be DEFENSIBLE\nstatus: PREPARE`}],
   attacker:{goal:"Take useful work product to the next employer with the least friction.",why:"A personal cloud account synced on the work laptop is effortless — no USB, no email flags, just drag into a synced folder.",recon:"They know the laptop already has OneDrive; signing in a personal account is a few clicks.",next:"Sign in a personal OneDrive and move files into its synced folder."},
   reason:{obs:"A tasking and a constraint (defensibility), no artifacts yet.",ori:"PEAK Prepare: scope the question, plan the collection.",rel:{v:"unknown",b:"Nothing examined. Relevance calls begin once you parse the settings DB + logs."},suf:{lvl:5,gap:"No evidence. Collect the OneDrive artifacts from a copy of the image.",move:"COLLECT",mv:"Preserve settings + logs folders; work on a copy."}},
@@ -658,12 +698,12 @@ function renderGaps(){const all=[...openGaps].map(id=>({id,c:0})).concat([...clo
 function renderFw(t){const d=t.fw.diamond||[];const dv=['A','C','I','V'].map(x=>`<span class="dv ${d.includes(x)?'on':''}">${x}</span>`).join('');const cells=[['Kill Chain',t.fw.kill],['NIST IR',t.fw.nist],['PEAK',t.fw.peak],['Pyramid of Pain',t.fw.pyramid]];let h=cells.map(c=>{const ch=prevFw&&prevFw[c[0]]!==c[1];return `<div class="fw ${ch?'changed':''}"><div class="k">${c[0]}</div><div class="v">${c[1]}</div></div>`;}).join('');h+=`<div class="fw"><div class="k">Diamond (A·C·I·V)</div><div class="diamond">${dv}</div></div>`;fwstrip.innerHTML=h;prevFw={'Kill Chain':t.fw.kill,'NIST IR':t.fw.nist,'PEAK':t.fw.peak,'Pyramid of Pain':t.fw.pyramid};}
 function paneHTML(p){return `<div class="win ${p.cls||''}"><div class="bar"><div class="dots"><i class="dr"></i><i class="dy"></i><i class="dg"></i></div><div class="app"><b>${p.app}</b></div></div><pre>${p.body}</pre></div>`;}
 function leadHTML(l){return `<div class="lead"><div class="ava">${LEAD_INIT}</div><div class="body"><div class="who">${LEAD_NAME} <span class="role">· ${LEAD_ROLE}</span>${l.tag?`<span class="tag">${l.tag}</span>`:''}</div><div class="msg">${l.msg}</div></div></div>`;}
-function atkHTML(a){let r='';if(a.goal)r+=`<div class="arow"><div class="lbl">Operator goal</div><div class="txt">${a.goal}</div></div>`;if(a.why)r+=`<div class="arow"><div class="lbl">Why this move / method</div><div class="txt">${a.why}</div></div>`;if(a.recon)r+=`<div class="arow"><div class="lbl">What recon told them</div><div class="txt">${a.recon}</div></div>`;if(a.weakness)r+=`<div class="arow"><div class="lbl">Weakness they rely on</div><div class="txt">${a.weakness}</div></div>`;if(a.next)r+=`<div class="arow nextmv"><div class="lbl">▶ Next move — what YOU pre-empt</div><div class="txt">${a.next}</div></div>`;return `<div class="atkpanel"><div class="ah">🗡 Attacker's-eye view — plausible operator reasoning (inference, not a confession)</div><div class="ab">${r}</div></div>`;}
+function atkHTML(a){let r='';if(a.goal)r+=`<div class="arow"><div class="lbl">Operator goal</div><div class="txt">${a.goal}</div></div>`;if(a.why)r+=`<div class="arow"><div class="lbl">Why this move / method</div><div class="txt">${a.why}</div></div>`;if(a.recon)r+=`<div class="arow"><div class="lbl">What recon told them</div><div class="txt">${a.recon}</div></div>`;if(a.weakness)r+=`<div class="arow"><div class="lbl">Weakness they rely on</div><div class="txt">${a.weakness}</div></div>`;if(a.next)r+=`<div class="arow nextmv"><div class="lbl">Next move — what YOU pre-empt</div><div class="txt">${a.next}</div></div>`;return `<div class="atkpanel"><div class="ah">Attacker's-eye view — plausible operator reasoning (inference, not a confession)</div><div class="ab">${r}</div></div>`;}
 function reasonHTML(r){return `<div class="reason"><div class="rh">Analyst reasoning — Observe · Orient · Relevance · Sufficiency</div><div class="rb">
    <div class="rrow"><div class="lbl obs">Observe</div><div class="txt">${r.obs}</div></div>
    <div class="rrow"><div class="lbl ori">Orient</div><div class="txt">${r.ori}</div></div>
    <div class="rrow"><div class="lbl rel">Relevance — is this related?<span class="verdict ${r.rel.v}">${r.rel.v}</span></div><div class="txt">${r.rel.b}</div></div>
-   <div class="rrow"><div class="lbl suf">Sufficiency — do I have enough?</div><div class="meter"><i style="width:${r.suf.lvl}%"></i></div><div class="txt">${r.suf.gap}</div><div class="move ${r.suf.move}">▸ ${r.suf.move}</div> <span class="txt" style="font-size:12.5px">${r.suf.mv}</span></div></div></div>`;}
+   <div class="rrow"><div class="lbl suf">Sufficiency — do I have enough?</div><div class="meter"><i style="width:${r.suf.lvl}%"></i></div><div class="txt">${r.suf.gap}</div><div class="move ${r.suf.move}">${r.suf.move}</div> <span class="txt" style="font-size:12.5px">${r.suf.mv}</span></div></div></div>`;}
 
 function fieldNotes(){
  let o="ONEDRIVE DATA-EXFIL (insider) \u2014 DFIR FIELD NOTES\nBuild "+BUILD_ID+" | generated "+STAMP_UTC+"\n";
@@ -716,7 +756,7 @@ function hideToast(){document.getElementById('toast').classList.remove('show');}
 function render(){
  const t=S[i];seen.add(i);recomputeGaps();renderFw(t);
  let h=`<div class="phase">${t.phase.replace(/↻/,'<span style="color:var(--warn)">↻</span>')}</div><h2 class="title">${t.title}</h2>`;
- if(view==='atk')h+=`<div class="atkbanner">🗡 Attacker view — toggle back to 🛡 Defender any time</div>`;
+ if(view==='atk')h+=`<div class="atkbanner">Attacker view — toggle back to Defender any time</div>`;
  if(t.loop)h+=`<div class="loopbadge">↻ ${t.loop.type}</div>`;
  if(t.lead)h+=leadHTML(t.lead);
  if(t.newConcept)h+=`<div class="newconcept"><div class="lbl">New concept · ${t.newConcept.term}</div>${t.newConcept.def}</div>`;
@@ -727,8 +767,8 @@ function render(){
  if(view==='atk'&&t.attacker)h+=atkHTML(t.attacker);
  else if(t.reason)h+=reasonHTML(t.reason);
  if(view==='atk'&&t.reason)h+=`<details style="margin:10px 0"><summary style="cursor:pointer;color:var(--accent2);font-size:12.5px">Show defender reasoning too</summary>${reasonHTML(t.reason)}</details>`;
- if(t.bias)h+=`<div class="bias"><h4>⚑ Bias check</h4><p><b>Risk:</b> ${t.bias.risk}</p><p class="ct"><b>Counter:</b> ${t.bias.counter}</p></div>`;
- if(t.decision){h+=`<div class="decision"><div class="q">⟶ ${t.decision.prompt}</div>`;t.decision.options.forEach((o,idx)=>h+=`<button class="opt" data-opt="${idx}">${o.text}<span class="mk"></span></button>`);h+=`<div class="fb" id="fb"></div></div>`;}
+ if(t.bias)h+=`<div class="bias"><h4>Bias check</h4><p><b>Risk:</b> ${t.bias.risk}</p><p class="ct"><b>Counter:</b> ${t.bias.counter}</p></div>`;
+ if(t.decision){h+=`<div class="decision"><div class="q">${t.decision.prompt}</div>`;t.decision.options.forEach((o,idx)=>h+=`<button class="opt" data-opt="${idx}">${o.text}<span class="mk"></span></button>`);h+=`<div class="fb" id="fb"></div></div>`;}
  if(t.crit)h+=`<div class="crit"><h4>Critical detail</h4><p>${t.crit}</p></div>`;
  if(t.keypoints&&t.keypoints.length)h+=`<div class="kp"><h4>Key points</h4><ul>${t.keypoints.map(k=>`<li>${k}</li>`).join('')}</ul></div>`;
  if(t.take)h+=`<div class="take"><h4>Actionable takeaway → notes</h4><p>${t.take}</p></div>`;
@@ -737,7 +777,7 @@ function render(){
  card.innerHTML=h;
  if(t.decision){const fb=card.querySelector('#fb');card.querySelectorAll('.opt').forEach(btn=>btn.addEventListener('click',()=>{const ch=t.decision.options[+btn.dataset.opt];card.querySelectorAll('.opt').forEach((b,idx)=>{b.disabled=true;const o=t.decision.options[idx];if(o.correct){b.classList.add('correct');b.querySelector('.mk').textContent='✓';}if(b===btn&&!o.correct){b.classList.add('wrong');b.querySelector('.mk').textContent='✕';}});fb.className='fb show '+(ch.correct?'ok':'no');fb.innerHTML=(ch.correct?'<b>Correct. </b>':'<b>Not quite. </b>')+ch.feedback;}));}
  if(t.debrief){const ta=card.querySelector('#notesArea'),cp=card.querySelector('#copyBtn'),dn=card.querySelector('#copied');cp.addEventListener('click',async()=>{ta.select();try{await navigator.clipboard.writeText(ta.value);}catch(e){try{document.execCommand('copy');}catch(_){}}dn.classList.add('show');setTimeout(()=>dn.classList.remove('show'),2200);});}
- bar.style.width=(i/(S.length-1)*100)+'%';counter.textContent=`Turn ${i+1} / ${S.length}`;prevBtn.disabled=(i===0);nextBtn.textContent=(i===S.length-1)?'Done':'Advance ▶';
+ bar.style.width=(i/(S.length-1)*100)+'%';counter.textContent=`Turn ${i+1} / ${S.length}`;prevBtn.disabled=(i===0);nextBtn.textContent=(i===S.length-1)?'Done':'Advance';
  const c=t.conf||0;confNum.textContent=c+'%';confBar.style.width=c+'%';renderGaps();
  stepsEl.querySelectorAll('li').forEach((li,idx)=>{li.classList.toggle('active',idx===i);li.classList.toggle('done',seen.has(idx)&&idx!==i);});
  // log-cue toast
@@ -781,7 +821,7 @@ function genRep(){
    <div class="pc-sect"><div class="h">Complication</div><div class="pc-twist">⚠ ${comp}</div></div>
    <div class="pc-sect" style="font-size:11.5px;color:var(--faint)">Grounded in: ${pack.src} — paraphrased for training; verify before operational use.</div>
    <div class="approach" id="approach"><h4>Model approach (one good way — not the only way)</h4><ol>${type.approach.map(a=>`<li>${a}</li>`).join('')}</ol></div>
-   <div class="genrow"><button class="btn ghost" id="revealBtn">Reveal model approach</button><button class="btn ghost" id="copyPromptBtn">Copy prompt</button><button class="btn" id="againBtn">New rep ▶</button></div>
+   <div class="genrow"><button class="btn ghost" id="revealBtn">Reveal model approach</button><button class="btn ghost" id="copyPromptBtn">Copy prompt</button><button class="btn" id="againBtn">New rep</button></div>
  </div></div>`;
  document.getElementById('revealBtn').addEventListener('click',()=>document.getElementById('approach').classList.add('show'));
  document.getElementById('againBtn').addEventListener('click',genRep);

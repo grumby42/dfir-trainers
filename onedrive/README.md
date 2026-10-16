@@ -123,7 +123,7 @@ If you spot an inaccuracy, please open an issue — accuracy matters more than p
 
 ## Build / provenance
 
-- Build ID: `HUNT-20261016-0318Z` (fact-checked)
+- Build ID: `HUNT-20261016-0318Z` · design-rev 2026-10-16 (fact-checked)
 - Single file, offline, no external dependencies.
 - Built to the repo's [`TRAINER_SPEC.md`](../TRAINER_SPEC.md); all research credit belongs to the teams named
   above.

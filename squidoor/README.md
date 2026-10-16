@@ -153,7 +153,7 @@ If you spot an inaccuracy, please open an issue — accuracy matters more than p
 
 ## Build / provenance
 
-- Build ID: `HUNT-20261015-2250Z` (fact-checked revision)
+- Build ID: `HUNT-20261015-2250Z` · design-rev 2026-10-16 (fact-checked revision)
 - Single file, offline, no external dependencies.
 - Built collaboratively with Claude (Anthropic) as a coding/research assistant; all research
   credit belongs to the teams named above.

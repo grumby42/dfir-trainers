@@ -127,7 +127,7 @@ If you spot an inaccuracy, please open an issue — accuracy matters more than p
 
 ## Build / provenance
 
-- Build ID: `HUNT-20261016-0306Z` (fact-checked; ATT&CK verified vs AA25-239A Appendix A)
+- Build ID: `HUNT-20261016-0306Z` · design-rev 2026-10-16 (fact-checked; ATT&CK verified vs AA25-239A Appendix A)
 - Single file, offline, no external dependencies.
 - Built to the repo's [`TRAINER_SPEC.md`](../TRAINER_SPEC.md); all research credit belongs to the
   teams named above.
