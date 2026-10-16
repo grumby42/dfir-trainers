@@ -1,4 +1,5 @@
 # Scattered Spider DFIR Hunt & IR Trainer — "Rogue VM Chronicles"
+*Identity-first intrusion — Scattered Spider / UNC3944 / Octo Tempest: help-desk call → hypervisor-layer ransomware, below the endpoint sensors.*
 
 An interactive, **single-file, fully-offline** training tool that walks you through an **identity-first
 intrusion** in the shape of **Scattered Spider / UNC3944 / Octo Tempest** — from a **help-desk phone call**
