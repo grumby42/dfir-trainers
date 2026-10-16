@@ -134,7 +134,7 @@ If you spot an inaccuracy, please open an issue — accuracy matters more than p
 
 ## Build / provenance
 
-- **Author:** Theodore "Ted" Gransbury — [github.com/grumby42](https://github.com/grumby42) · [grumbylearns.io](https://grumbylearns.io). Independent educational reconstruction, **assembled with AI assistance (Claude)** and fact-checked line-by-line against the primary sources below.
+- **Author:** Theodore "Ted" Gransbury — [github.com/grumby42](https://github.com/grumby42) · [grumbylearns.io](https://grumbylearns.io) · [linkedin.com/in/tgransbury](https://www.linkedin.com/in/tgransbury). Independent educational reconstruction, **assembled with AI assistance (Claude)** and fact-checked line-by-line against the primary sources below.
 - **Primary sources:** listed above under *Credit where it’s due* and in-app under the *Reading Room* — every technical claim traces to them; all research credit belongs to those teams.
 
 - Build ID: `HUNT-20261016-0306Z` · design-rev 2026-10-16 (fact-checked; ATT&CK verified vs AA25-239A Appendix A)
