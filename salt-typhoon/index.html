@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Salt Typhoon DFIR Hunt Trainer — network-device intrusion, bias drills, case log</title>
+<style>
+  :root{
+    --bg:#070b10;--panel:#111a24;--panel2:#0d141d;--ink:#e7edf3;--muted:#8aa0b4;--faint:#5e7183;
+    --line:#1e2b3a;--line2:#2a3a4c;--accent:#37d0a8;--accent2:#4ea3ff;--warn:#ffb454;--bad:#ff6b6b;
+    --good:#51d88a;--purple:#b48cff;--chip:#172231;--evid:#05090d;--evidink:#b7e3cf;--shadow:0 12px 34px rgba(0,0,0,.5);--winbar:#0a1420;--lead:#1b2a3f;--atk:#2a1113;--atkln:#5a2b2f;--atkink:#ffd2cf;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:radial-gradient(1200px 600px at 80% -10%,#0e1a26 0,transparent 60%),radial-gradient(900px 500px at -10% 10%,#0c1622 0,transparent 55%),var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.55;-webkit-font-smoothing:antialiased}
+  code,.mono{font-family:"SF Mono",SFMono-Regular,ui-monospace,"Cascadia Code",Consolas,Menlo,monospace}
+  .wrap{max-width:1180px;margin:0 auto;padding:16px 14px 90px}
+  header.top{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:12px}
+  header.top h1{font-size:18px;margin:0;letter-spacing:.3px}
+  header.top .sub{color:var(--muted);font-size:12.5px}
+  .badge{font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--accent);border:1px solid var(--line2);border-radius:999px;padding:3px 10px;background:var(--chip)}
+  .modebar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+  .modebtn{background:var(--panel2);border:1px solid var(--line2);color:var(--muted);border-radius:9px;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:600}
+  .modebtn.on{background:var(--chip);color:var(--ink);border-color:var(--accent)}
+
+  .viewtoggle{display:inline-flex;border:1px solid var(--line2);border-radius:9px;overflow:hidden;margin-bottom:12px}
+  .viewtoggle button{background:var(--panel2);border:none;color:var(--muted);padding:7px 14px;cursor:pointer;font-size:12.5px;font-weight:700}
+  .viewtoggle button.on.def{background:#0f1e2c;color:var(--accent2)}
+  .viewtoggle button.on.atk{background:var(--atk);color:#ff8f8a}
+
+  .fwstrip{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px}
+  @media(max-width:760px){.fwstrip{grid-template-columns:repeat(2,1fr)}}
+  .fw{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+  .fw .k{font-size:9.5px;text-transform:uppercase;letter-spacing:.7px;color:var(--faint)}
+  .fw .v{font-size:12.5px;font-weight:600;margin-top:2px}
+  .fw.changed{border-color:var(--accent);box-shadow:0 0 0 1px rgba(55,208,168,.25)}
+  .diamond{display:flex;gap:5px;margin-top:4px}
+  .dv{width:16px;height:16px;border-radius:4px;border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--faint);background:#0a121b}
+  .dv.on{background:#10251a;border-color:var(--good);color:var(--good)}
+  .layout{display:grid;grid-template-columns:1fr 310px;gap:16px}
+  @media(max-width:980px){.layout{grid-template-columns:1fr}}
+  .progress{height:5px;background:var(--panel);border-radius:999px;overflow:hidden;margin:2px 0 12px}
+  .progress>i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0;transition:width .35s}
+  .phase{font-size:10.5px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+  h2.title{margin:3px 0 4px;font-size:19px}
+  .loopbadge{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#1a1024;background:var(--warn);border-radius:999px;padding:3px 10px;font-weight:700;margin:6px 0}
+  .atkbanner{display:inline-flex;align-items:center;gap:7px;font-size:11px;color:#ffd2cf;background:var(--atk);border:1px solid var(--atkln);border-radius:999px;padding:3px 11px;font-weight:700;margin:6px 0}
+
+  .lead{display:flex;gap:10px;align-items:flex-start;background:var(--lead);border:1px solid #2b4360;border-radius:12px;padding:11px 13px;margin:12px 0}
+  .lead .ava{flex:0 0 34px;width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#4ea3ff,#b48cff);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#06101c}
+  .lead .who{font-size:11px;color:#9fc2e6;font-weight:700;margin-bottom:2px}.lead .who .role{color:var(--faint);font-weight:500}
+  .lead .msg{font-size:13.5px;color:#e4eefb}
+  .lead .tag{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--warn);border:1px solid #5a4a22;border-radius:5px;padding:1px 6px;margin-left:6px}
+
+  .newconcept{border:1px solid #33314a;background:#161327;border-radius:10px;padding:10px 12px;margin:10px 0}
+  .newconcept .lbl{font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--purple);font-weight:700}
+  .newconcept b{color:#e9e2ff}
+  .scene{margin:10px 0}.scene p{margin:8px 0}.scene strong{color:#fff}
+
+  .workspace{display:grid;gap:12px;margin:14px 0}.ws2{grid-template-columns:1fr 1fr}@media(max-width:720px){.ws2{grid-template-columns:1fr}}
+  .win{background:var(--evid);border:1px solid var(--line2);border-radius:10px;overflow:hidden;box-shadow:var(--shadow)}
+  .win .bar{display:flex;align-items:center;gap:8px;background:var(--winbar);border-bottom:1px solid var(--line);padding:7px 11px}
+  .win .bar .dots{display:flex;gap:5px}.win .bar .dots i{width:9px;height:9px;border-radius:50%}
+  .dr{background:#ff5f56}.dy{background:#ffbd2e}.dg{background:#27c93f}
+  .win .bar .app{font-size:11px;color:var(--muted);letter-spacing:.4px;text-transform:uppercase}.win .bar .app b{color:var(--accent2);font-weight:700}
+  .win pre{margin:0;padding:11px 13px;overflow-x:auto;font-size:12px;color:var(--evidink);line-height:1.5;font-family:ui-monospace,Menlo,Consolas,monospace}
+  .win pre .c{color:#56708a}.win pre .hi{color:var(--warn);font-weight:600}.win pre .r{color:var(--bad);font-weight:600}.win pre .g{color:var(--good)}.win pre .b{color:var(--accent2)}.win pre .p{color:var(--purple)}
+  .win.note pre{color:#cfe8dd}
+
+  .reason{border:1px solid var(--line2);border-radius:12px;overflow:hidden;margin:14px 0;background:var(--panel2)}
+  .reason .rh{background:#0c1622;padding:8px 12px;font-size:11px;letter-spacing:.7px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line)}
+  .reason .rb{padding:4px 12px 12px}
+  .rrow{padding:10px 0;border-bottom:1px dashed #1b2735}.rrow:last-child{border-bottom:none}
+  .rrow .lbl{font-size:10px;letter-spacing:.8px;text-transform:uppercase;font-weight:700;margin-bottom:3px}
+  .lbl.obs{color:var(--accent2)}.lbl.ori{color:var(--purple)}.lbl.rel{color:var(--warn)}.lbl.suf{color:var(--accent)}
+  .rrow .txt{font-size:13px;color:#d4e2ee}
+  .verdict{display:inline-block;font-size:10.5px;font-weight:700;border-radius:5px;padding:1px 7px;margin-left:6px;vertical-align:middle}
+  .verdict.linked{background:#10251a;color:var(--good);border:1px solid #1f6b47}.verdict.unknown{background:#2a2410;color:var(--warn);border:1px solid #6b561f}.verdict.unrelated{background:#241315;color:var(--bad);border:1px solid #6b2630}
+  .meter{height:8px;background:#0a121b;border-radius:999px;overflow:hidden;margin:6px 0;border:1px solid var(--line)}.meter>i{display:block;height:100%;background:linear-gradient(90deg,var(--bad),var(--warn),var(--good));transition:width .4s}
+  .move{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;border-radius:6px;padding:3px 9px;margin-top:4px}
+  .move.PIVOT{background:#12243a;color:var(--accent2);border:1px solid #244a6e}.move.COLLECT{background:#2a2410;color:var(--warn);border:1px solid #6b561f}.move.CONTAIN{background:#241315;color:var(--bad);border:1px solid #6b2630}.move.ADVANCE{background:#10251a;color:var(--good);border:1px solid #1f6b47}.move.LOOP{background:#2a1410;color:#ff9f6b;border:1px solid #7a3b1f}
+
+  /* attacker panel */
+  .atkpanel{border:1px solid var(--atkln);border-radius:12px;overflow:hidden;margin:14px 0;background:#160b0c}
+  .atkpanel .ah{background:#20100f;padding:8px 12px;font-size:11px;letter-spacing:.7px;text-transform:uppercase;color:#ff9f9a;border-bottom:1px solid var(--atkln)}
+  .atkpanel .ab{padding:4px 12px 12px}
+  .arow{padding:9px 0;border-bottom:1px dashed #3a2020}.arow:last-child{border-bottom:none}
+  .arow .lbl{font-size:10px;letter-spacing:.8px;text-transform:uppercase;font-weight:700;margin-bottom:3px;color:#ff8f8a}
+  .arow .txt{font-size:13px;color:var(--atkink)}
+  .arow.nextmv{background:#1c0d0e;margin:6px -12px -12px;padding:10px 12px}
+  .arow.nextmv .lbl{color:#ffb454}
+
+  .bias{border-left:3px solid #d98cff;background:#17121f;padding:9px 13px;border-radius:0 8px 8px 0;margin:13px 0}
+  .bias h4{margin:0 0 5px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#c9a6ff}
+  .bias p{margin:3px 0;font-size:13px;color:#e3d7f5}
+  .bias .ct{color:#9fe6c9}
+
+  .decision{border:1px solid #2a3a2f;background:#0f1a14;border-radius:10px;padding:13px;margin:14px 0}
+  .decision .q{font-weight:600;margin-bottom:9px}
+  .opt{display:block;width:100%;text-align:left;background:var(--panel2);color:var(--ink);border:1px solid var(--line2);border-radius:8px;padding:10px 12px;margin:6px 0;cursor:pointer;font-size:13.5px;transition:.12s}
+  .opt:hover{border-color:var(--accent)}.opt.correct{border-color:var(--good);background:#10251a}.opt.wrong{border-color:var(--bad);background:#261213}
+  .opt .mk{float:right;font-weight:700}
+  .fb{display:none;margin-top:9px;padding:10px 12px;border-radius:8px;font-size:13px}.fb.show{display:block}.fb.ok{background:#10251a;border:1px solid #1f6b47}.fb.no{background:#241317;border:1px solid #7a2b33}
+  .crit{border-left:3px solid var(--warn);background:#1c1710;padding:9px 13px;border-radius:0 8px 8px 0;margin:13px 0}
+  .crit h4,.kp h4,.take h4{margin:0 0 5px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+  .crit p{margin:3px 0;font-size:13.5px}
+  .kp{margin:13px 0 4px}.kp ul{margin:0;padding-left:18px}.kp li{margin:4px 0;font-size:13.5px}
+  .take{border-left:3px solid var(--accent);background:#0e1a18;padding:9px 13px;border-radius:0 8px 8px 0;margin:13px 0}.take p{margin:3px 0;color:#d7f3ea;font-size:13.5px}
+  .refs{font-size:12px;color:var(--muted);margin:12px 0 2px}.refs a{color:var(--accent2);text-decoration:none}.refs a:hover{text-decoration:underline}
+  .nav{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:16px}
+  .btn{background:var(--accent);color:#04231b;border:none;border-radius:9px;padding:11px 18px;font-weight:700;cursor:pointer;font-size:14px}.btn:hover{filter:brightness(1.08)}
+  .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line2);font-weight:600}.btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn.sm{padding:7px 12px;font-size:12.5px}
+
+  .rail .box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px;margin-bottom:12px}
+  .rail h3{margin:0 0 9px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+  .confnum{font-size:26px;font-weight:800;color:var(--accent)}.confsub{font-size:11px;color:var(--faint)}
+  .gaps{list-style:none;margin:8px 0 0;padding:0;font-size:12px}
+  .gaps li{padding:5px 8px;border-radius:6px;background:#1a1409;border:1px solid #3a2e12;color:var(--warn);margin:4px 0;display:flex;gap:7px}
+  .gaps li.closed{background:#0e1a14;border-color:#1f4a37;color:var(--good);text-decoration:line-through;opacity:.75}
+  .steps{list-style:none;margin:0;padding:0;font-size:12px;max-height:250px;overflow:auto}
+  .steps li{padding:5px 7px;border-radius:6px;color:var(--muted);cursor:pointer;display:flex;gap:8px;align-items:center}
+  .steps li .n{font-size:10px;width:16px;text-align:center;color:#3f5467}
+  .steps li.active{background:var(--chip);color:var(--ink)}.steps li.done{color:var(--accent)}.steps li.done .n::before{content:"✓"}.steps li.done .n{color:var(--accent)}
+  .steps li .lp{color:var(--warn);font-size:10px}
+  .biaswatch{font-size:11.5px;color:#c9a6ff;line-height:1.5}
+
+  .gl{font-size:12.5px}.gl dt{color:var(--accent);font-weight:700;margin-top:9px}.gl dd{margin:2px 0 0;color:#cdd9e5}
+  table.map{width:100%;border-collapse:collapse;font-size:12px;margin:10px 0}
+  table.map th,table.map td{border:1px solid var(--line2);padding:6px 8px;text-align:left;vertical-align:top}
+  table.map th{background:var(--chip);color:var(--muted);text-transform:uppercase;font-size:10px;letter-spacing:.5px}
+  table.map td code{color:var(--accent)}
+  textarea{width:100%;background:var(--evid);color:var(--evidink);border:1px solid var(--line2);border-radius:10px;padding:11px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;resize:vertical}
+  .copyrow{display:flex;gap:10px;align-items:center;margin-top:8px}
+  .copied{color:var(--good);font-size:13px;display:none}.copied.show{display:inline}
+  .reading a,.kit a{color:var(--accent2);text-decoration:none}.reading a:hover,.kit a:hover{text-decoration:underline}
+  .reading li,.kit li{margin:6px 0;font-size:13px}
+  .tag{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--faint);border:1px solid var(--line2);border-radius:4px;padding:1px 6px;margin-right:6px}
+  .tag.must{color:#06101c;background:var(--good);border-color:var(--good);font-weight:700}.tag.good{color:var(--warn);border-color:#5a4a22}
+  .disc{font-size:11.5px;color:#6a7f91;background:#0e141d;border:1px dashed var(--line2);border-radius:8px;padding:10px 12px;margin:14px 0}
+  .sechead{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:18px 0 6px;border-top:1px solid var(--line);padding-top:12px}
+  footer.stamp{margin-top:24px;border-top:1px solid var(--line);padding-top:12px;color:var(--faint);font-size:11px}footer.stamp .mono{color:#7fd8bd}
+
+  /* generator */
+  .gen{max-width:900px}.genctl{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+  .genctl select{background:var(--panel2);color:var(--ink);border:1px solid var(--line2);border-radius:8px;padding:9px 11px;font-size:13px}
+  .genctl label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-right:4px}
+  .promptcard{background:var(--panel);border:1px solid var(--line2);border-radius:14px;overflow:hidden;box-shadow:var(--shadow)}
+  .pc-head{background:var(--winbar);border-bottom:1px solid var(--line);padding:11px 15px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .pc-type{font-size:12px;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:.6px}.pc-pack{font-size:11px;color:var(--muted)}
+  .pc-body{padding:15px}.pc-sect{margin:0 0 14px}
+  .pc-sect .h{font-size:10.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--faint);margin-bottom:4px;font-weight:700}
+  .pc-sect .t{font-size:14px;color:#e6eef6}
+  .pc-input{background:var(--evid);border:1px solid var(--line2);border-radius:9px;padding:12px;font-size:13px;color:var(--evidink);font-family:ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap}
+  .pc-lead{display:flex;gap:10px;align-items:flex-start;background:var(--lead);border:1px solid #2b4360;border-radius:10px;padding:10px 12px}
+  .pc-lead .ava{flex:0 0 30px;width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#4ea3ff,#b48cff);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;color:#06101c}
+  .pc-twist{font-size:12.5px;color:var(--warn);background:#1c1710;border:1px solid #5a4a22;border-radius:8px;padding:8px 11px}
+  .approach{display:none;margin-top:12px;border-top:1px dashed var(--line2);padding-top:12px}.approach.show{display:block}
+  .approach h4{margin:0 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--good)}
+  .approach ol{margin:0;padding-left:18px}.approach li{margin:4px 0;font-size:13px}
+  .genrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+
+  /* case log */
+  .clog{max-width:1000px}
+  .guidebar{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+  @media(max-width:760px){.guidebar{grid-template-columns:1fr}}
+  .guide{background:var(--panel2);border:1px solid var(--line2);border-radius:10px;padding:10px 12px;font-size:12px}
+  .guide b{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px}
+  .guide.create b{color:var(--good)}.guide.update b{color:var(--warn)}.guide.ref b{color:var(--accent2)}
+  .form{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .fg{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}
+  @media(max-width:720px){.fg{grid-template-columns:1fr}}
+  .field label{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:3px}
+  .field input,.field select,.field textarea{width:100%;background:var(--panel2);color:var(--ink);border:1px solid var(--line2);border-radius:7px;padding:8px 9px;font-size:13px;font-family:inherit}
+  .field textarea{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;min-height:46px}
+  .field.full{grid-column:1 / -1}
+  .diamondgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;grid-column:1/-1}
+  .logtable{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:10px}
+  .logtable th,.logtable td{border:1px solid var(--line2);padding:5px 7px;text-align:left;vertical-align:top}
+  .logtable th{background:var(--chip);color:var(--muted);text-transform:uppercase;font-size:9.5px;letter-spacing:.4px}
+  .logtable tr.match{background:#10251a}
+  .findrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0 4px}
+  .findrow input,.findrow select{background:var(--panel2);color:var(--ink);border:1px solid var(--line2);border-radius:7px;padding:7px 9px;font-size:12.5px}
+  .emptyrow{color:var(--faint);font-size:12.5px;padding:8px 2px}
+
+  /* toast */
+  #toast{position:fixed;right:16px;bottom:16px;max-width:330px;background:#13202e;border:1px solid var(--accent2);border-radius:12px;box-shadow:var(--shadow);padding:12px 14px;z-index:50;display:none}
+  #toast.show{display:block;animation:slidein .25s ease}
+  @keyframes slidein{from{transform:translateY(12px);opacity:0}to{transform:none;opacity:1}}
+  #toast .tt{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--accent2);font-weight:700;margin-bottom:4px}
+  #toast .tm{font-size:13px;color:#dbe8f4;margin-bottom:9px}
+  #toast .tr{display:flex;gap:8px}
+  #toast .x{position:absolute;top:8px;right:11px;color:var(--faint);cursor:pointer;font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <span class="badge">DFIR Trainer · Salt Typhoon</span>
+    <h1>Salt Typhoon Hunt &amp; IR Trainer — network-device DFIR · attacker lane · bias drills · case log</h1>
+    <span class="sub">Salt Typhoon / telecom core · no EDR on the devices · living off the land · attribution that evolved · log structured intel</span>
+  </header>
+
+  <div class="modebar">
+    <button class="modebtn on" id="mWalk">▶ Case walkthrough</button>
+    <button class="modebtn" id="mGen">⚙ Exercise generator</button>
+    <button class="modebtn" id="mLog">🗃 Case log</button>
+  </div>
+
+  <!-- WALKTHROUGH -->
+  <div id="walkMode">
+    <div class="viewtoggle"><button class="def on" id="vDef">🛡 Defender view</button><button class="atk" id="vAtk">🗡 Attacker view</button></div>
+    <div class="fwstrip" id="fwstrip"></div>
+    <div class="progress"><i id="bar"></i></div>
+    <div class="layout">
+      <main><div id="card"></div>
+        <div class="nav"><button class="btn ghost" id="prev">◀ Back</button><div class="confsub" id="counter"></div><button class="btn" id="next">Advance ▶</button></div>
+      </main>
+      <aside class="rail">
+        <div class="box"><h3>Case confidence</h3><div class="confnum" id="confNum">5%</div><div class="confsub">closeness to a defensible, actionable conclusion</div><div class="meter" style="margin-top:8px"><i id="confBar" style="width:5%"></i></div></div>
+        <div class="box"><h3>Open collection gaps</h3><ul class="gaps" id="gaps"></ul></div>
+        <div class="box"><h3>Bias watch</h3><div class="biaswatch">At every step ask: am I <b>seeking disconfirming evidence</b>, or just evidence that fits my favored story? Note the bias, don't lean on it.</div></div>
+        <div class="box"><h3>Investigation phases</h3><ul class="steps" id="steps"></ul></div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- GENERATOR -->
+  <div id="genMode" style="display:none">
+    <div class="gen">
+      <p class="confsub" style="font-size:13px;color:var(--muted);margin-top:0">A "prompt book" of reps. Includes behavioral-inference and bias-spotting drills. Lock a type/scenario or leave random. Work it in your notebook, then reveal a model approach.</p>
+      <div class="genctl">
+        <div><label>Exercise</label><select id="selType"><option value="">Random</option></select></div>
+        <div><label>Scenario</label><select id="selPack"><option value="">Random</option></select></div>
+        <div><label>Difficulty</label><select id="selDiff"><option value="">Any</option><option>Foundational</option><option>Intermediate</option><option>Advanced</option></select></div>
+        <button class="btn" id="genBtn">Generate rep ▶</button>
+      </div>
+      <div id="promptHost"></div>
+    </div>
+  </div>
+
+  <!-- CASE LOG -->
+  <div id="logMode" style="display:none">
+    <div class="clog">
+      <div class="guidebar">
+        <div class="guide create"><b>Create an entry when…</b>you've confirmed a distinct incident/campaign — enough to fill the durable fields with evidence, not guesses.</div>
+        <div class="guide update"><b>Update an entry when…</b>new evidence changes a field, a rival hypothesis is ruled out, confidence shifts, or a sibling sample is found.</div>
+        <div class="guide ref"><b>Reference an entry when…</b>a new case shares a durable field (C2 method, naming convention, LOLBin). Search BEFORE you attribute — a match is a hypothesis, not a verdict.</div>
+      </div>
+      <div class="disc" style="margin-top:0"><b>Why the fixed schema:</b> this form IS your controlled vocabulary. Your "column B vs. column XA" problem is schema drift — if everyone free-texts, nothing correlates and nobody can clean it later. Enumerated fields + ATT&amp;CK IDs + Diamond vertices force alignment at entry time; that's exactly what shared standards (STIX, MISP, OpenCTI) do at scale by mapping everyone's data to one model. Trade-off: fixed fields can't capture every nuance — that's what <b>Notes</b> is for. Keep structured data structured; keep prose in Notes.</div>
+
+      <div class="form">
+        <div class="fg">
+          <div class="field"><label>Incident / alias</label><input id="f_name" placeholder="HUNT-NET-CORE / Salt Typhoon"></div>
+          <div class="field"><label>Date (first seen)</label><input id="f_date" placeholder="2026-10-15"></div>
+          <div class="field"><label>Initial access vector</label><select id="f_vector"></select></div>
+          <div class="field"><label>C2 method</label><select id="f_c2"></select></div>
+          <div class="field"><label>Execution / notable binary (LOLBin?)</label><input id="f_exec" placeholder="LOTL: Guest Shell/tcpdump; JumbledPath capture-and-pivot"></div>
+          <div class="field"><label>Persistence</label><select id="f_persist"></select></div>
+          <div class="field"><label>Victim sector</label><select id="f_sector"></select></div>
+          <div class="field"><label>Victim region</label><input id="f_region" placeholder="SE Asia / South America"></div>
+          <div class="field"><label>Confidence (calibrated)</label><select id="f_conf"><option>Low</option><option selected>Moderate</option><option>High</option></select></div>
+          <div class="field"><label>Source</label><input id="f_source" placeholder="internal IR / Unit 42 / Elastic"></div>
+          <div class="field full"><label>ATT&amp;CK technique IDs (comma-separated — the shared vocabulary)</label><input id="f_attack" placeholder="T1078, T1040, T1602.002, T1556, T1572, T1090.001"></div>
+          <div class="diamondgrid">
+            <div class="field"><label>Diamond — Adversary</label><input id="f_dA" placeholder="consistent with Salt Typhoon; PRC-affiliated (govt)"></div>
+            <div class="field"><label>Diamond — Capability</label><input id="f_dC" placeholder="valid creds + LOTL + JumbledPath + GRE/loopback"></div>
+            <div class="field"><label>Diamond — Infrastructure</label><input id="f_dI" placeholder="rogue AAA servers, jump-host chain, GRE tunnels"></div>
+            <div class="field"><label>Diamond — Victim</label><input id="f_dV" placeholder="carrier core routers/switches (telecom)"></div>
+          </div>
+          <div class="field full"><label>Files / processes / paths touched</label><textarea id="f_files" placeholder="running-config (exfil via TFTP/FTP); /etc/passwd+shadow; authorized_keys"></textarea></div>
+          <div class="field full"><label>Commands / patterns</label><textarea id="f_cmds" placeholder="guestshell enable; tcpdump; SSH src=Loopback0 -> peers; config pull via TFTP"></textarea></div>
+          <div class="field full"><label>Naming conventions / durable fingerprints (the stuff that survives tool swaps)</label><input id="f_fprint" placeholder="loopback-as-SSH-source to bypass ACLs; rogue AAA server; GRE tunnel"></div>
+          <div class="field full"><label>Hypotheses ruled out (ACH residue — your anti-bias record)</label><textarea id="f_ach" placeholder="ruled out: insider/misconfig; false positive; kept alive: other infra-living APT (calibrated)"></textarea></div>
+          <div class="field full"><label>Notes (nuance that doesn't fit a field)</label><textarea id="f_notes" placeholder="no EDR on devices; attribution evolved (Talos no-country -> PRC-affiliated -> named firms); rotate the whole trust fabric"></textarea></div>
+        </div>
+        <div class="genrow">
+          <button class="btn" id="addEntry">Add entry to log</button>
+          <button class="btn ghost" id="loadDemo">Load Salt Typhoon as example</button>
+          <button class="btn ghost" id="clearForm">Clear form</button>
+        </div>
+      </div>
+
+      <div class="findrow">
+        <b style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Find matches (\"I see X → who else did X?\")</b>
+        <select id="findField"><option value="c2">C2 method</option><option value="vector">Initial access</option><option value="attack">ATT&amp;CK ID contains</option><option value="fprint">Fingerprint contains</option></select>
+        <input id="findVal" placeholder="value to match…">
+        <button class="btn ghost sm" id="findBtn">Highlight matches</button>
+        <button class="btn ghost sm" id="clearFind">Clear</button>
+      </div>
+      <div id="logTableHost"></div>
+      <div class="copyrow"><button class="btn ghost sm" id="exportJson">Copy log as JSON</button><button class="btn ghost sm" id="exportTsv">Copy log as TSV</button><span class="copied" id="logCopied">Copied ✓</span></div>
+      <div class="disc">Entries live in this browser session only (nothing leaves your machine). Export to carry them into MISP/OpenCTI or a spreadsheet. Remember: a shared field match is a <b>lead to test</b> — borrowed TTPs, RaaS affiliates, and copycats mean "same technique" ≠ "same actor." Weight by how rare and specific the overlap is, and seek independent corroboration.</div>
+    </div>
+  </div>
+
+  <div id="toast"><span class="x" id="toastX">✕</span><div class="tt" id="toastTitle">Case-log cue</div><div class="tm" id="toastMsg"></div><div class="tr"><button class="btn sm" id="toastGo">Open Case Log</button><button class="btn ghost sm" id="toastDismiss">Later</button></div></div>
+
+  <footer class="stamp" id="footer"></footer>
+</div>
+
+<script>
+/* ============================================================
+   SALT TYPHOON DFIR HUNT & IR TRAINER
+   Case truth fact-checked against primary sources: Cisco Talos
+   (20 Feb 2025), CISA/NSA/FBI + partners joint guidance (3 Dec 2024),
+   and the Aug 2025 joint advisory (AA25-239A). This is a NETWORK-DEVICE
+   case with no EDR; the public host-level record is thinner than an
+   endpoint case, so attacker-view and attribution are labeled as
+   INFERENCE and stated in calibrated, evolving terms. ATT&CK IDs here
+   are ANALYST-MAPPED from reported behaviors (the reviewed sources did
+   not publish a table); verify against AA25-239A. All consoles are
+   ILLUSTRATIVE/synthetic (RFC 5737 IPs, example device names, no real
+   IOCs); report-sourced technique artifacts are labeled, not IOCs.
+   ============================================================ */
+const BUILD_ID="HUNT-20261016-0242Z (fact-checked)";
+const STAMP_UTC="2026-10-16T02:42Z";
+const LEAD_NAME="Dana R.",LEAD_INIT="DR",LEAD_ROLE="Hunt Lead";
+
+const GAPS=[{id:"entry",text:"Confirm how access was obtained (valid creds? a CVE?)"},{id:"devices",text:"Enumerate every compromised network device"},{id:"persist",text:"Find all persistence (accounts, tunnels, AAA, SSH keys)"},{id:"harvest",text:"Determine what creds/configs were captured"},{id:"scope",text:"Map scope, including peered/partner networks"},{id:"attrib",text:"Attribute the activity (calibrated)"},{id:"telemetry",text:"Establish whether we even HAVE the logs to see this"}];
+
+const GLOSS=[
+ ["Confirmation bias","Seeking, weighting, or remembering evidence that fits your favored hypothesis while discounting the rest. The #1 analyst failure mode. Counter: actively hunt DISCONFIRMING evidence and run ACH."],
+ ["Anchoring bias","Over-weighting the first impression. Here: 'the headline says China, so this is China' before you have device evidence. Counter: generate alternatives before committing; re-derive from the config/flow evidence."],
+ ["Availability bias","The case you just read colors everything — 'telecom breach = Salt Typhoon.' Dangerous precisely where pattern-matching is useful. Counter: consider base rates (misconfig, insider, another APT); demand independent corroborators."],
+ ["Base-rate neglect","Ignoring how common the benign explanation is. On network gear, config changes happen constantly during normal ops. Counter: ask 'is this a change-ticket or an intrusion?' before escalating."],
+ ["Absence-of-evidence trap","On devices with NO EDR, 'nothing alerted' and 'NetFlow looks normal' are uninformative, not reassuring — you may simply lack the telemetry. Counter: confirm you HAVE the data before trusting a clean result."],
+ ["Structured analytic techniques (SATs)","Methods (ACH, devil's advocate, key-assumptions check, red-teaming your own conclusion) that force rigor and expose bias. From Heuer's 'Psychology of Intelligence Analysis.'"],
+ ["Analysis of Competing Hypotheses (ACH)","List plausible explanations, then seek evidence that DISPROVES each. You're 'done enough' when one survives the decision's evidence need — not when you've piled up confirmation."],
+ ["Think-like-the-attacker","Reasoning from the adversary's goal backward: given what I want and what recon showed, which weakness would I pivot off next? A hypothesis engine for anticipating the next move, never a certainty."],
+ ["Network-device DFIR (no EDR)","Routers/switches rarely run endpoint sensors. Your evidence is running-config diffs, NetFlow/telemetry, syslog, and AAA (TACACS+/RADIUS) logs — but ONLY if you centralized them beforehand. The investigation often turns on whether the data even exists."],
+ ["Living off the land on network devices","Using built-in device features — Guest Shell, Bash, tcpdump, Embedded Packet Capture — instead of dropping malware. 'A hallmark of this campaign' (Talos): little or nothing on disk to find."],
+ ["Config as a credential store","Device configs hold SNMP community strings, TACACS+/RADIUS shared secrets, and local accounts with weak password encryption. Exfiltrating a config (over TFTP/FTP) harvests the network's trust fabric — which is why eradication means rotating ALL of it."],
+ ["GRE tunneling / transit-layer C2","Generic Routing Encapsulation wraps traffic so it can move covertly across infrastructure the actor controls. A new GRE tunnel in a running-config is a high-value tell."],
+ ["Evolving attribution","Public assessments firm up over time and can differ by author. A vendor may decline to name a country while a government advisory names one; later advisories add CVEs and named entities. State confidence in calibrated terms and UPDATE as the record changes."],
+ ["Structured threat intel","Recording incidents in a FIXED schema (ATT&CK IDs, Diamond vertices, enumerated fields) so they correlate across cases and teams. Free-text spreadsheets don't scale; standards (STIX/MISP/OpenCTI) map everyone's data to one model."],
+ ["PEAK","Prepare → Execute → Act. Splunk/SURGe (Bianco & Fetterman). Hunt types: Flames (hypothesis), Embers (baseline), Alchemy (model-assisted)."],
+ ["Diamond Model","Adversary, Capability, Infrastructure, Victim — pivot across edges to find related events; predictive when 3 vertices are known. Keep distinct clusters/aliases distinct."],
+ ["Pyramid of Pain","Indicators ranked by pain-to-adversary: hashes/IPs → domains → network/host artifacts → tools → TTPs (max pain, most durable — what you profile and detect on)."],
+ ["F3EAD","Find, Fix, Finish, Exploit, Analyze, Disseminate — the loop that turns findings into intel that feeds the next Find."]
+];
+
+const ATTACK=[
+ ["Initial Access","Valid Accounts (legitimate credentials; source unknown)","T1078"],
+ ["Initial Access","Exploit Public-Facing Application (one case: Smart Install CVE-2018-0171; advisory CVE list)","T1190"],
+ ["Collection / Cred Access","Network Sniffing (SNMP/TACACS/RADIUS capture; JumbledPath pcap)","T1040"],
+ ["Collection","Data from Config Repo: Network Device Config Dump (TFTP/FTP)","T1602.002"],
+ ["Collection","Data from Config Repo: SNMP (MIB Dump)","T1602.001"],
+ ["Persistence / Def Evasion","Modify Authentication Process (rogue AAA/TACACS+ servers)","T1556"],
+ ["Persistence","Create Account: Local (unexpected device/Linux accounts)","T1136.001"],
+ ["Persistence","Account Manipulation: SSH Authorized Keys","T1098.004"],
+ ["Lateral Movement","Remote Services: SSH (alternate sshd on high port, e.g. :57722)","T1021.004"],
+ ["Command & Control","Protocol Tunneling (GRE tunnels)","T1572"],
+ ["Command & Control","Proxy: Internal Proxy (loopback-as-SSH-source, device hop points)","T1090.001"],
+ ["Defense Evasion","Indicator Removal: Clear Linux/Command History (.bash_history, wtmp, btmp, auth.log)","T1070.002/.003"],
+ ["Defense Evasion","Impair Defenses (log clearing, guestshell disable)","T1562.001"]
+];
+
+const READING=[
+ ["Primary","Cisco Talos — Salt Typhoon analysis (20 Feb 2025)","https://blog.talosintelligence.com/salt-typhoon-analysis/"],
+ ["Primary","CISA/NSA/FBI + partners — joint guidance, PRC-affiliated actor (3 Dec 2024)","https://www.cisa.gov/news-events/alerts/2024/12/03/cisa-and-partners-release-joint-guidance-prc-affiliated-threat-actor-compromising-networks-global"],
+ ["Advisory","Joint advisory AA25-239A (Aug 2025) — 13-nation, exploited-CVE list, named PRC contractors","https://www.cisa.gov/news-events/cybersecurity-advisories/aa25-239a"],
+ ["Bias","Heuer — Psychology of Intelligence Analysis (CIA, free)","https://www.cia.gov/resources/csi/books-monographs/psychology-of-intelligence-analysis/"],
+ ["Intel model","OASIS STIX","https://oasis-open.github.io/cti-documentation/stix/intro"],
+ ["Intel platform","MISP","https://www.misp-project.org/"],
+ ["Intel model","MITRE/CTID Attack Flow","https://center-for-threat-informed-defense.github.io/attack-flow/"],
+ ["Rules","SigmaHQ","https://github.com/SigmaHQ/sigma"],
+ ["KEV","CISA Known Exploited Vulnerabilities","https://www.cisa.gov/known-exploited-vulnerabilities-catalog"],
+ ["Hardening","CISA — Network device hardening / Smart Install guidance","https://www.cisa.gov/news-events/alerts/2024/12/03/cisa-and-partners-release-joint-guidance-prc-affiliated-threat-actor-compromising-networks-global"],
+ ["Framework","PEAK","https://www.splunk.com/en_us/blog/security/peak-threat-hunting-framework.html"],
+ ["Framework","Diamond Model (paper)","https://apps.dtic.mil/sti/pdfs/ADA586960.pdf"],
+ ["Framework","Pyramid of Pain","https://detect-respond.blogspot.com/2013/03/the-pyramid-of-pain.html"],
+ ["Framework","MITRE ATT&CK","https://attack.mitre.org/"],
+ ["Standard","NIST SP 800-61 Rev.3","https://csrc.nist.gov/pubs/sp/800/61/r3/final"],
+ ["Standard","RFC 3227 — order of volatility","https://www.rfc-editor.org/rfc/rfc3227"]
+];
+
+const KIT=[
+ ["must","HEARTH (hypothesis bank)","A community-curated library of PEAK-categorized hunt hypotheses; paste a CTI link, get a drafted hunt.","https://github.com/THORCollective/HEARTH"],
+ ["must","MITRE ATT&CK","Shared language for TTPs; tag every hunt and log entry.","https://attack.mitre.org/"],
+ ["must","CISA KEV","Authoritative 'exploited right now' list; drives priority.","https://www.cisa.gov/known-exploited-vulnerabilities-catalog"],
+ ["must","Sigma (SigmaHQ)","Portable detection rules / ready-made hunts.","https://github.com/SigmaHQ/sigma"],
+ ["must","NetFlow / IPFIX + a SIEM","For network-device cases this IS your telemetry — centralize device logs and flow before you need them.","https://www.cisa.gov/"],
+ ["must","MISP or OpenCTI","Structured threat-intel DB — where your case log grows up.","https://www.misp-project.org/"],
+ ["good","Attack Flow (CTID)","Model incidents as action sequences — anticipate next steps.","https://center-for-threat-informed-defense.github.io/attack-flow/"],
+ ["good","RANCID / Oxidized (config diff)","Track device running-config changes over time — your primary evidence when there's no EDR.","https://github.com/ytti/oxidized"],
+ ["good","CISA network-device hardening guidance","Disable Smart Install/Telnet, protect management plane, strong AAA.","https://www.cisa.gov/"],
+ ["good","abuse.ch (MalwareBazaar/ThreatFox/URLhaus)","Free community IOC + sample feeds.","https://bazaar.abuse.ch/"],
+ ["good","The DFIR Report + vendor blogs","Your lead pipeline — detailed public case studies.","https://thedfirreport.com/"],
+ ["good","Heuer — Psychology of Intelligence Analysis","The bias/SAT bible; free from CIA.","https://www.cia.gov/resources/csi/books-monographs/psychology-of-intelligence-analysis/"]
+];
+
+/* ---------- walkthrough steps (Salt Typhoon · network-device DFIR · heavy inference labels) ---------- */
+const S=[
+{ phase:"Mission Brief · PEAK Prepare", title:"You sit down at the hunt desk",
+  fw:{kill:"Reconnaissance",nist:"Preparation",peak:"Prepare",pyramid:"Behaviors",diamond:[]}, conf:5, gapsOpen:["scope","telemetry"],
+  lead:{tag:"tasking",msg:`"Morning. The headlines say a Chinese group is living inside the telcos' core networks for years — 'Salt Typhoon.' We're a regional carrier. Here's the hard part: <b>there's no EDR on our routers and switches.</b> I need to know if something is living in our network devices — and whether we even have the logs to tell. SITREP before you touch a device. Go."`},
+  newConcept:{term:"Network-device DFIR (no EDR)",def:`This case is different: your evidence isn't process telemetry — it's <b>running-config diffs, NetFlow, syslog, and AAA (TACACS+/RADIUS) logs</b>, and only if they were centralized beforehand. Half the hunt is discovering whether the data to answer the question even exists.`},
+  scene:`<p>You run intelligence-driven, hypothesis-based hunts. Flip the <strong>🗡 Attacker view</strong> on any phase for the operator's likely reasoning — a hypothesis engine, never a certainty. <em>This case leans heavily on inference: the public host-level record is thinner than an endpoint case, so watch the confidence language.</em></p>`,
+  panes:[{app:"case notebook",cls:"note",dr:1,body:`CASE HUNT-NET-CORE  lead: Salt Typhoon (advisories via ${LEAD_NAME})\nconstraint: NO EDR on routers/switches\nfirst question: do we even HAVE config history / NetFlow / syslog?\nstatus: PREPARE`}],
+  attacker:{goal:"Quiet, long-dwell collection by living inside the carrier's own network devices.",why:"Core routers/switches are rarely monitored like endpoints and sit astride the traffic worth collecting.",recon:"Map exposed management interfaces and reusable credentials across the estate.",next:"Get in with valid credentials and blend into normal device administration."},
+  reason:{obs:"A tasked lead and a telemetry constraint, no victim device yet.",ori:"PEAK Prepare: research, pick topic, form hypotheses.",rel:{v:"unknown",b:"Nothing observed — relevance calls begin once config/flow data lands (if it exists)."},suf:{lvl:5,gap:"No evidence. First, find out what telemetry you have.",move:"ADVANCE",mv:"Distill the advisory into a device-centric hunt."}},
+  keypoints:["Network-device cases turn on telemetry you had to collect in advance.","Attacker view here is inference-heavy — calibrate hard.","'No EDR' means a clean endpoint picture proves nothing."],
+  take:"Before hunting device intrusions, establish what evidence you actually retain: config-change history, NetFlow, syslog, AAA logs.",
+  refs:[["PEAK","https://www.splunk.com/en_us/blog/security/peak-threat-hunting-framework.html"],["Cisco Talos","https://blog.talosintelligence.com/salt-typhoon-analysis/"]]
+},
+{ phase:"Phase 0 · Distillation", title:"From a headline to a device hunt you can run",
+  fw:{kill:"Reconnaissance",nist:"Preparation",peak:"Prepare",pyramid:"Behaviors",diamond:[]}, conf:6, gapsOpen:[],
+  lead:{tag:"question",msg:`"Not 'are we hacked by China.' Give me the one device behavior you'll actually query."`},
+  newConcept:{term:"Distillation (core skill)",def:"Strip prose to a <b>behavior you can query</b>: (1) behavior not IOC; (2) testable hypothesis; (3) data source; (4) scope; (5) hit/miss. 'China is in the telcos' is a headline, not a hunt."},
+  scene:`<p>'Salt Typhoon lives in network devices' → 'unexpected running-config changes — new GRE tunnels, rogue local accounts, AAA server changes, loopback edits — and config pulls over TFTP/FTP.'</p>`,
+  panes:[{app:"advisory excerpt (paraphrased)",cls:"",dr:1,body:`"The actor uses valid credentials, lives off built-in\n device features, creates GRE tunnels, adds rogue\n accounts and AAA servers, and captures TACACS/RADIUS\n and SNMP secrets."`},{app:"exec what-if",cls:"note",dr:1,body:`VP Network Ops: "The news says routers are the\n target now. Could something be living in OURS?"`}],
+  attacker:{why:"They distill too: 'perimeter is watched' became 'own the transit layer the defenders rarely instrument.'",weakness:"Few carriers diff device configs or baseline device-to-device flows.",next:"Make small, admin-looking config changes that blend into change noise."},
+  decision:{prompt:"Best-distilled hunt from that advisory?",options:[
+    {text:"Block known Salt Typhoon IPs at the edge",correct:false,feedback:"An IOC, and infrastructure-layer IPs rotate; it neither detects what's already inside nor survives tomorrow."},
+    {text:"Alert on all config changes",correct:false,feedback:"Devices change constantly during normal ops — you'd drown with no signal."},
+    {text:"Diff running-configs for new GRE tunnels / rogue accounts / AAA-server changes / loopback edits, AND flag config pulls over TFTP/FTP",correct:true,feedback:"Yes — specific device behaviors, queryable against config history + flow, scoped to core devices. The exec question distills to the same hunt."}]},
+  crit:"Distillation fails at an IOC ('block the IP') or too broad ('all config changes'). Aim for specific, rare-when-malicious device behaviors you can baseline.",
+  keypoints:["Advisory text and exec verbiage distill the same way.","On network gear, 'behavior' means config-state and flow, not process lineage."],
+  take:"Recipe: behavior → hypothesis → data source → scope → hit/miss. For Salt Typhoon: config diffs (GRE/AAA/account/loopback) + TFTP/FTP config pulls.",
+  refs:[["Attack Flow","https://center-for-threat-informed-defense.github.io/attack-flow/"]]
+},
+{ phase:"Phase 1 · PEAK Execute", title:"Describe the threat before you can find it",
+  fw:{kill:"Reconnaissance",nist:"Detection & Analysis",peak:"Execute",pyramid:"Network / host artifacts",diamond:[]}, conf:8, gapsOpen:[],
+  newConcept:{term:"Hypothesis-driven hunting (device edition)",def:"Turn the lead into testable statements about <b>device configs and flows</b>, each with a data source — knowing some sources may not exist."},
+  scene:`<p>Three concrete, queryable hypotheses about the network devices.</p>`,
+  panes:[{app:"hunt console — against config history + flow",cls:"",dr:1,body:`<span class="c"># H1 (config diff)</span> new <span class="hi">interface Tunnel</span> (GRE) | new <span class="hi">local account</span> | <span class="hi">aaa server</span> IP change\n<span class="c"># H2 (flow)</span> SSH sourced from a <span class="hi">loopback</span> to peer devices | device->device to odd dsts\n<span class="c"># H3 (syslog)</span> <span class="hi">log gaps</span> / cleared histories / guestshell enable-disable`}],
+  attacker:{why:"Use native config and shell features so there's no malware verdict — and keep changes small and admin-shaped.",weakness:"But config STATE changes are diffable, and device-to-device SSH from a loopback is abnormal.",next:"Create a GRE tunnel and a quiet account, then capture traffic."},
+  reason:{obs:"Three queryable hypotheses with sources — pending whether the sources exist.",ori:"PEAK Execute begins. Pyramid: network/host artifacts → behaviors.",rel:{v:"unknown",b:"Pre-data. Linkage keys here: device, config-change timestamp, source address, account name.",},suf:{lvl:8,gap:"Untested — and first confirm you retain config history + flow.",move:"COLLECT",mv:"Stand up config diffing + pull flow/syslog."}},
+  decision:{prompt:"Which hypothesis is most undermined by the 'no EDR' reality?",options:[
+    {text:"H1 — config diffs",correct:false,feedback:"Actually the most robust: config state can be diffed from backups even without live sensors."},
+    {text:"None — but ALL depend on whether you centralized the data beforehand",correct:true,feedback:"Right. On devices, the limiting factor isn't the hypothesis, it's whether config history / flow / syslog were ever collected. Confirm the data exists first."}]},
+  keypoints:["Behavioral hypotheses still apply — against config and flow, not processes.","On network gear, the binding constraint is retained telemetry."],
+  take:"Device hunt set: config diffs (GRE/account/AAA/loopback); loopback-sourced device-to-device SSH; syslog gaps. First verify the data exists.",
+  refs:[["Pyramid of Pain","https://detect-respond.blogspot.com/2013/03/the-pyramid-of-pain.html"]]
+},
+{ phase:"Phase 2 · Triage", title:"A config change nobody has a ticket for",
+  fw:{kill:"Delivery / Exploitation",nist:"Detection & Analysis",peak:"Execute",pyramid:"Host artifacts",diamond:["V"]}, conf:18, gapsOpen:["devices"],
+  lead:{tag:"reporting up",msg:`"Config diffs flagged changes on nine devices. You escalated only CORE-RTR-02. Why that one? One line."`},
+  newConcept:{term:"Change-ticket vs intrusion (base-rate discipline)",def:"Network devices change constantly under normal ops. Triage by whether a change maps to an <b>approved change ticket</b> and whether it has the <b>shape of this campaign</b> (new GRE tunnel + an account with no ticket + an AAA edit), not by change count."},
+  scene:`<p>Most diffs are routine (approved changes, maintenance). One device, <strong>CORE-RTR-02</strong>, has a <strong>new GRE tunnel and a local account with no change ticket</strong>. ${LEAD_NAME} wants your reasoning in a sentence.</p>`,
+  panes:[{app:"config diff — CORE-RTR-02",cls:"",dr:1,body:`+ interface Tunnel7   <span class="r"># GRE, no change ticket</span>\n+   tunnel mode gre ip\n+   tunnel source Loopback0\n+ username svc_backup2 privilege 15 secret 5 ****  <span class="r"># account nobody created</span>\n<span class="c"># other 8 devices: changes map to approved tickets</span>`}],
+  attacker:{why:"Hide inside routine change noise; a privilege-15 account named like a service blends in.",weakness:"No change ticket and a GRE tunnel with a loopback source are out of pattern for normal ops.",next:"Use the account + tunnel to capture and move traffic quietly."},
+  bias:{risk:"Availability + base-rate neglect: 'nine devices changed, so we're owned everywhere' — or 'changes happen all the time, it's nothing.'",counter:"Neither. Map each change to a ticket. CORE-RTR-02's un-ticketed GRE tunnel + mystery account is your real hit; the ticketed changes are expected-background."},
+  reason:{obs:"Routine ticketed changes, plus one device with an un-ticketed GRE tunnel + unexplained account.",ori:"NIST Detection & Analysis.",rel:{v:"linked",b:"CORE-RTR-02's changes match the campaign shape AND have no change ticket — that convergence is your one-line answer. The other eight map to approved work.",},suf:{lvl:18,gap:"One device looks real; not how they got in, not scope, not who.",move:"PIVOT",mv:"Reconstruct access to CORE-RTR-02."}},
+  keypoints:["Prioritize by 'no ticket + campaign shape,' not by number of changed devices.","Routine change is the base rate; separate it from intrusion at triage."],
+  take:"Triage device changes against the change-management record. Relevance = un-ticketed change with the campaign's shape (GRE + rogue account + AAA edit).",
+  refs:[["Heuer (bias/SATs)","https://www.cia.gov/resources/csi/books-monographs/psychology-of-intelligence-analysis/"]]
+},
+{ phase:"Phase 3 · Initial Access", title:"Valid credentials — and an uncomfortable unknown",
+  fw:{kill:"Delivery / Exploitation",nist:"Detection & Analysis",peak:"Execute",pyramid:"Network / host artifacts",diamond:["V"]}, conf:28, gapsOpen:[], gapsClose:["entry"],
+  newConcept:{term:"Order of volatility (RFC 3227) + 'how did they log in?'",def:"Capture the running-config, device memory, and logs before any reboot. Then face the hard question: Talos found access came from <b>legitimate credentials</b> in nearly every case — and <b>how those were obtained is unknown</b>. One case likely used <b>CVE-2018-0171</b> (Smart Install)."},
+  scene:`<p>AAA logs show a successful admin login from an internal hop, using a valid account — no exploit needed on this device. The initial-access question doesn't fully close, and saying so is the honest answer.</p>`,
+  panes:[{app:"AAA / TACACS+ log — CORE-RTR-02",cls:"",dr:1,body:`login OK user=netadmin src=10.20.0.9 (internal hop)\n<span class="c"># valid credentials; no exploit on THIS device</span>\n<span class="hi">unknown: how the credential was originally obtained</span>`},{app:"note — source tension",cls:"note",dr:1,body:`Talos (Feb'25): mostly VALID CREDS; one case likely\n CVE-2018-0171 (Smart Install). Did NOT confirm\n CVE-2023-20198/20273.\nAug'25 advisory: LISTS those CVEs as exploited examples.\n-> initial access is partly an OPEN, EVOLVING question`}],
+  attacker:{why:"Valid credentials are quieter than any exploit — no crash, no alert, just a login.",recon:"Reused or harvested credentials, and exposed management services, told them where to try.",weakness:"But logins from unusual internal hops at odd times are visible IN AAA logs — if you keep them.",next:"Once on one device, harvest the credentials that open all the others."},
+  bias:{risk:"Confirmation + anchoring: forcing a tidy 'they exploited CVE-X' story because an unknown is uncomfortable.",counter:"Record 'valid credentials; acquisition unknown' as the finding. Note the source tension (Talos vs the Aug'25 advisory) rather than papering over it. An honest open question beats a confident wrong one."},
+  reason:{obs:"A valid-credential login from an internal hop; no device exploit here; initial-vector origin unresolved.",ori:"Exploitation/Valid Accounts.",rel:{v:"linked",b:"The login ties to the config changes by account + timestamp on CORE-RTR-02. The ORIGIN of the credential stays OPEN — don't overstate it.",},suf:{lvl:28,gap:"Access confirmed on this device; credential origin and full method unresolved.",move:"PIVOT",mv:"Follow what the foothold did next."}},
+  crit:"Resist forcing initial-access certainty. 'Valid credentials, origin unknown' is a legitimate, defensible finding — and the public sources themselves differ on the CVEs.",
+  keypoints:["Valid-account access leaves AAA evidence, not malware.","Hold open questions open; note source disagreement explicitly."],
+  take:"Confirm access via AAA logs; state 'valid credentials, acquisition unknown' plainly. Flag the Talos↔advisory CVE tension instead of resolving it prematurely.",
+  refs:[["RFC 3227","https://www.rfc-editor.org/rfc/rfc3227"],["Cisco Talos","https://blog.talosintelligence.com/salt-typhoon-analysis/"]]
+},
+{ phase:"Phase 4 · Living off the land", title:"No malware — the device's own tools",
+  fw:{kill:"Installation",nist:"Detection & Analysis",peak:"Execute (baseline)",pyramid:"TTPs",diamond:["V","C"]}, conf:38, gapsOpen:["persist"],
+  newConcept:{term:"LOTL on network devices",def:"'A hallmark of this campaign' (Talos): the actor used built-in features — <b>Guest Shell</b>, Bash, <code>tcpdump</code>, Embedded Packet Capture — rather than dropping tools. There's little on disk to find; you hunt <b>behavior and state</b>, not files."},
+  scene:`<p>On CORE-RTR-02 you find Guest Shell was enabled and Bash used — native capabilities, no implant. 'Know normal, catch abnormal' for a router.</p>`,
+  panes:[{app:"device shell history (partial)",cls:"",dr:1,body:`guestshell enable\nbash -> tcpdump -i eth0 -w /bootflash/cap.pcap\n<span class="c"># built-in features; no dropped binary (mostly)</span>\n<span class="hi">later: guestshell disable  # restores 'normal' look</span>`}],
+  attacker:{why:"Built-in tools raise no malware verdict and look like legitimate admin/debug.",weakness:"A production core router has no business running packet captures or toggling Guest Shell — that IS the anomaly.",next:"Deploy a capture-and-pivot utility through Guest Shell."},
+  reason:{obs:"Native device features used for non-standard activity (captures, shell toggling).",ori:"PEAK baseline hunt — on device behavior.",rel:{v:"unknown",b:"SUSPECTED-related: same device, matches LOTL hallmark, but not yet tied to a capability/goal. Collect, don't conclude.",},suf:{lvl:38,gap:"OPEN: what did they DO with the shell? (capability unknown)",move:"COLLECT",mv:"Preserve shell artifacts + captures before 'guestshell disable' hides them."}},
+  decision:{prompt:"Guest Shell + tcpdump on a core router — benign admin?",options:[
+    {text:"Yes — these are legitimate built-in tools",correct:false,feedback:"Legitimate tools, illegitimate context. A production core device running packet captures is wildly out of baseline."},
+    {text:"No — legitimate features in an abnormal context; preserve before it's disabled",correct:true,feedback:"Correct. Behavior over tooling. Collect the shell/capture artifacts before guestshell disable restores the normal look."}]},
+  crit:"On network gear, 'no malware' is expected, not exculpatory. Baseline what each device should do; investigate built-in tools used out of context.",
+  keypoints:["LOTL on devices means behavior/state is your evidence, not files.","'guestshell disable' is an anti-forensic reset — collect first."],
+  take:"Hunt native-feature abuse on devices (Guest Shell, tcpdump, EPC) by CONTEXT. Preserve artifacts before the actor restores the normal-looking state.",
+  refs:[["Cisco Talos","https://blog.talosintelligence.com/salt-typhoon-analysis/"]]
+},
+{ phase:"Phase 5 · JumbledPath  ↻", title:"Your devices turned into a wiretap",
+  fw:{kill:"Collection",nist:"Detection & Analysis",peak:"Execute",pyramid:"TTPs (max pain)",diamond:["V","C","I"]}, conf:50, gapsOpen:[],
+  lead:{tag:"question",msg:`"So they ran captures. In plain English — what were they taking, and from how far away?"`},
+  loop:{type:"Hunt loop iterates",text:"Finding the capture tool spawns a new hypothesis — 'if they captured here, what did the captures CONTAIN?' — which becomes the credential-harvest hunt next."},
+  logcue:"You identified the one custom capability (a Go/ELF capture-and-pivot utility run from Guest Shell, clearing logs along the path). Log it as a durable fingerprint.",
+  newConcept:{term:"Capture-and-pivot tooling (JumbledPath)",def:"Talos: a custom <b>Go/ELF</b> utility run from actor-configured <b>Guest Shell on Nexus</b> devices. It runs <b>packet captures on remote devices via actor-defined jump hosts</b>, tries to <b>clear logs along the path</b>, and returns the compressed, encrypted capture through further jumps. Your own devices become a distributed, self-erasing wiretap."},
+  scene:`<p>This is the one piece of custom tooling in a mostly-LOTL campaign — and it reframes the incident: they weren't just on a device, they were <strong>collecting traffic across your core</strong>.</p>`,
+  panes:[{app:"guest shell — recovered utility (per Talos)",cls:"",dr:1,body:`ELF (Go, x86-64) in guestshell:\n capture on REMOTE device via jump hosts ->\n clear logs along the path ->\n return <span class="hi">compressed+encrypted pcap</span> through more jumps\n<span class="c"># not just presence on a box — collection across the core</span>`}],
+  attacker:{why:"Collect traffic from many devices through a few controlled hops, erasing the trail as you go.",weakness:"Jump-host chains and capture activity leave flow and (brief) log traces before they're cleared.",next:"Mine the captures for the credentials that open the rest of the network."},
+  bias:{risk:"Scope anchoring: treating this as 'one compromised router' because that's where you started.",counter:"The tool captures from REMOTE devices via jump hosts — argue the opposite: scope is probably larger than the one box you found. Let the jump-host chain, not your starting point, define scope."},
+  reason:{obs:"A custom capture utility that pivots across devices and self-erases.",ori:"Pyramid APEX: a collection TTP that redefines scope. (To ${LEAD_NAME}: they were taking live traffic, potentially from many devices, not just this one.)",rel:{v:"linked",b:"The utility sits in this device's Guest Shell and references jump hosts — tying the capability to infrastructure beyond CORE-RTR-02.",},suf:{lvl:50,gap:"OPEN: what the captures contained, and how many devices are in the chain.",move:"LOOP",mv:"Spawn the credential-harvest hunt AND widen device scope."}},
+  crit:"A capture-and-pivot tool means the incident is COLLECTION across the core, not a single-box compromise. Scope by the jump-host chain.",
+  keypoints:["One custom tool in a LOTL campaign is high-value — log it as a fingerprint.","Capture tooling expands scope: assume multi-device until disproven."],
+  take:"Treat capture-and-pivot tooling as network-wide collection. Log the Go/ELF-in-Guestshell fingerprint; scope by the jump-host chain, not the first device.",
+  refs:[["Cisco Talos","https://blog.talosintelligence.com/salt-typhoon-analysis/"],["Summiting the Pyramid","https://ctid.mitre.org/projects/summiting-the-pyramid"]]
+},
+{ phase:"Phase 6 · The harvest", title:"Configs are a credential store",
+  fw:{kill:"Credential Access",nist:"Detection & Analysis",peak:"Execute",pyramid:"TTPs",diamond:["V","C","I"]}, conf:58, gapsOpen:[], gapsClose:["harvest"],
+  newConcept:{term:"Config-as-credential-store",def:"Device configs were exfiltrated over <b>TFTP/FTP</b> and contained <b>SNMP community strings</b> and <b>weakly-encrypted local accounts</b>. The actor also captured <b>SNMP, TACACS, and RADIUS</b> traffic — including the <b>shared secret keys</b> between devices and AAA servers. They harvested the network's entire trust fabric."},
+  scene:`<p>The captures and config pulls weren't data for its own sake — they were the keys. With TACACS/RADIUS shared secrets, the actor can authenticate across the estate at will.</p>`,
+  panes:[{app:"flow — config exfil + capture targets",cls:"",dr:1,body:`TFTP/FTP: running-config -> external collector  <span class="r"># contains SNMP strings, weak-crypt accounts</span>\ncapture targets: <span class="hi">TACACS+/RADIUS</span> exchanges <span class="r"># shared secrets</span>, <span class="hi">SNMP</span>\n<span class="c"># harvest = the trust fabric, not just one password</span>`}],
+  attacker:{why:"Own the AAA secrets and SNMP strings and you own authentication across every device — no need to re-exploit anything.",weakness:"Config pulls over TFTP/FTP and AAA-protocol captures are visible in flow if monitored.",next:"Use harvested secrets to persist and pivot network-wide."},
+  reason:{obs:"Config exfil over TFTP/FTP + capture of AAA/SNMP secrets.",ori:"Kill chain: Credential Access.",rel:{v:"linked",b:"Capture targets + config pulls trace to the same device/jump-host chain and timeframe — content-level linkage to the capability.",},suf:{lvl:58,gap:"Harvest understood; full persistence + scope still open.",move:"PIVOT",mv:"Follow the harvested secrets into persistence + pivoting."}},
+  crit:"Stolen TACACS/RADIUS shared secrets + SNMP strings compromise the whole trust fabric — eradication will mean rotating ALL of it, not resetting one account.",
+  keypoints:["A pulled config is a credential dump.","Captured AAA shared secrets break authentication network-wide."],
+  take:"Treat config exfil + AAA/SNMP capture as trust-fabric compromise. This finding sets the eradication bar: rotate every device credential and AAA/SNMP secret.",
+  refs:[["Cisco Talos","https://blog.talosintelligence.com/salt-typhoon-analysis/"]]
+},
+{ phase:"Phase 7 · Pivot & the loopback trick", title:"Living in the transit layer",
+  fw:{kill:"Lateral Movement",nist:"Detection & Analysis",peak:"Execute",pyramid:"TTPs",diamond:["V","C","I"]}, conf:64, gapsOpen:[],
+  newConcept:{term:"Loopback-as-SSH-source + GRE transit",def:"Talos: the actor repeatedly <b>changed a switch's loopback address and used it as the SSH source</b> to <b>bypass ACLs</b> on other devices, and built <b>GRE tunnels</b> to move traffic. Pivoting went <b>machine-to-machine across companies and vendors</b>."},
+  scene:`<p>They don't need malware to move — they use the network's own trust and routing. A loopback-sourced SSH session looks like legitimate device management and sails through ACLs written to trust internal loopbacks.</p>`,
+  panes:[{app:"flow — device-to-device",cls:"",dr:1,body:`SSH src=<span class="hi">Loopback0 (rotated)</span> -> EDGE-SW-01, DIST-RTR-05  <span class="r"># bypasses ACLs</span>\nGRE Tunnel7 carries traffic -> external hop\npivot crosses <span class="hi">vendor + org boundaries</span>`}],
+  attacker:{why:"ACLs trust internal loopbacks; sourcing SSH from a rotated loopback defeats them without any exploit.",weakness:"Loopback-sourced device-to-device SSH and new GRE tunnels are abnormal flows — visible if you baseline east-west device traffic.",next:"Reach peered networks and repeat; establish durable footholds everywhere."},
+  reason:{obs:"Loopback-sourced SSH bypassing ACLs; GRE tunnels; cross-vendor, cross-company pivoting.",ori:"Kill chain: Lateral Movement.",rel:{v:"linked",b:"Pivot flows originate from the compromised device's rotated loopback and the GRE tunnel built in Phase 2 — same infrastructure thread.",},suf:{lvl:64,gap:"Pivot method known; full device + partner scope still open.",move:"PIVOT",mv:"Enumerate every device the loopback/GRE path reached."}},
+  bias:{risk:"Scope anchoring again: assuming the blast radius stops at your org boundary.",counter:"Talos saw pivoting ACROSS companies and vendors. Argue for a larger blast radius; notify peers and check inbound trust relationships rather than assuming containment at your edge."},
+  keypoints:["Attackers exploit the network's own trust (loopbacks, ACLs, GRE), not just software bugs.","Cross-org/vendor pivoting means scope can exceed your estate."],
+  take:"Hunt loopback-sourced device-to-device SSH and unexpected GRE tunnels. Assume cross-org reach; coordinate with peers.",
+  refs:[["Cisco Talos","https://blog.talosintelligence.com/salt-typhoon-analysis/"]]
+},
+{ phase:"Phase 8 · Persistence", title:"Many quiet doors",
+  fw:{kill:"Persistence",nist:"Detection & Analysis",peak:"Execute",pyramid:"TTPs",diamond:["V","C","I"]}, conf:70, gapsOpen:[], gapsClose:["persist","devices"],
+  newConcept:{term:"Layered device persistence",def:"Talos documented: <b>rogue AAA/TACACS+ server IPs</b> (so the actor's own server can authorize logins), <b>unexpected local accounts</b>, an <b>alternate SSH daemon on a high port (e.g., 57722)</b>, new Linux users via <b>/etc/passwd + /etc/shadow</b>, and <b>SSH authorized_keys</b> entries. Several independent ways back in."},
+  scene:`<p>You enumerate persistence across the in-scope devices. No single removal evicts them — there are layers, and some (the rogue AAA server) are especially subtle.</p>`,
+  panes:[{app:"persistence inventory (per Talos)",cls:"",dr:1,body:`aaa server -> <span class="r">attacker-controlled IP</span>  # authorizes their logins\nlocal accounts: svc_backup2, others (no ticket)\nalt sshd on <span class="hi">:57722</span>  # report-sourced artifact\n/etc/passwd + /etc/shadow new users; authorized_keys entries`}],
+  attacker:{why:"Redundancy: if one account or key is found, the AAA redirect or the high-port sshd still lets them back in.",weakness:"Each mechanism is a discrete config/filesystem artifact — fully enumerable if you look across all layers.",next:"Lie low; return via whichever door survives the cleanup."},
+  reason:{obs:"Multiple independent persistence mechanisms across devices.",ori:"Kill chain: Persistence.",rel:{v:"linked",b:"Each mechanism sits on in-scope devices tied to the same accounts/jump-hosts — one incident, many doors.",},suf:{lvl:70,gap:"Persistence + device scope mapped; attribution + eradication plan remain.",move:"CONTAIN",mv:"Plan a COMPLETE, simultaneous eviction (all doors + the trust fabric)."}},
+  crit:"A rogue AAA server is the sneakiest door — it lets the actor authenticate even after you delete their local accounts. Enumerate ALL layers before you act.",
+  keypoints:["Device persistence is layered: accounts, keys, AAA redirects, alternate daemons.","Partial removal invites return — map every door first."],
+  take:"Enumerate device persistence across layers (accounts, authorized_keys, rogue AAA servers, high-port sshd). Eviction must be complete and simultaneous.",
+  refs:[["Cisco Talos","https://blog.talosintelligence.com/salt-typhoon-analysis/"]]
+},
+{ phase:"Phase 9 · Anti-forensics  ↻", title:"The logs that were never kept",
+  fw:{kill:"Defense Evasion",nist:"Detection & Analysis",peak:"Execute",pyramid:"TTPs",diamond:["V","C","I"]}, conf:72, gapsOpen:[],
+  logcue:"You hit a telemetry wall. Log the compensating control (centralized, immutable device logging + config diffing) — it's the field that decides whether the NEXT case is investigable at all.",
+  newConcept:{term:"The no-telemetry wall",def:"Talos: logs were routinely cleared — <code>.bash_history</code>, <code>auth.log</code>, <code>lastlog</code>, <code>wtmp</code>, <code>btmp</code> — and <code>guestshell disable</code> restored a normal look. On a device with no EDR and only local logs, cleared history can mean the record is simply <b>gone</b>. The answer is procedural: centralize logs and diff configs <b>before</b> you need them."},
+  scene:`<p>Parts of the timeline are unrecoverable on devices where you had only local logging. This is the honest hard wall of network-device DFIR — and it's why your recommendation is instrumentation, not a new rule.</p>`,
+  panes:[{app:"device — cleared traces",cls:"note",dr:1,body:`.bash_history / auth.log / wtmp / btmp / lastlog = <span class="r">cleared</span>\nguestshell disable -> looks normal again\nlocal-only logging -> <span class="hi">timeline gaps you cannot recover</span>\nsurvivable ONLY where logs were shipped off-box`}],
+  attacker:{why:"Erase the trail at the source; most devices only log locally, so clearing local logs erases the evidence.",weakness:"Centralized, off-box logging and config backups are outside their reach to erase.",next:"Rely on defenders never having shipped the logs off the device."},
+  bias:{risk:"Absence-of-evidence trap: reading cleared/empty logs as 'nothing happened here.'",counter:"Cleared logs on a no-EDR device are uninformative, not exculpatory. Base conclusions on what you DID capture (config diffs, centralized flow) and state the gaps as gaps."},
+  reason:{obs:"Cleared local logs; partial, unrecoverable timeline.",ori:"Defense Evasion vs. your telemetry posture.",rel:{v:"linked",b:"The clearing pattern matches the campaign and the device's other artifacts; the GAPS are a telemetry limitation, not evidence of innocence.",},suf:{lvl:72,gap:"OPEN and partly unrecoverable: full timeline on local-only devices.",move:"ADVANCE",mv:"Work from centralized evidence; fix instrumentation as a control."}},
+  crit:"Don't let cleared logs read as 'clean.' On no-EDR devices, the compensating control is centralized immutable logging + config diffing — put it in the findings.",
+  keypoints:["Cleared local logs ≠ no activity.","The durable fix is instrumentation you deploy before the next intrusion."],
+  take:"Treat a telemetry wall as a finding with a control (centralize logs/flow, diff configs off-box), not as a clean result.",
+  refs:[["RFC 3227","https://www.rfc-editor.org/rfc/rfc3227"],["Cisco Talos","https://blog.talosintelligence.com/salt-typhoon-analysis/"]]
+},
+{ phase:"Phase 10 · The Sufficiency Gate", title:"Contain — without unplugging the carrier",
+  fw:{kill:"Actions on Objectives",nist:"Analysis → Containment decision",peak:"Execute",pyramid:"TTPs",diamond:["V","C","I"]}, conf:72, gapsOpen:[],
+  lead:{tag:"SITREP",msg:`"SITREP — three lines. We can't just power off core routers; customers are on them. What do we do, and what do you still need?"`},
+  loop:{type:"ACH loop",text:"With a long dwell and a telemetry wall, list the hypotheses, disprove each, and judge sufficiency per decision — containment here can't mean an outage."},
+  newConcept:{term:"ACH under operational constraints",def:"List every plausible explanation, hunt evidence that <b>disproves</b> each, and judge 'enough' <b>per decision</b> — where the containment decision is bounded by the fact that these are <b>production carrier devices you can't simply take offline</b>."},
+  scene:`<p>Confidence dips here on purpose — listing alternatives should make an honest analyst less certain. And containment is constrained: you must evict without a customer-facing outage.</p>`,
+  panes:[{app:"notebook — ACH",cls:"note",dr:1,body:`H-A PRC espionage APT (Salt Typhoon) <span class="g">survives</span>\nH-B other APT / unrelated actor <span class="hi">keep alive</span> (infra TTPs overlap)\nH-C insider / misconfiguration <span class="r">weak</span> (rogue AAA + capture tooling)\nH-D false positive <span class="r">NO</span> (un-ticketed GRE + account + JumbledPath)\ncontain? <span class="g">YES, staged</span>  evict fully? <span class="hi">needs trust-fabric rotation</span>  attribute? <span class="hi">calibrated</span>`}],
+  attacker:{why:"They bet you can't take core infrastructure offline and will clean partially, leaving a door (the rogue AAA server, a key).",weakness:"A staged-but-complete eviction + full trust-fabric rotation closes every door without an outage if planned per-device.",next:"If tipped, fall back to a surviving door and wait."},
+  bias:{risk:"Confirmation: jumping straight to 'Salt Typhoon' because it's the headline and the shape fits.",counter:"Keep H-B alive: infrastructure-living TTPs are shared among APTs. The shape is strongly consistent with the public reporting, but say 'consistent with,' and let attribution be its own calibrated step."},
+  reason:{obs:"One hypothesis strongly survives; attribution not yet calibrated; containment operationally constrained.",ori:"NIST pivot: Analysis → Containment. Sufficiency is per-decision.",rel:{v:"linked",b:"Core chain settled (access → LOTL → capture → harvest → pivot → persistence). Open: attribution + full cross-org scope.",},suf:{lvl:72,gap:"Enough to stage containment + plan trust-fabric rotation; NOT enough to name an actor with high confidence.",move:"CONTAIN",mv:"Stage per-device eviction + rotation; keep scoping + calibrate attribution. Your 3-line call to ${LEAD_NAME}."}},
+  decision:{prompt:"Long dwell, production core devices, layered persistence. Best move?",options:[
+    {text:"Power off and reimage every suspect device now",correct:false,feedback:"An outage across a carrier's core isn't acceptable and tips the actor estate-wide. Eviction must be staged."},
+    {text:"Stage a complete, coordinated eviction + trust-fabric rotation per device, while finishing scope + calibrating attribution",correct:true,feedback:"Right — evict completely but in a planned sequence that preserves service, and rotate the harvested secrets. Keep hunting + calibrating attribution."},
+    {text:"Wait until attribution is certain",correct:false,feedback:"Attribution certainty may never come, and the actor is live. Per-decision sufficiency says contain + rotate now; attribute separately and calibrated."}]},
+  crit:"Two failure modes: an outage-causing overreaction, and paralysis waiting for attribution. Stage a complete eviction + rotation; attribute as its own calibrated step.",
+  keypoints:["'Enough' is per decision; containment here is bounded by uptime.","Attribution is a separate, calibrated decision from containment."],
+  take:"Gate with ACH; stage a complete eviction + trust-fabric rotation without an outage; keep attribution a separate calibrated call. Log ruled-out hypotheses.",
+  refs:[["NIST SP 800-61r3","https://csrc.nist.gov/pubs/sp/800/61/r3/final"]]
+},
+{ phase:"Phase 11 · Scope & Attribution", title:"Attribution that changed over time",
+  fw:{kill:"Actions on Objectives",nist:"Detection & Analysis",peak:"Act",pyramid:"TTPs (max pain)",diamond:["A","C","I","V"]}, conf:86, gapsOpen:[], gapsClose:["scope","attrib"],
+  lead:{tag:"exec ask",msg:`"CISO wants one paragraph for the board: what, who, how bad — plain English, calibrated, and current. Draft it."`},
+  logcue:"Attribution reached (calibrated, and noted as evolving). FINALIZE the case entry: Diamond complete, aliases recorded, confidence stated with WHAT WOULD CHANGE IT. This is what you'll match the next case against.",
+  newConcept:{term:"Calibrated, evolving attribution",def:"The public assessment firmed up over time, and authors differed. <b>Cisco Talos (Feb 2025)</b> would <b>not name a country</b> and did not confirm the IOS XE CVEs. <b>CISA et al (Dec 2024)</b> said <b>'PRC-affiliated.'</b> The <b>Aug 2025</b> 13-nation advisory named <b>three PRC companies</b> and listed exploited CVEs. State confidence in calibrated terms and cite WHICH source and WHEN."},
+  scene:`<p>You map devices, record aliases, and write calibrated language — explicitly noting that your own assessment, like the public one, may firm up further.</p>`,
+  panes:[{app:"notebook — profile",cls:"note",dr:1,body:`activity: consistent with <span class="b">Salt Typhoon</span> (aliases: GhostEmperor, RedMike, Operator Panda, UNC5807) <span class="c">[A]</span>\ncapability: valid-cred access, LOTL, JumbledPath, GRE/loopback pivot <span class="c">[C]</span>\ninfra: rogue AAA servers, jump-host chain, GRE tunnels <span class="c">[I]</span>\nvictims: carrier core devices (telecom) <span class="c">[V]</span>\nATTRIBUTION: Talos (Feb'25) no country; CISA (Dec'24) "PRC-affiliated"; Aug'25 advisory named 3 PRC firms`}],
+  attacker:{why:"Long, quiet, infrastructure-level collection serves strategic intelligence goals.",weakness:"Consistent TTPs across a long campaign are themselves a fingerprint — but shared among infra-living APTs, so attribution needs care.",next:"Rotate infrastructure and continue elsewhere."},
+  bias:{risk:"Anchoring on the headline + overconfident attribution: 'it's Salt Typhoon / it's China, full stop.'",counter:"Say 'consistent with publicly-reported Salt Typhoon activity; PRC-affiliated per government advisories.' Note that Talos declined to name a country while later advisories named entities — cite source + date, keep aliases distinct, and state what would RAISE or LOWER confidence."},
+  reason:{obs:"Four Diamond vertices; behavior strongly consistent with public reporting; attribution author- and time-dependent.",ori:"CTI synthesis.",rel:{v:"linked",b:"Devices map to one campaign by capability + infra; attribution stated as 'consistent with' + the government 'PRC-affiliated' label, with sources dated — no stronger.",},suf:{lvl:86,gap:"Enough to brief calibrated + drive eradication.",move:"CONTAIN",mv:"Execute staged eviction + rotation."}},
+  keypoints:["State attribution by source + date; it evolves.","Keep aliases straight; 'consistent with' is not 'confirmed as.'","Name what would move your confidence."],
+  take:"Attribute in calibrated, sourced, dated terms ('consistent with Salt Typhoon; PRC-affiliated per Dec'24/Aug'25 advisories'). Record aliases + what would change the call.",
+  refs:[["CISA (Dec 2024)","https://www.cisa.gov/news-events/alerts/2024/12/03/cisa-and-partners-release-joint-guidance-prc-affiliated-threat-actor-compromising-networks-global"],["AA25-239A (Aug 2025)","https://www.cisa.gov/news-events/cybersecurity-advisories/aa25-239a"]]
+},
+{ phase:"Phase 12 · Detection Engineering", title:"Instrument first, then detect",
+  fw:{kill:"(CTI enrichment)",nist:"Detection & Analysis",peak:"Act",pyramid:"TTPs",diamond:["A","C","I","V"]}, conf:90, gapsOpen:[],
+  newConcept:{term:"The control before the rule",def:"For network gear the biggest gap isn't a missing signature — it's missing telemetry. The first 'detection' is <b>instrumentation</b>: centralized immutable logging, off-box config backups + diffing, and NetFlow. Then the behavioral analytics have something to run against."},
+  scene:`<p>Generalize the case into durable detections — but lead with the instrumentation that makes them possible, because that's the real lesson of a no-EDR case.</p>`,
+  panes:[{app:"detection — deployable",cls:"note",dr:1,body:`<span class="g">Control 0:</span> ship device logs off-box (immutable) + config diffing + NetFlow\n<span class="g">Hunt A:</span> config diff adds interface Tunnel (GRE) | aaa server IP | local account  (no change ticket)\n<span class="g">Hunt B:</span> SSH sourced from a loopback, device-to-device\n<span class="g">Hunt C:</span> running-config pulled via TFTP/FTP to a non-admin dst\n<span class="g">Hunt D:</span> Guest Shell enable + packet capture on a production core device\n<span class="r">Also:</span> disable Smart Install (CVE-2018-0171) + unused mgmt services`}],
+  attacker:{why:"They relied on devices being under-instrumented and on configs never being diffed.",weakness:"Off-box logging + config diffing turns their quiet changes into alerts; loopback-sourced device-to-device SSH is inherently anomalous.",next:"They'd need to compromise your logging pipeline too — a much higher bar."},
+  decision:{prompt:"Why is 'ship logs off-box + diff configs' the FIRST detection, not a NetFlow rule?",options:[
+    {text:"NetFlow rules are useless",correct:false,feedback:"Not useless — but a rule with no retained data behind it can't fire. Flow matters, after you collect it."},
+    {text:"Without retained, off-box telemetry there's nothing for any rule to run against — and the actor clears local logs",correct:true,feedback:"Exactly. On no-EDR gear, instrumentation is the prerequisite control; the behavioral analytics come second."}]},
+  reason:{obs:"A control-first detection set plus device-behavior analytics.",ori:"PEAK Act / detection engineering.",rel:{v:"linked",b:"Built from confirmed in-case behavior; new hits still earn their own linkage test.",},suf:{lvl:90,gap:"Detections ready; they depend on the instrumentation control being deployed.",move:"ADVANCE",mv:"Deploy instrumentation, then the analytics."}},
+  keypoints:["On network gear, instrumentation is the first detection.","Config-diff + loopback-SSH + TFTP-pull + Guest-Shell-capture are the durable behavioral analytics."],
+  take:"Lead with the control (off-box immutable logging + config diffing + NetFlow); then deploy config-diff, loopback-SSH, config-pull, and Guest-Shell-capture analytics. Disable Smart Install.",
+  refs:[["Summiting the Pyramid","https://ctid.mitre.org/projects/summiting-the-pyramid"],["CISA guidance","https://www.cisa.gov/news-events/alerts/2024/12/03/cisa-and-partners-release-joint-guidance-prc-affiliated-threat-actor-compromising-networks-global"]]
+},
+{ phase:"Phase 13 · Respond & Learn  ↻", title:"Rotate the whole trust fabric",
+  fw:{kill:"—",nist:"Containment / Eradication / Recovery → Post-Incident",peak:"Act → Prepare (next)",pyramid:"TTPs",diamond:["A","C","I","V"]}, conf:97, gapsOpen:[], gapsClose:["telemetry"],
+  lead:{tag:"wrap-up",msg:`"Clean work. Turn the lessons into a package — the instrumentation control + the config-diff analytics — and log the case so we match it instantly next time."`},
+  loop:{type:"IR lifecycle closes → reopens",text:"Lessons feed Preparation (NIST) and Prepare (PEAK). Off-box logging + config diffing make the next device intrusion visible from day one."},
+  logcue:"Close the loop: your finished case entry + the instrumentation control ARE the lessons learned. Reference this entry the next time a device shows an un-ticketed GRE tunnel or a rogue AAA server.",
+  newConcept:{term:"Eradication = rotate everything they could have taken",def:"Because they harvested configs and captured <b>TACACS/RADIUS shared secrets</b> and <b>SNMP strings</b>, eviction means <b>rotating the entire trust fabric</b>: all device credentials, AAA shared secrets, SNMP strings, and keys — plus removing rogue accounts/AAA entries/tunnels/authorized_keys, and <b>reimaging where device integrity is in doubt</b>. Staged per-device to preserve service."},
+  scene:`<p>Act decisively but without an outage, then convert the engagement into durable gains and a logged case.</p>`,
+  panes:[{app:"IR runbook",cls:"note",dr:1,body:`CONTAIN stage per-device; cut the GRE tunnels + rogue AAA servers first\nERADICATE remove rogue accounts/keys/tunnels/AAA entries; <span class="hi">ROTATE all device creds + TACACS/RADIUS secrets + SNMP strings</span>; reimage where integrity is in doubt\nRECOVER restore clean configs from trusted backups; disable Smart Install/unused mgmt\nLEARN ship off-box logging + config diffing + NetFlow; <span class="g">log the case</span>; notify peers`}],
+  attacker:{why:"They expect a partial cleanup that leaves a harvested secret or a rogue AAA server valid.",weakness:"Full trust-fabric rotation + complete, staged eviction closes every door — including the ones built on stolen secrets.",next:"If fully evicted, they return via a new vector — hence the new instrumentation."},
+  reason:{obs:"A staged, complete eviction centered on rotating harvested trust, plus a feedback step.",ori:"NIST C/E/R → Post-Incident.",rel:{v:"linked",b:"Every action traces to confirmed evidence — nothing on a hunch.",},suf:{lvl:97,gap:"Residual: cross-org exposure + long-tail monitoring. Never 100%.",move:"ADVANCE",mv:"Close the incident; the loops keep running."}},
+  crit:"If you remove accounts but DON'T rotate the captured AAA/SNMP secrets, the actor re-authenticates across the estate. Rotating the trust fabric is the step that actually evicts.",
+  keypoints:["Eradication scope = rotate every harvested secret + remove every door + reimage where in doubt.","Lessons learned = instrumentation + config-diff analytics + a logged case + peer notification."],
+  take:"Evict by rotating the entire trust fabric (creds, AAA/RADIUS secrets, SNMP strings) and reimaging suspect devices — staged to preserve service. Ship the instrumentation control + log the case.",
+  refs:[["Cisco Talos","https://blog.talosintelligence.com/salt-typhoon-analysis/"],["NIST SP 800-61r3","https://csrc.nist.gov/pubs/sp/800/61/r3/final"]]
+},
+{ phase:"Debrief", title:"Field notes, kit, glossary, loop map & reading room",
+  fw:{kill:"—",nist:"Post-Incident",peak:"Prepare (next)",pyramid:"TTPs",diamond:["A","C","I","V"]}, conf:100, gapsOpen:[],
+  scene:`<p>You rode a headline to a calibrated, evicted network-infrastructure intrusion — distilling into device behavior, working without EDR, finding the wiretap your own gear became, holding attribution to what the evolving record supports, and rotating the trust fabric. Everything below is for your long-term notes.</p>`,
+  debrief:true
+}
+];
+
+/* ================= GENERATOR ================= */
+const EX_TYPES=[
+ {id:"distill",name:"Distill the direction",diff:"Foundational",task:"Turn the input into ONE queryable hunt: behavior, hypothesis, data source, scope, hit-vs-miss.",
+  approach:["Strip to the BEHAVIOR, not the IOC.","State a testable hypothesis ('a NON-X process does Y').","Name the data source that confirms/refutes.","Scope it: time window + host/user set.","Define hit vs. miss.","Check it's rare-when-malicious AND baseline-able."]},
+ {id:"relevance",name:"Relevance call",diff:"Foundational",task:"Two artifacts — linked, unknown, or unrelated? State the BASIS and what would disprove it.",
+  approach:["List linkage keys present: host·user·lineage·time·hash·config-infra·capability signature·rare TTP.","One match = lead; several INDEPENDENT = linked.","Name what would DISPROVE the link.","Verdict + basis in one sentence."]},
+ {id:"sufficiency",name:"Sufficiency gate (ACH)",diff:"Intermediate",task:"Given partial evidence: enough to CONTAIN? ERADICATE? ATTRIBUTE? Justify.",
+  approach:["List rival hypotheses (espionage/crime/pentest/FP).","Seek evidence that DISPROVES each.","Judge PER DECISION, not once.","Name the gap + next move.","Avoid early action AND paralysis."]},
+ {id:"infer",name:"Infer the intent (behavioral inference)",diff:"Intermediate",task:"From the evidence, infer the attacker's likely goal and NEXT move — disciplined, not a guess.",
+  approach:["State the inference as a hypothesis ('they likely want X, next they'd do Y').","CITE the specific behavior it rests on (not a vibe).","Assign a CALIBRATED confidence (low/moderate/high) + why.","Name what would DISPROVE it.","Flag availability bias: am I pattern-matching to a case I just read? Could a benign/different actor explain this?","Turn it into action: which detection would you pre-position for that next move?"]},
+ {id:"bias",name:"Spot the bias",diff:"Intermediate",task:"A colleague states the conclusion below. Identify which bias(es) may be at play and the counter-move.",
+  approach:["Name the bias (confirmation / anchoring / availability / base-rate neglect).","Explain WHY the conclusion overreaches the evidence.","Prescribe the counter: seek disconfirming evidence, run ACH, consider base rates, demand independent corroboration.","Rewrite the conclusion with calibrated confidence."]},
+ {id:"sitrep",name:"SITREP to the Hunt Lead",diff:"Foundational",task:`3 lines to ${LEAD_NAME}: (1) what you know + confidence, (2) what you're doing, (3) decision needed / ETA.`,
+  approach:["Line 1 — what we know, calibrated confidence word.","Line 2 — current action.","Line 3 — decision needed or ETA. Bottom line first, no jargon dump."]},
+ {id:"scope",name:"Scope & data sources",diff:"Intermediate",task:"For the key hypothesis, list telemetry that PROVES/REFUTES it — and the gaps you can't see.",
+  approach:["Map hypothesis → source: EDR/Sysmon, IIS/web, proxy/DNS, identity, netflow, edge/appliance, cloud audit.","Call out what you CAN'T see + how you'd get it.","Name the single most decisive query first.","Set a timebox."]},
+ {id:"pyramid",name:"Climb the Pyramid",diff:"Advanced",task:"A fragile IOC is handed to you. Raise the hunt to a durable TTP-level detection.",
+  approach:["Ask what BEHAVIOR produced the IOC.","Write the detection on the behavior/TTP.","Key on the most evasion-resistant field.","State one way they could still evade — accept it or not."]},
+ {id:"logit",name:"Log it (structured intel)",diff:"Foundational",task:"Decompose the scenario into the case-log schema: vector, execution/LOLBin, C2, persistence, ATT&CK IDs, Diamond vertices, durable fingerprint, confidence, ruled-out hypotheses. Then say which PRIOR entry you'd reference.",
+  approach:["Fill the fixed fields (enumerated where possible) — not free text.","Tag ATT&CK IDs and the four Diamond vertices.","Record the DURABLE fingerprint (the thing that survives tool swaps).","Record what you RULED OUT (ACH residue).","Say which existing entry shares a durable field — then treat the match as a lead to test, not a verdict."]}
+];
+const EX_PACKS=[
+ {id:"squidoor",name:"Squidoor / FinalDraft (CL-STA-0049)",diff:"Intermediate",
+  intel:'"A suspected Chinese APT exploits unpatched IIS, drops a web shell, and runs a renamed cdb.exe that reflectively loads an in-memory backdoor using Outlook/Graph Drafts for C2."',
+  exec:'"Are our web servers and our Microsoft 365 exposed to this Squidoor thing?"',
+  vector:"Unpatched public IIS → web shell",c2:"Outlook/Graph dead-drop + 10-channel mesh",twist:"Most implants are internal-only; one unpatched host carried it.",
+  hash:"fake-sha256 of config.ini (illustrative)",ip:"203.0.113.44 (illustrative)",
+  biasclaim:'"This is definitely the APT from that report I read last week — the Outlook C2 trick is their signature, so it\'s the same group."',
+  src:"Unit 42 / Elastic (REF7707)"},
+ {id:"salttyphoon",name:"Salt Typhoon (telecom / edge routers)",diff:"Advanced",
+  intel:'"A PRC actor exploits known Cisco IOS XE flaws on provider edge routers, lives off the land on the device, and builds GRE tunnels for years-long covert collection."',
+  exec:'"The news says China is in the phone companies. Could something be living in our routers?"',
+  vector:"Edge router N-day (e.g. CVE-2023-20198)",c2:"Multi-hop pivots / GRE tunneling",twist:"No EDR on the router — evidence is in device configs, NetFlow, syslog.",
+  hash:"n/a (network-layer)",ip:"malicious GRE peer (illustrative)",
+  biasclaim:'"Our NetFlow looks normal, so we\'re clean."',
+  src:"CISA/NSA/FBI AA25-239A (Aug 2025)"},
+ {id:"scatteredspider",name:"Scattered Spider (help-desk social engineering)",diff:"Intermediate",
+  intel:'"Actors phone the IT help desk impersonating an employee, get an MFA/password reset, take over an SSO account, use legit RMM tools to move, and deploy ransomware on ESXi."',
+  exec:'"Our help desk got a weird call about a password reset. Should we worry?"',
+  vector:"Help-desk social engineering + SIM swap",c2:"Legit RMM / tunneling tools",twist:"Initial access is a phone call — endpoint tools miss it; identity logs are the witness.",
+  hash:"n/a (LOTL)",ip:"RMM tunnel endpoint (illustrative)",
+  biasclaim:'"No malware fired on any endpoint, so this was just a user forgetting their password."',
+  src:"CISA/FBI advisory (updated Jul 2025)"},
+ {id:"akira",name:"Akira ransomware (SonicWall SSLVPN)",diff:"Intermediate",
+  intel:'"Akira affiliates log into SonicWall SSL VPN (CVE-2024-40766), recon fast, and exfil ~2GB over SSH to a rare external IP hours before encryption."',
+  exec:'"Our VPN had a CVE. How fast could they hit us, and would we see data leaving?"',
+  vector:"SonicWall SSLVPN (CVE-2024-40766)",c2:"RDP/VPN + SSH exfil to rare IP",twist:"Exfil happens BEFORE encryption, in hours — byte-counts say data left, not what.",
+  hash:"fake-sha256 of encryptor (illustrative)",ip:"rare SSH exfil IP (illustrative)",
+  biasclaim:'"They encrypted us Friday night, so the breach started Friday night."',
+  src:"S-RM / Darktrace / Rapid7 (2025)"},
+ {id:"toolshell",name:"ToolShell (SharePoint RCE chain)",diff:"Advanced",
+  intel:'"Unauth RCE (CVE-2025-53770/53771) on on-prem SharePoint: w3wp.exe spawns cmd→powershell, drops spinstall0.aspx in LAYOUTS, steals the MachineKey for fileless re-entry even after the shell is removed."',
+  exec:'"We patched SharePoint. Are we actually safe now?"',
+  vector:"SharePoint ToolShell (CVE-2025-53770)",c2:"Web shell + stolen MachineKey",twist:"Patching isn\'t enough — rotate MachineKeys or they re-enter fileless.",
+  hash:"publicly-reported compiled shell (verify in source)",ip:"exploit source (illustrative)",
+  biasclaim:'"We removed spinstall0.aspx and patched, so eradication is complete."',
+  src:"MSRC / Eye Security / Unit 42 (Jul 2025)"},
+ {id:"dprkdev",name:"DPRK 'Contagious Interview' (developer supply chain)",diff:"Advanced",
+  intel:'"North Korean actors lure developers with fake coding tests / trojanized npm packages, steal credentials and GitHub identities, and propagate through trusted developer workflows."',
+  exec:'"An engineer got a suspicious take-home coding test. Could that risk our source code?"',
+  vector:"Trojanized dev package / fake interview",c2:"Attacker infra via dev tooling",twist:"The victim is a trusted developer identity — risk propagates downstream to everyone who trusts their commits.",
+  hash:"fake-sha256 of malicious package (illustrative)",ip:"npm-staged C2 (illustrative)",
+  biasclaim:'"It\'s just one developer\'s laptop — contained to them."',
+  src:"DPRK IT-worker / Contagious Interview reporting (2025–26)"},
+ {id:"clickfix",name:"ClickFix → infostealer",diff:"Foundational",
+  intel:'"A fake CAPTCHA tells the user to paste a command to \'verify\'; the clipboard payload runs PowerShell that installs an infostealer harvesting browser creds and wallets."',
+  exec:'"An employee says a website asked them to copy-paste something into a run box. Is that bad?"',
+  vector:"Fake CAPTCHA / clipboard social engineering",c2:"Infostealer exfil",twist:"The user self-executes — evidence is in clipboard, RunMRU, PowerShell logs.",
+  hash:"fake-sha256 of stealer (illustrative)",ip:"stealer exfil (illustrative)",
+  biasclaim:'"The AV is clean, so nothing happened."',
+  src:"Multiple vendors (ClickFix wave, 2025–26)"}
+];
+const COMPLICATIONS=["You're remote with limited tooling — logs only, no console on the host.","The exec is anxious from a headline — manage expectations while you work.","No EDR on the affected asset; only network + appliance logs.","It's 4:55pm Friday — containment windows matter.","Logs only go back 14 days; part of the timeline is gone.","The client insists it's a false positive.","Another team already 'cleaned it' — verify eradication.","One decisive query's budget before standup. Spend it well."];
+const LEAD_TASKS={distill:["\"The one-line hunt, not the headline.\"","\"What will you actually query? Behavior.\""],relevance:["\"Same incident or two things? Basis?\"","\"Linked or coincidence? One sentence.\""],sufficiency:["\"Contain now or keep digging?\"","\"Enough to brief the CISO? Justify.\""],infer:["\"Where do they go next? And how sure are you?\"","\"Get ahead of them — what do we pre-position?\""],bias:["\"Gut-check that conclusion before I repeat it upstairs.\"","\"Is that evidence, or is that a story we like?\""],sitrep:["\"SITREP in three lines — I brief up in ten.\"","\"Bottom line first.\""],scope:["\"What proves this, and what can't we see?\"","\"Your most decisive query?\""],pyramid:["\"This hash changes tomorrow — give me durable.\"","\"Take it up the pyramid.\""],logit:["\"Log it properly so the next shift can match it.\"","\"Which past case does this rhyme with?\""]};
+
+/* ================= CASE LOG DATA ================= */
+const VECTORS=["Public-facing app exploit (web/IIS/SharePoint)","VPN / edge appliance exploit","Phishing / malicious attachment","Help-desk social engineering / SIM swap","Trojanized package / supply chain","Valid accounts / stolen credentials","Drive-by / fake CAPTCHA (ClickFix)","Other / unknown"];
+const C2S=["HTTP(S)","DNS tunneling","ICMP tunneling","Cloud/SaaS dead-drop (Outlook/Graph)","Paste-site dead-drop","Reverse TCP/UDP","Legitimate RMM tool","SSH / custom tunnel","Other / unknown"];
+const PERSISTS=["Web shell","Scheduled task","Service / driver","Registry Run key","Valid accounts","Stolen token / machine key","Rogue VM / cloud resource","Other / none observed"];
+const SECTORS=["Government","Defense","Telecommunications","Aviation","Education","Financial","Healthcare","Manufacturing","Technology / software","Energy / critical infra","Other"];
+let LOG=[]; let lastFind=null;
+
+/* ================= RENDER: WALKTHROUGH ================= */
+let i=0, view='def'; const seen=new Set(); const openGaps=new Set(),closedGaps=new Set(); let prevFw=null;
+const card=document.getElementById('card'),fwstrip=document.getElementById('fwstrip'),bar=document.getElementById('bar'),counter=document.getElementById('counter'),prevBtn=document.getElementById('prev'),nextBtn=document.getElementById('next'),stepsEl=document.getElementById('steps'),confNum=document.getElementById('confNum'),confBar=document.getElementById('confBar'),gapsEl=document.getElementById('gaps');
+
+function buildSteps(){stepsEl.innerHTML=S.map((t,idx)=>{const lp=/↻/.test(t.phase)?'<span class="lp">↻</span>':'';const nm=t.phase.replace(/^Phase [\d0]+ · /,'').replace(/ *↻/,'').replace(/^Mission Brief · .*/,'Mission Brief');return `<li data-idx="${idx}"><span class="n">${idx+1}</span><span>${nm}</span>${lp}</li>`;}).join('');stepsEl.querySelectorAll('li').forEach(li=>li.addEventListener('click',()=>{i=+li.dataset.idx;render();}));}
+function recomputeGaps(){openGaps.clear();closedGaps.clear();for(let k=0;k<=i;k++){(S[k].gapsOpen||[]).forEach(g=>openGaps.add(g));(S[k].gapsClose||[]).forEach(g=>{closedGaps.add(g);openGaps.delete(g);});}}
+function renderGaps(){const all=[...openGaps].map(id=>({id,c:0})).concat([...closedGaps].map(id=>({id,c:1})));if(!all.length){gapsEl.innerHTML='<li class="closed">None open — case closed</li>';return;}gapsEl.innerHTML=all.map(g=>{const d=GAPS.find(x=>x.id===g.id);return `<li class="${g.c?'closed':''}"><span>${g.c?'✓':'●'}</span><span>${d?d.text:g.id}</span></li>`;}).join('');}
+function renderFw(t){const d=t.fw.diamond||[];const dv=['A','C','I','V'].map(x=>`<span class="dv ${d.includes(x)?'on':''}">${x}</span>`).join('');const cells=[['Kill Chain',t.fw.kill],['NIST IR',t.fw.nist],['PEAK',t.fw.peak],['Pyramid of Pain',t.fw.pyramid]];let h=cells.map(c=>{const ch=prevFw&&prevFw[c[0]]!==c[1];return `<div class="fw ${ch?'changed':''}"><div class="k">${c[0]}</div><div class="v">${c[1]}</div></div>`;}).join('');h+=`<div class="fw"><div class="k">Diamond (A·C·I·V)</div><div class="diamond">${dv}</div></div>`;fwstrip.innerHTML=h;prevFw={'Kill Chain':t.fw.kill,'NIST IR':t.fw.nist,'PEAK':t.fw.peak,'Pyramid of Pain':t.fw.pyramid};}
+function paneHTML(p){return `<div class="win ${p.cls||''}"><div class="bar"><div class="dots"><i class="dr"></i><i class="dy"></i><i class="dg"></i></div><div class="app"><b>${p.app}</b></div></div><pre>${p.body}</pre></div>`;}
+function leadHTML(l){return `<div class="lead"><div class="ava">${LEAD_INIT}</div><div class="body"><div class="who">${LEAD_NAME} <span class="role">· ${LEAD_ROLE}</span>${l.tag?`<span class="tag">${l.tag}</span>`:''}</div><div class="msg">${l.msg}</div></div></div>`;}
+function atkHTML(a){let r='';if(a.goal)r+=`<div class="arow"><div class="lbl">Operator goal</div><div class="txt">${a.goal}</div></div>`;if(a.why)r+=`<div class="arow"><div class="lbl">Why this move / method</div><div class="txt">${a.why}</div></div>`;if(a.recon)r+=`<div class="arow"><div class="lbl">What recon told them</div><div class="txt">${a.recon}</div></div>`;if(a.weakness)r+=`<div class="arow"><div class="lbl">Weakness they rely on</div><div class="txt">${a.weakness}</div></div>`;if(a.next)r+=`<div class="arow nextmv"><div class="lbl">▶ Next move — what YOU pre-empt</div><div class="txt">${a.next}</div></div>`;return `<div class="atkpanel"><div class="ah">🗡 Attacker's-eye view — plausible operator reasoning (inference, not a confession)</div><div class="ab">${r}</div></div>`;}
+function reasonHTML(r){return `<div class="reason"><div class="rh">Analyst reasoning — Observe · Orient · Relevance · Sufficiency</div><div class="rb">
+   <div class="rrow"><div class="lbl obs">Observe</div><div class="txt">${r.obs}</div></div>
+   <div class="rrow"><div class="lbl ori">Orient</div><div class="txt">${r.ori}</div></div>
+   <div class="rrow"><div class="lbl rel">Relevance — is this related?<span class="verdict ${r.rel.v}">${r.rel.v}</span></div><div class="txt">${r.rel.b}</div></div>
+   <div class="rrow"><div class="lbl suf">Sufficiency — do I have enough?</div><div class="meter"><i style="width:${r.suf.lvl}%"></i></div><div class="txt">${r.suf.gap}</div><div class="move ${r.suf.move}">▸ ${r.suf.move}</div> <span class="txt" style="font-size:12.5px">${r.suf.mv}</span></div></div></div>`;}
+
+function fieldNotes(){
+ let o="SALT TYPHOON (telecom / network devices) \u2014 DFIR FIELD NOTES\nBuild "+BUILD_ID+" | generated "+STAMP_UTC+"\n";
+ o+="Sources: Cisco Talos (Feb 2025) + CISA/FBI/NSA (Dec 2024) + joint advisory AA25-239A (Aug 2025). Artifacts illustrative; real IOCs in Reading Room.\n"+"=".repeat(72)+"\n\n";
+ o+="TAKEAWAYS\n"+"-".repeat(72)+"\n";S.forEach((t,idx)=>{if(t.take)o+=idx+". "+t.title+"\n   -> "+t.take+"\n\n";});
+ o+="BIAS WATCHLIST (notice it, note it, never lean on it)\n"+"-".repeat(72)+"\n";
+ o+="- Anchoring on the headline: 'telecom breach = China = Salt Typhoon.' -> say 'consistent with'; let device evidence + calibrated attribution lead.\n";
+ o+="- Absence-of-evidence trap: 'no EDR alert / NetFlow looks normal = clean.' -> on no-EDR gear, confirm you HAVE the telemetry before trusting a clean result.\n";
+ o+="- Base-rate neglect: device configs change constantly. -> triage by 'no change ticket + campaign shape', not by count.\n";
+ o+="- Attribution overconfidence: naming a country/firm feels decisive. -> state by SOURCE + DATE; it evolved (Talos no-country -> PRC-affiliated -> named firms).\n";
+ o+="- Scope anchoring: 'one compromised router.' -> capture-and-pivot tooling implies MULTI-device; scope by the jump-host chain and notify peers.\n";
+ o+="Rule: separate OBSERVATION from INFERENCE; 'valid credentials, origin unknown' is a legitimate finding.\n\n";
+ o+="THINK-LIKE-THE-ATTACKER (hypothesis engine, not certainty)\n"+"-".repeat(72)+"\n";
+ o+="They live in the transit layer using the network's own trust (valid creds, loopbacks, ACLs, GRE). Pre-position detection for the NEXT device;\n";
+ o+="cite the behavior, calibrate confidence, keep a rival explanation alive.\n\n";
+ o+="DISTILLATION: behavior (not IOC) -> hypothesis -> data source -> scope -> hit/miss. On devices, 'behavior' = config state + flow, not processes.\n\n";
+ o+="SUFFICIENCY: per-decision. Containment is bounded by uptime (you cannot power off a carrier core); attribution is a SEPARATE calibrated call.\n\n";
+ o+="DETECTION CHEAT-SHEET (control first)\n"+"-".repeat(72)+"\n";
+ o+="- CONTROL 0: ship device logs OFF-BOX (immutable) + config diffing + NetFlow -- without this, nothing else can fire\n";
+ o+="- config diff adds: interface Tunnel (GRE) | aaa server IP | local account | loopback edit, with NO change ticket\n";
+ o+="- SSH sourced from a loopback, device-to-device = ACL-bypass pivot\n";
+ o+="- running-config pulled via TFTP/FTP to a non-admin destination = config/credential exfil\n";
+ o+="- Guest Shell enable + packet capture on a PRODUCTION core device = LOTL collection\n";
+ o+="- alt sshd on a high port (e.g. :57722), rogue /etc/passwd users, authorized_keys = persistence\n";
+ o+="- ERADICATION: remove rogue accounts/keys/tunnels/AAA entries + ROTATE ALL device creds + TACACS/RADIUS secrets + SNMP strings + reimage where in doubt (staged, no outage)\n\n";
+ o+="ATT&CK MAP (ANALYST-MAPPED from reported behaviors; sources reviewed did not publish a table \u2014 verify against AA25-239A)\n"+"-".repeat(72)+"\n";ATTACK.forEach(r=>o+="- ["+r[2]+"] "+r[1]+" ("+r[0]+")\n");
+ return o;
+}
+function loopSvg(){return `<svg viewBox="0 0 680 230" width="100%" style="max-width:680px;margin:6px 0" font-family="monospace" font-size="11"><defs><marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#4ea3ff"/></marker><marker id="aw" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#ffb454"/></marker></defs><text x="10" y="16" fill="#8aa0b4">Nested investigation loops</text>${['Prepare','Detect / Analyze','Contain / Eradicate / Recover','Lessons'].map((t,n)=>{const x=20+n*160;return `<rect x="${x}" y="40" width="140" height="34" rx="7" fill="#111a24" stroke="#2a3a4c"/><text x="${x+70}" y="61" fill="#e7edf3" text-anchor="middle">${t}</text>`;}).join('')}${[0,1,2].map(n=>{const x=20+n*160;return `<line x1="${x+140}" y1="57" x2="${x+160}" y2="57" stroke="#4ea3ff" stroke-width="2" marker-end="url(#ar)"/>`;}).join('')}<path d="M650,74 C650,120 90,120 90,74" fill="none" stroke="#ffb454" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#aw)"/><text x="330" y="112" fill="#ffb454" text-anchor="middle">lessons learned feed the next Prepare (never truly closes)</text><rect x="60" y="150" width="240" height="60" rx="8" fill="#0d141d" stroke="#1f6b47"/><text x="180" y="170" fill="#51d88a" text-anchor="middle">PEAK hunt loop</text><text x="180" y="188" fill="#8aa0b4" text-anchor="middle">hypothesis -> execute -> finding</text><text x="180" y="202" fill="#8aa0b4" text-anchor="middle">-> NEW hypothesis</text><rect x="380" y="150" width="240" height="60" rx="8" fill="#0d141d" stroke="#244a6e"/><text x="500" y="170" fill="#4ea3ff" text-anchor="middle">F3EAD intel loop</text><text x="500" y="188" fill="#8aa0b4" text-anchor="middle">find·fix·finish·exploit</text><text x="500" y="202" fill="#8aa0b4" text-anchor="middle">·analyze·disseminate</text><line x1="300" y1="180" x2="380" y2="180" stroke="#8aa0b4" stroke-width="1.5" marker-end="url(#ar)"/></svg>`;}
+function renderDebrief(){
+ const gl=GLOSS.map(g=>`<dt>${g[0]}</dt><dd>${g[1]}</dd>`).join('');
+ const amap=ATTACK.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td><code>${r[2]}</code></td></tr>`).join('');
+ const read=READING.map(r=>`<li><span class="tag">${r[0]}</span><a href="${r[2]}" target="_blank" rel="noopener">${r[1]}</a></li>`).join('');
+ const kit=KIT.map(k=>`<li><span class="tag ${k[0]}">${k[0]==='must'?'must-have':'good'}</span><a href="${k[3]}" target="_blank" rel="noopener">${k[1]}</a> — <span style="color:#cdd9e5">${k[2]}</span></li>`).join('');
+ return `<div><div class="take"><h4>Methodology in one line</h4><p>Lead → distill to a behavior → triage by victimology → pivot on durable fingerprints → fight bias with ACH + calibrated confidence → read the attacker to get ahead → <b>log it structured so the next case matches instantly.</b></p></div>
+  <div class="sechead">Loop map</div>${loopSvg()}
+  <div class="sechead">Analyst's kit — must-have vs. good-to-have</div><ul class="kit">${kit}</ul>
+  <div class="sechead">Glossary (frameworks, biases, SATs, structured intel)</div><dl class="gl">${gl}</dl>
+  <div class="sechead">ATT&amp;CK map</div><table class="map"><tr><th>Tactic</th><th>Technique</th><th>ID</th></tr>${amap}</table>
+  <div class="sechead">Field notes — editable, copy to your log</div><textarea id="notesArea" spellcheck="false" style="min-height:320px">${fieldNotes().replace(/</g,'&lt;')}</textarea>
+  <div class="copyrow"><button class="btn" id="copyBtn">Copy field notes</button><span class="copied" id="copied">Copied ✓</span></div>
+  <div class="sechead">Reading room</div><ul class="reading">${read}</ul>
+  <div class="disc"><b>Sources &amp; accuracy:</b> Salt Typhoon facts are drawn from and fact-checked against primary reporting: Cisco Talos (20 Feb 2025), the CISA/NSA/FBI + international partners joint guidance (3 Dec 2024), and the Aug 2025 joint advisory (AA25-239A). This is a network-device case with no endpoint telemetry, so the public host-level record is thinner than an endpoint investigation: attacker-view reasoning and attribution are labeled as inference and stated in calibrated, source-dated, evolving terms (Talos declined to name a country and did not confirm the IOS XE CVEs; CISA called the actor “PRC-affiliated”; the Aug 2025 advisory named three PRC companies). The ATT&amp;CK IDs shown are <b>analyst-mapped from the reported behaviors</b> — the reviewed sources did not publish an ATT&amp;CK table here — and should be verified against AA25-239A. Console panels use synthetic device names and RFC 5737 documentation IPs; report-sourced technique artifacts (GRE tunnels, loopback-as-SSH-source, port 57722, JumbledPath, TFTP/FTP config exfil) are technique facts from the reports, not IOCs. Generator scenarios paraphrase public reporting — verify before operational use. No fabricated IOC is presented as genuine; pull real IOCs from the Reading Room. This is an independent educational reconstruction and is not affiliated with or endorsed by Cisco Talos, CISA, the NSA, the FBI, or any other party named here.</div></div>`;
+}
+
+let toastStep=-1;
+function showToast(msg){const t=document.getElementById('toast');document.getElementById('toastMsg').textContent=msg;t.classList.add('show');}
+function hideToast(){document.getElementById('toast').classList.remove('show');}
+
+function render(){
+ const t=S[i];seen.add(i);recomputeGaps();renderFw(t);
+ let h=`<div class="phase">${t.phase.replace(/↻/,'<span style="color:var(--warn)">↻</span>')}</div><h2 class="title">${t.title}</h2>`;
+ if(view==='atk')h+=`<div class="atkbanner">🗡 Attacker view — toggle back to 🛡 Defender any time</div>`;
+ if(t.loop)h+=`<div class="loopbadge">↻ ${t.loop.type}</div>`;
+ if(t.lead)h+=leadHTML(t.lead);
+ if(t.newConcept)h+=`<div class="newconcept"><div class="lbl">New concept · ${t.newConcept.term}</div>${t.newConcept.def}</div>`;
+ h+=`<div class="scene">${t.scene||''}</div>`;
+ if(t.panes&&t.panes.length)h+=`<div class="workspace ${t.panes.length>1?'ws2':''}">${t.panes.map(paneHTML).join('')}</div>`;
+ if(t.loop)h+=`<div class="crit"><h4>Loop — why this isn't linear</h4><p>${t.loop.text}</p></div>`;
+ // reasoning OR attacker panel depending on view
+ if(view==='atk'&&t.attacker)h+=atkHTML(t.attacker);
+ else if(t.reason)h+=reasonHTML(t.reason);
+ if(view==='atk'&&t.reason)h+=`<details style="margin:10px 0"><summary style="cursor:pointer;color:var(--accent2);font-size:12.5px">Show defender reasoning too</summary>${reasonHTML(t.reason)}</details>`;
+ if(t.bias)h+=`<div class="bias"><h4>⚑ Bias check</h4><p><b>Risk:</b> ${t.bias.risk}</p><p class="ct"><b>Counter:</b> ${t.bias.counter}</p></div>`;
+ if(t.decision){h+=`<div class="decision"><div class="q">⟶ ${t.decision.prompt}</div>`;t.decision.options.forEach((o,idx)=>h+=`<button class="opt" data-opt="${idx}">${o.text}<span class="mk"></span></button>`);h+=`<div class="fb" id="fb"></div></div>`;}
+ if(t.crit)h+=`<div class="crit"><h4>Critical detail</h4><p>${t.crit}</p></div>`;
+ if(t.keypoints&&t.keypoints.length)h+=`<div class="kp"><h4>Key points</h4><ul>${t.keypoints.map(k=>`<li>${k}</li>`).join('')}</ul></div>`;
+ if(t.take)h+=`<div class="take"><h4>Actionable takeaway → notes</h4><p>${t.take}</p></div>`;
+ if(t.refs&&t.refs.length)h+=`<div class="refs">Reference: ${t.refs.map(r=>`<a href="${r[1]}" target="_blank" rel="noopener">${r[0]}</a>`).join(' · ')}</div>`;
+ if(t.debrief)h+=renderDebrief();
+ card.innerHTML=h;
+ if(t.decision){const fb=card.querySelector('#fb');card.querySelectorAll('.opt').forEach(btn=>btn.addEventListener('click',()=>{const ch=t.decision.options[+btn.dataset.opt];card.querySelectorAll('.opt').forEach((b,idx)=>{b.disabled=true;const o=t.decision.options[idx];if(o.correct){b.classList.add('correct');b.querySelector('.mk').textContent='✓';}if(b===btn&&!o.correct){b.classList.add('wrong');b.querySelector('.mk').textContent='✕';}});fb.className='fb show '+(ch.correct?'ok':'no');fb.innerHTML=(ch.correct?'<b>Correct. </b>':'<b>Not quite. </b>')+ch.feedback;}));}
+ if(t.debrief){const ta=card.querySelector('#notesArea'),cp=card.querySelector('#copyBtn'),dn=card.querySelector('#copied');cp.addEventListener('click',async()=>{ta.select();try{await navigator.clipboard.writeText(ta.value);}catch(e){try{document.execCommand('copy');}catch(_){}}dn.classList.add('show');setTimeout(()=>dn.classList.remove('show'),2200);});}
+ bar.style.width=(i/(S.length-1)*100)+'%';counter.textContent=`Turn ${i+1} / ${S.length}`;prevBtn.disabled=(i===0);nextBtn.textContent=(i===S.length-1)?'Done':'Advance ▶';
+ const c=t.conf||0;confNum.textContent=c+'%';confBar.style.width=c+'%';renderGaps();
+ stepsEl.querySelectorAll('li').forEach((li,idx)=>{li.classList.toggle('active',idx===i);li.classList.toggle('done',seen.has(idx)&&idx!==i);});
+ // log-cue toast
+ if(t.logcue && toastStep!==i){toastStep=i;showToast(t.logcue);} else if(!t.logcue){hideToast();}
+ window.scrollTo({top:0,behavior:'smooth'});
+}
+prevBtn.addEventListener('click',()=>{if(i>0){i--;render();}});
+nextBtn.addEventListener('click',()=>{if(i<S.length-1){i++;render();}});
+document.addEventListener('keydown',e=>{if(document.getElementById('walkMode').style.display==='none')return;if(e.key==='ArrowRight'&&i<S.length-1){i++;render();}if(e.key==='ArrowLeft'&&i>0){i--;render();}});
+document.getElementById('vDef').addEventListener('click',()=>{view='def';document.getElementById('vDef').classList.add('on');document.getElementById('vAtk').classList.remove('on');render();});
+document.getElementById('vAtk').addEventListener('click',()=>{view='atk';document.getElementById('vAtk').classList.add('on');document.getElementById('vDef').classList.remove('on');render();});
+
+/* toast wiring */
+document.getElementById('toastX').addEventListener('click',hideToast);
+document.getElementById('toastDismiss').addEventListener('click',hideToast);
+document.getElementById('toastGo').addEventListener('click',()=>{hideToast();switchMode('log');});
+
+/* ================= GENERATOR ================= */
+const promptHost=document.getElementById('promptHost'),selType=document.getElementById('selType'),selPack=document.getElementById('selPack'),selDiff=document.getElementById('selDiff');
+EX_TYPES.forEach(t=>{const o=document.createElement('option');o.value=t.id;o.textContent=t.name;selType.appendChild(o);});
+EX_PACKS.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.name;selPack.appendChild(o);});
+function pick(a){return a[Math.floor(Math.random()*a.length)];}
+function pickF(arr,diff){const f=diff?arr.filter(x=>x.diff===diff):arr;return pick(f.length?f:arr);}
+function genRep(){
+ const type=selType.value?EX_TYPES.find(t=>t.id===selType.value):pickF(EX_TYPES,selDiff.value);
+ const pack=selPack.value?EX_PACKS.find(p=>p.id===selPack.value):pickF(EX_PACKS,selDiff.value);
+ const comp=pick(COMPLICATIONS); const leadLine=pick(LEAD_TASKS[type.id]||["\"Walk me through it.\""]);
+ let inputLabel,inputText;
+ if(type.id==="distill"){if(Math.random()<0.5){inputLabel="Intel excerpt";inputText=pack.intel;}else{inputLabel="Exec / client what-if";inputText=pack.exec;}}
+ else if(type.id==="bias"){inputLabel="Colleague's conclusion";inputText=pack.biasclaim;}
+ else if(type.id==="infer"){inputLabel="What you've observed";inputText=pack.intel+"\n\nTwist: "+pack.twist;}
+ else if(type.id==="relevance"){inputLabel="Two artifacts";inputText="A) "+pack.vector+" (first seen on HOST-A)\nB) "+pack.c2+" (from a process on HOST-A, same day)\n\nTwist: "+pack.twist;}
+ else if(type.id==="pyramid"){inputLabel="Fragile IOC";inputText="hash: "+pack.hash+"\nip:   "+pack.ip+"\ncontext: "+pack.vector;}
+ else if(type.id==="scope"){inputLabel="Hypothesis to prove/refute";inputText=pack.intel;}
+ else if(type.id==="logit"){inputLabel="Incident to decompose";inputText=pack.intel+"\nVector: "+pack.vector+"\nC2: "+pack.c2+"\nTwist: "+pack.twist;}
+ else {inputLabel="Situation";inputText=pack.intel;}
+ promptHost.innerHTML=`<div class="promptcard"><div class="pc-head"><span class="pc-type">${type.name}</span><span class="pc-pack">· ${pack.name}</span><span class="tag" style="margin-left:auto">${type.diff}</span></div><div class="pc-body">
+   <div class="pc-sect"><div class="h">Your task</div><div class="t">${type.task}</div></div>
+   <div class="pc-sect"><div class="h">${inputLabel}</div><div class="pc-input">${inputText}</div></div>
+   <div class="pc-sect"><div class="h">Hunt Lead</div><div class="pc-lead"><div class="ava">${LEAD_INIT}</div><div><div style="font-size:11px;color:#9fc2e6;font-weight:700">${LEAD_NAME} · ${LEAD_ROLE}</div><div style="font-size:13.5px;color:#e4eefb">${leadLine}</div></div></div></div>
+   <div class="pc-sect"><div class="h">Complication</div><div class="pc-twist">⚠ ${comp}</div></div>
+   <div class="pc-sect" style="font-size:11.5px;color:var(--faint)">Grounded in: ${pack.src} — paraphrased for training; verify before operational use.</div>
+   <div class="approach" id="approach"><h4>Model approach (one good way — not the only way)</h4><ol>${type.approach.map(a=>`<li>${a}</li>`).join('')}</ol></div>
+   <div class="genrow"><button class="btn ghost" id="revealBtn">Reveal model approach</button><button class="btn ghost" id="copyPromptBtn">Copy prompt</button><button class="btn" id="againBtn">New rep ▶</button></div>
+ </div></div>`;
+ document.getElementById('revealBtn').addEventListener('click',()=>document.getElementById('approach').classList.add('show'));
+ document.getElementById('againBtn').addEventListener('click',genRep);
+ document.getElementById('copyPromptBtn').addEventListener('click',async()=>{const txt=`EXERCISE: ${type.name} (${type.diff})\nScenario: ${pack.name}\n\nTASK: ${type.task}\n\n${inputLabel}:\n${inputText}\n\nHunt Lead: ${leadLine}\nComplication: ${comp}\nSource: ${pack.src}`;try{await navigator.clipboard.writeText(txt);}catch(e){}const b=document.getElementById('copyPromptBtn');b.textContent='Copied ✓';setTimeout(()=>b.textContent='Copy prompt',1600);});
+ window.scrollTo({top:0,behavior:'smooth'});
+}
+document.getElementById('genBtn').addEventListener('click',genRep);
+
+/* ================= CASE LOG ================= */
+function fillSelect(id,arr){const s=document.getElementById(id);arr.forEach(v=>{const o=document.createElement('option');o.textContent=v;s.appendChild(o);});}
+fillSelect('f_vector',VECTORS);fillSelect('f_c2',C2S);fillSelect('f_persist',PERSISTS);fillSelect('f_sector',SECTORS);
+const FORM_IDS=['f_name','f_date','f_vector','f_c2','f_exec','f_persist','f_sector','f_region','f_conf','f_source','f_attack','f_dA','f_dC','f_dI','f_dV','f_files','f_cmds','f_fprint','f_ach','f_notes'];
+function readForm(){const o={};FORM_IDS.forEach(id=>o[id]=document.getElementById(id).value.trim());return o;}
+function renderLogTable(){const host=document.getElementById('logTableHost');if(!LOG.length){host.innerHTML='<div class="emptyrow">No entries yet. Add one above, or load the Salt Typhoon example.</div>';return;}
+ const rows=LOG.map((e,idx)=>{const m=lastFind&&matchEntry(e,lastFind.field,lastFind.val);return `<tr class="${m?'match':''}"><td>${e.f_name||'—'}</td><td>${e.f_vector||''}</td><td>${e.f_c2||''}</td><td>${e.f_exec||''}</td><td>${e.f_fprint||''}</td><td>${e.f_attack||''}</td><td>${e.f_dA||''}</td><td>${e.f_conf||''}</td></tr>`;}).join('');
+ host.innerHTML=`<table class="logtable"><tr><th>Incident</th><th>Vector</th><th>C2</th><th>Execution</th><th>Fingerprint</th><th>ATT&CK</th><th>Adversary</th><th>Conf</th></tr>${rows}</table>`;}
+function matchEntry(e,field,val){val=(val||'').toLowerCase();if(!val)return false;if(field==='c2')return (e.f_c2||'').toLowerCase().includes(val);if(field==='vector')return (e.f_vector||'').toLowerCase().includes(val);if(field==='attack')return (e.f_attack||'').toLowerCase().includes(val);if(field==='fprint')return (e.f_fprint||'').toLowerCase().includes(val);return false;}
+document.getElementById('addEntry').addEventListener('click',()=>{const e=readForm();if(!e.f_name){alert('Give the entry an incident name/alias first.');return;}LOG.push(e);lastFind=null;renderLogTable();window.scrollTo({top:document.getElementById('logTableHost').offsetTop-80,behavior:'smooth'});});
+document.getElementById('clearForm').addEventListener('click',()=>{FORM_IDS.forEach(id=>{const el=document.getElementById(id);if(el.tagName==='SELECT')el.selectedIndex=(id==='f_conf'?1:0);else el.value='';});});
+document.getElementById('loadDemo').addEventListener('click',()=>{const d={f_name:'HUNT-NET-CORE (Salt Typhoon)',f_date:'2026-10-16',f_vector:VECTORS[5],f_c2:C2S[7],f_exec:'LOTL on network devices (Guest Shell/Bash, tcpdump/EPC); JumbledPath (Go/ELF) capture-and-pivot',f_persist:PERSISTS[4],f_sector:SECTORS[2],f_region:'multi-national telecom carriers; cross-org/vendor pivoting',f_conf:'Moderate',f_source:'internal IR + Cisco Talos (Feb 2025) + CISA/FBI/NSA (Dec 2024) + AA25-239A (Aug 2025)',f_attack:'T1078, T1190, T1040, T1602.002, T1602.001, T1556, T1136.001, T1098.004, T1021.004, T1572, T1090.001, T1070.002',f_dA:'consistent with Salt Typhoon (aliases: GhostEmperor, RedMike, Operator Panda, UNC5807); PRC-affiliated per govt advisories',f_dC:'valid-credential access + LOTL + JumbledPath capture-and-pivot + GRE/loopback transit',f_dI:'rogue AAA/TACACS+ servers; jump-host chain; GRE tunnels; alt sshd :57722',f_dV:'carrier core routers/switches (telecom), cross-vendor; cross-company pivoting',f_files:'running-config exfil via TFTP/FTP; /etc/passwd + /etc/shadow new users; SSH authorized_keys; guestshell ELF',f_cmds:'guestshell enable; tcpdump -w cap.pcap; SSH src=Loopback0 -> peer devices; config pull via TFTP/FTP',f_fprint:'loopback-as-SSH-source to bypass ACLs; rogue AAA server; GRE tunnel; capture-and-pivot (JumbledPath); routine log clearing',f_ach:'ruled out: insider/misconfig (rogue AAA + capture tooling); false positive (un-ticketed GRE + account + JumbledPath); kept alive (calibrated): another infra-living APT',f_notes:'NO EDR on devices -> evidence is config diffs/NetFlow/syslog IF centralized; attribution EVOLVED (Talos declined a country Feb25 -> CISA PRC-affiliated Dec24 -> 3 named PRC firms Aug25); eradication = rotate the ENTIRE trust fabric (creds, TACACS/RADIUS secrets, SNMP strings)'};FORM_IDS.forEach(id=>{const el=document.getElementById(id);if(el.tagName==='SELECT'){const idx=[...el.options].findIndex(o=>o.textContent===d[id]);el.selectedIndex=idx>=0?idx:0;}else el.value=d[id]||'';});});
+document.getElementById('findBtn').addEventListener('click',()=>{lastFind={field:document.getElementById('findField').value,val:document.getElementById('findVal').value};renderLogTable();});
+document.getElementById('clearFind').addEventListener('click',()=>{lastFind=null;document.getElementById('findVal').value='';renderLogTable();});
+function copyText(txt,el){(async()=>{try{await navigator.clipboard.writeText(txt);}catch(e){}const c=document.getElementById('logCopied');c.classList.add('show');setTimeout(()=>c.classList.remove('show'),1800);})();}
+document.getElementById('exportJson').addEventListener('click',()=>copyText(JSON.stringify(LOG,null,2)));
+document.getElementById('exportTsv').addEventListener('click',()=>{const cols=FORM_IDS;const head=cols.join('\t');const body=LOG.map(e=>cols.map(c=>(e[c]||'').replace(/\t/g,' ').replace(/\n/g,'; ')).join('\t')).join('\n');copyText(head+'\n'+body);});
+renderLogTable();
+
+/* ================= MODE SWITCH ================= */
+const mWalk=document.getElementById('mWalk'),mGen=document.getElementById('mGen'),mLog=document.getElementById('mLog'),walkMode=document.getElementById('walkMode'),genModeEl=document.getElementById('genMode'),logModeEl=document.getElementById('logMode');
+function switchMode(m){
+ [mWalk,mGen,mLog].forEach(b=>b.classList.remove('on'));
+ walkMode.style.display='none';genModeEl.style.display='none';logModeEl.style.display='none';
+ if(m==='walk'){mWalk.classList.add('on');walkMode.style.display='';}
+ if(m==='gen'){mGen.classList.add('on');genModeEl.style.display='';if(!promptHost.innerHTML)genRep();}
+ if(m==='log'){mLog.classList.add('on');logModeEl.style.display='';}
+}
+mWalk.addEventListener('click',()=>switchMode('walk'));
+mGen.addEventListener('click',()=>switchMode('gen'));
+mLog.addEventListener('click',()=>switchMode('log'));
+
+document.getElementById('footer').innerHTML=`<div>Build <span class="mono">${BUILD_ID}</span> · generated <span class="mono">${STAMP_UTC}</span> · single-file offline HTML · no external dependencies · no fabricated IOCs.</div><div style="margin-top:6px">Case: Salt Typhoon (telecom / network devices). Defender + attacker lanes · bias drills · structured case log. Hunt Lead: ${LEAD_NAME}. Keyboard ← → in walkthrough.</div>`;
+buildSteps();render();
+</script>
+</body>
+</html>

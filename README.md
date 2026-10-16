@@ -21,7 +21,7 @@ dependencies, no network calls, no telemetry.
 |---|---|---|
 | **[Squidoor / FinalDraft](squidoor/)** | CL-STA-0049 — suspected Chinese espionage backdoor (endpoint + cloud dead-drop C2) | ✅ Published |
 | **[ToolShell / SharePoint](toolshell/)** | CVE-2025-49704/49706 + 53770/53771 — on-prem SharePoint RCE; stolen MachineKey; multi-actor | ✅ Published |
-| **Salt Typhoon** | PRC-nexus intrusions into telecom infrastructure | 🔜 Planned |
+| **[Salt Typhoon](salt-typhoon/)** | PRC-affiliated intrusions into telecom core (network-device DFIR, no EDR, LOTL, long dwell) | ✅ Published |
 
 ---
 
