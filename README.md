@@ -10,10 +10,13 @@ Each trainer is built to a shared template and a strict fact-check standard (see
 **[`TRAINER_SPEC.md`](TRAINER_SPEC.md)**). Every technical claim is checked
 line-by-line against primary vendor reporting; indicators shown in-app are
 **synthetic placeholders**, not real IOCs; and all research credit belongs to the
-teams who did the original work.
+teams who did the original work. **Every trainer lists its primary sources** — in its README (*Credit where it’s due*) and in an in-app **Reading Room** — so any claim can be traced to the report it came from.
 
 Open any trainer's `index.html` in a modern browser — no install, no
 dependencies, no network calls, no telemetry.
+
+**Built by Theodore "Ted" Gransbury** — an independent portfolio of educational DFIR reconstructions, **assembled with AI assistance (Claude)** and fact-checked line-by-line against primary vendor and researcher reporting. The research credit belongs entirely to the teams cited in each trainer; this is reconstruction and teaching, not original threat research.
+[github.com/grumby42](https://github.com/grumby42) · [grumbylearns.io](https://grumbylearns.io)
 
 ---
 
@@ -78,4 +81,4 @@ endorsed by any party named in a trainer.
 
 ---
 
-*Index generated 2026-10-16T01:36Z · Squidoor trainer build `HUNT-20261015-2250Z`.*
+*Index generated 2026-10-16T16:47Z · Squidoor trainer build `HUNT-20261015-2250Z`.*
