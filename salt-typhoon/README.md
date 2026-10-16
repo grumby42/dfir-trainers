@@ -99,6 +99,12 @@ to evolve, baseline, and watch the trend for each — and is honest about the te
 
 ---
 
+## Build a range (hands-on next step)
+
+The trainer builds the reasoning; **[`RANGE.md`](RANGE.md)** builds the hands-on — a free lab on **virtual routers** (GNS3 / VyOS / FRR) that generates **real** config diffs, NetFlow, and syslog from emulated operator actions — artifact-level fidelity, no licensed gear required. Every artifact is self-generated and sterile by construction.
+
+---
+
 ## How to use
 
 - **Locally:** download the repo (or just `index.html`) and open it in a browser.

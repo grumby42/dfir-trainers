@@ -121,6 +121,12 @@ You supply the field names, thresholds, and query syntax for your stack — that
 
 ---
 
+## Build a range (hands-on next step)
+
+The trainer builds the reasoning; **[`RANGE.md`](RANGE.md)** builds the hands-on — a free endpoint range where you **emulate the TTPs** with open tooling (Caldera / Atomic Red Team) and hunt the Sysmon telemetry you generate — behavioral fidelity, no live malware. Every artifact is self-generated and sterile by construction.
+
+---
+
 ## How to use
 
 - **Locally:** download the repo (or just `index.html`) and open it in a browser.

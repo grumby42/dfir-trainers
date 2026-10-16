@@ -91,6 +91,12 @@ hypervisor-layer activity → you must ship VCSA/ESXi logs off-box).
 
 ---
 
+## Build a range (hands-on next step)
+
+The trainer builds the reasoning; **[`RANGE.md`](RANGE.md)** builds the hands-on — a free lab where the **identity half** (a Microsoft 365 Developer tenant) reproduces real sign-in / MFA / federation logs at high fidelity, the **hypervisor half** uses free ESXi / vCenter eval, and the ransomware / NTDS.dit steps are **emulated** with stand-ins. Every artifact is self-generated and sterile by construction.
+
+---
+
 ## How to use
 
 - **Locally:** download the repo (or just `index.html`) and open it in a browser.

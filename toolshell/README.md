@@ -97,6 +97,12 @@ the right answer is a compensating control (key rotation), not a rule.
 
 ---
 
+## Build a range (hands-on next step)
+
+The trainer builds the reasoning; **[`RANGE.md`](RANGE.md)** builds the hands-on — a free lab that reproduces the investigative artifacts (the ToolPane + SignOut IIS tell, the key-leak `.aspx`, `w3wp`→PowerShell) via **emulation**, with an optional full-SharePoint tier — no live exploit, no weaponization. Every artifact is self-generated and sterile by construction.
+
+---
+
 ## How to use
 
 - **Locally:** download the repo (or just `index.html`) and open it in a browser.
