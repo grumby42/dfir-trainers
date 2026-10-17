@@ -86,6 +86,12 @@ footer .mono{font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--accen
       <p class="sub" style="margin-top:0">Name the person covering each role so the after-action records who owned which call. Leave blank to run roles-only.</p>
       <div class="grid2" id="roleInputs"></div>
     </div>
+    <div class="panel">
+      <h2 class="title">3 · Uncertainty mode (optional)</h2>
+      <p class="sub" style="margin-top:0">Inspired by <i>Backdoors &amp; Breaches</i> (Black Hills InfoSec). Turn this on to roll for whether your tooling/process actually <i>caught</i> each step — because it doesn't always. Pick up to three CSF functions you consider <b>Established</b> (genuinely strong); they get a dice bonus.</p>
+      <label style="display:flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-size:14px;color:var(--ink)"><input type="checkbox" id="uncToggle" style="width:auto;margin:0">Enable uncertainty mode (d20 detection rolls)</label>
+      <div id="estPick" class="hide" style="margin-top:12px"><label>Established functions (max 3)</label><div class="row" id="estChips"></div></div>
+    </div>
     <div class="row sb">
       <span class="sub">Nothing leaves this browser. Keyboard: <code>←</code> / <code>→</code> during the run.</span>
       <button class="btn" id="startBtn">Start exercise</button>
@@ -122,8 +128,8 @@ footer .mono{font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--accen
 </div>
 
 <script>
-const BUILD_ID="HUNT-20261016-2024Z · design-rev 2026-10-16";
-const STAMP_UTC="2026-10-16T20:24Z";
+const BUILD_ID="HUNT-20261017-0045Z · design-rev 2026-10-16";
+const STAMP_UTC="2026-10-17T00:45Z";
 
 const ROLES=["SOC Lead","IR Manager","IT / Identity Admin","Legal / Privacy","Comms / PR","Exec Sponsor"];
 const CSF=[
@@ -139,6 +145,20 @@ const MATURITY=[
  {k:2,label:"Developing",d:"partial / inconsistent"},
  {k:3,label:"Defined",d:"documented & practiced"},
  {k:4,label:"Managed",d:"measured & improving"}
+];
+
+/* original curveballs for uncertainty mode — generic, not from any deck */
+const COMPLICATIONS_TT=[
+ "The one engineer who knows this system is on PTO and unreachable.",
+ "Your SIEM ingestion silently broke ~36 hours ago — the window you need is thin.",
+ "Legal places a hold on containment until scope is clearer.",
+ "A reporter emails Comms asking about 'an incident' before you've briefed internally.",
+ "The affected system is business-critical; its owner refuses downtime without exec sign-off.",
+ "Log retention is shorter than assumed — part of the timeline already rolled off.",
+ "An outsourced vendor owns the affected tier and is slow to respond.",
+ "A second, unrelated alert fires and splits the team's attention.",
+ "The on-call escalation path has a stale phone number.",
+ "Backups exist but haven't been restore-tested in over a year."
 ];
 
 /* inject: {t,title,text,owner(roleIndex),csf(name),ask,good} */
@@ -245,6 +265,7 @@ const SCENARIOS=[
 
 /* ---------------- state ---------------- */
 let scn=null, idx=0, ratings={}, notes={}, participants={};
+let uncertainty=false, established=[], rolls={};
 
 const $=id=>document.getElementById(id);
 const selScenario=$('selScenario');
@@ -258,10 +279,30 @@ function showSummary(){const s=SCENARIOS[selScenario.value];$('scnSummary').inne
 selScenario.addEventListener('change',showSummary);
 roleInputs();showSummary();
 
+function estChips(){
+ $('estChips').innerHTML=CSF.map(c=>{const on=established.includes(c[0]);return `<button class="btn ghost sm estc" data-f="${c[0]}" style="${on?'background:var(--accent);color:#1a1507;border-color:var(--accent)':''}">${c[0]}</button>`;}).join('');
+ document.querySelectorAll('.estc').forEach(b=>b.addEventListener('click',()=>{const f=b.dataset.f;if(established.includes(f))established=established.filter(x=>x!==f);else if(established.length<3)established.push(f);estChips();}));
+}
+$('uncToggle').addEventListener('change',e=>{uncertainty=e.target.checked;$('estPick').classList.toggle('hide',!uncertainty);if(uncertainty)estChips();});
+
 $('startBtn').addEventListener('click',()=>{scn=SCENARIOS[selScenario.value];idx=0;$('setup').classList.add('hide');$('run').classList.remove('hide');$('runScnName').textContent=scn.name;renderInject();});
 $('toSetup').addEventListener('click',()=>{$('run').classList.add('hide');$('setup').classList.remove('hide');});
 
 function key(i){return scn.id+':'+i;}
+function rollHTML(i){
+ const r=rolls[key(i)], est=established.includes(scn.injects[i].csf);
+ let body;
+ if(!r){body=`<button class="btn ghost sm" id="rollBtn">🎲 Roll d20 — did your process catch it?</button> <span class="sub">need 11+${est?' · +4 Established':''}</span>`;}
+ else{body=`roll <b>${r.roll}</b>${r.bonus?` +${r.bonus}`:''} = <b>${r.total}</b> → <b style="color:${r.caught?'var(--good)':'var(--bad)'}">${r.caught?'CAUGHT':'MISSED'}</b>${r.crit?` <span class="sub">(${r.crit})</span>`:''} <button class="btn ghost sm" id="rerollBtn">reset</button>`+((!r.caught&&r.complic)?`<div class="good" style="border-color:var(--bad);margin-top:8px"><div class="lbl" style="color:var(--bad)">Curveball — missed detection</div>${r.complic}</div>`:'');}
+ return `<div class="panel2" style="margin-top:10px"><label>Detection roll${est?' · Established (+4)':''}</label>${body}</div>`;
+}
+function doRoll(i){
+ const roll=1+Math.floor(Math.random()*20), est=established.includes(scn.injects[i].csf), bonus=est?4:0;
+ let total=roll+bonus, caught=total>=11, crit='';
+ if(roll===20){caught=true;crit='natural 20';} if(roll===1){caught=false;crit='natural 1';}
+ rolls[key(i)]={roll,bonus,total,caught,crit,complic:caught?'':COMPLICATIONS_TT[Math.floor(Math.random()*COMPLICATIONS_TT.length)]};
+ renderInject();
+}
 function renderInject(){
  const n=scn.injects.length, j=scn.injects[idx];
  $('bar').style.width=((idx)/n*100)+'%';
@@ -275,11 +316,13 @@ function renderInject(){
   <div class="ask"><b>Facilitator:</b> ${j.ask}</div>
   <button class="btn ghost sm" id="revealBtn">Reveal — what good looks like</button>
   <div class="good hide" id="goodBox"><div class="lbl">What good looks like</div>${j.good}</div>
+  ${uncertainty?rollHTML(idx):''}
   <div style="margin-top:14px"><label>How did the room handle it? (maturity for ${j.csf})</label><div class="mat" id="matRow">${matBtns}</div></div>
   <div style="margin-top:12px"><label>Decision made / gap noted (optional)</label><textarea id="noteBox" placeholder="e.g. 'No clear authority to disable an identity — gap.'">${notes[key(idx)]||''}</textarea></div>`;
  $('revealBtn').addEventListener('click',()=>{$('goodBox').classList.toggle('hide');});
  document.querySelectorAll('#matRow button').forEach(b=>b.addEventListener('click',()=>{ratings[key(idx)]=+b.dataset.m;renderInject();}));
  $('noteBox').addEventListener('input',e=>{notes[key(idx)]=e.target.value;});
+ if(uncertainty){const rb=$('rollBtn');if(rb)rb.addEventListener('click',()=>doRoll(idx));const rr=$('rerollBtn');if(rr)rr.addEventListener('click',()=>{delete rolls[key(idx)];renderInject();});}
  $('next').textContent = idx===n-1 ? 'Finish → after-action' : 'Next inject';
  $('prev').disabled = idx===0;
  $('stepList').innerHTML=scn.injects.map((x,i)=>`<li class="${i===idx?'active':(i<idx?'done':'')}">${i+1}. ${x.title} <span style="color:var(--faint)">· ${x.csf}${ratings[key(i)]?(' · '+ratings[key(i)]):''}</span></li>`).join('');
@@ -302,6 +345,9 @@ function showAfterAction(){
  const ratedN=scn.injects.filter((x,i)=>ratings[key(i)]).length;
  const gaps=scn.injects.map((j,i)=>({j,i,r:ratings[key(i)]||0,note:notes[key(i)]||''})).filter(x=>x.r && x.r<3);
  const roster=ROLES.map((r,i)=>participants[i]?`${r}: <b>${participants[i]}</b>`:null).filter(Boolean).join(' · ')||'<span class="sub">roles-only (no names entered)</span>';
+ const rolled=Object.keys(rolls).length, caughtN=Object.values(rolls).filter(r=>r.caught).length;
+ const missedFns=[...new Set(scn.injects.map((j,i)=>({c:j.csf,r:rolls[key(i)]})).filter(x=>x.r&&!x.r.caught).map(x=>x.c))];
+ const cov= rolled?`<div class="sechead" style="font-family:var(--serif);font-size:16px;margin:14px 0 2px">Detection coverage (uncertainty mode)</div><p>Your processes caught <b>${caughtN}/${rolled}</b> of the steps you rolled for.${established.length?` Established functions: <b>${established.join(', ')}</b>.`:''}${missedFns.length?` Missed detection on: <b>${missedFns.join(', ')}</b> — candidate coverage gaps.`:''}</p>`:'';
  const fnTable=fs.length?`<table class="aa"><tr><th>CSF 2.0 function</th><th>Maturity (avg of ${ratedN} rated)</th><th></th></tr>${fs.map(x=>`<tr><td>${x.f}</td><td>${x.avg.toFixed(1)} / 4 (${x.n} inject${x.n>1?'s':''})</td><td><div class="bar"><i style="width:${x.avg/4*100}%;background:${matColor(x.avg)}"></i></div></td></tr>`).join('')}</table>`:'<p class="sub">No injects were rated — rate them during the run to populate the scorecard.</p>';
  const gapList=gaps.length?`<ul>${gaps.map(g=>`<li><b>${g.j.title}</b> (${g.j.csf}, rated ${g.r}/4) — recommended: ${g.j.good}${g.note?`<br><span class="sub">Room note: ${g.note}</span>`:''}</li>`).join('')}</ul>`:'<p class="sub">No functions rated below "Defined." Either strong readiness or more rating needed.</p>';
  $('aaBody').innerHTML=`
@@ -312,6 +358,7 @@ function showAfterAction(){
   ${fnTable}
   <div class="sechead" style="font-family:var(--serif);font-size:16px;margin:14px 0 2px">Top gaps &amp; recommendations</div>
   ${gapList}
+  ${cov}
   <div class="disc">Maturity scale: 1 Ad hoc · 2 Developing · 3 Defined · 4 Managed. Scores reflect the facilitator's in-room judgement, not an audit. Use this to prioritize, not to grade. Readiness scenarios reference NIST SP 800-61r3, CISA, GDPR Art. 33 and OFAC guidance — verify every legal/regulatory specific with counsel for your jurisdiction.</div>`;
 }
 function aaText(){
@@ -325,15 +372,17 @@ function aaText(){
  o+=`\nTOP GAPS & RECOMMENDATIONS\n`;
  if(!gaps.length)o+='- none rated below Defined\n';
  gaps.forEach(g=>{o+=`- ${g.j.title} (${g.j.csf}, ${g.r}/4): ${g.j.good}\n`;if(g.note)o+=`    room note: ${g.note}\n`;});
+ const rolled=Object.keys(rolls).length;
+ if(rolled){const caughtN=Object.values(rolls).filter(r=>r.caught).length;o+=`\nDETECTION COVERAGE (uncertainty mode)\n- caught ${caughtN}/${rolled} rolled steps`+(established.length?`; established: ${established.join(', ')}`:'')+`\n`;}
  o+=`\nNote: facilitator judgement, not an audit. Verify legal/regulatory specifics with counsel.\n`;
  return o;
 }
 function copy(txt){(async()=>{try{await navigator.clipboard.writeText(txt);}catch(e){}const c=$('copied');c.classList.add('show');setTimeout(()=>c.classList.remove('show'),1600);})();}
 $('copyTxt').addEventListener('click',()=>copy(aaText()));
-$('copyJson').addEventListener('click',()=>copy(JSON.stringify({scenario:scn.name,kind:scn.kind,participants,ratings,notes,generated:new Date().toISOString()},null,2)));
+$('copyJson').addEventListener('click',()=>copy(JSON.stringify({scenario:scn.name,kind:scn.kind,participants,ratings,notes,uncertainty,established,rolls,generated:new Date().toISOString()},null,2)));
 
 $('footer').innerHTML=`<div>Build <span class="mono">${BUILD_ID}</span> · generated <span class="mono">${STAMP_UTC}</span> · single-file offline HTML · no external dependencies · no telemetry.</div>
-<div style="margin-top:6px">Scoring frame: NIST SP 800-61r3 (IR mapped to CSF 2.0 functions). Facilitation structure draws on <i>Crafting the InfoSec Playbook</i> (Bollinger, Enright &amp; Valites) and the <i>Cybersecurity Incident Management Master's Guide</i> (Clark). Case scenarios replay the trainers in this repo; readiness scenarios are playbook-level. Independent educational tool — not affiliated with or endorsed by NIST, CISA, or any party named.</div>
+<div style="margin-top:6px">Scoring frame: NIST SP 800-61r3 (IR mapped to CSF 2.0 functions). Facilitation structure draws on <i>Crafting the InfoSec Playbook</i> (Bollinger, Enright &amp; Valites) and the <i>Cybersecurity Incident Management Master's Guide</i> (Clark). The optional uncertainty mode is inspired by <i>Backdoors &amp; Breaches</i> (Black Hills Information Security) — for full gameplay, play the original. Case scenarios replay the trainers in this repo; readiness scenarios are playbook-level. Independent educational tool — not affiliated with or endorsed by NIST, CISA, or any party named.</div>
 <div style="margin-top:6px">Built by Theodore &quot;Ted&quot; Gransbury · <a href="https://github.com/grumby42">github.com/grumby42</a> · <a href="https://grumbylearns.io">grumbylearns.io</a> · <a href="https://www.linkedin.com/in/tgransbury">linkedin.com/in/tgransbury</a> · assembled with AI assistance (Claude).</div>`;
 </script>
 </body>

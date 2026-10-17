@@ -15,6 +15,9 @@ room**: who owns each call, what good looks like, and how mature the response ca
   detection-/response-as-plays model behind the inject + "what good looks like" structure.
 - **Colby A. Clark** · *Cybersecurity Incident Management Master's Guide* (Vol. 1–2) — IR as an organizational
   capability: roles, authority, and communications, which shape the role lanes here.
+- **Black Hills Information Security** · *Backdoors & Breaches* — the original IR card game, whose
+  dice-and-uncertainty teaching inspired this tool's optional **uncertainty mode**. We borrowed the *mechanic*
+  and wrote our own content; for full gameplay, play the original. <https://www.blackhillsinfosec.com/projects/backdoorsandbreaches/>
 - Readiness scenarios also reference **CISA** (#StopRansomware, supply-chain guidance), **GDPR Art. 33**, and
   **OFAC** ransomware-payment guidance — all to be verified with counsel for your jurisdiction.
 
@@ -33,6 +36,11 @@ room**: who owns each call, what good looks like, and how mature the response ca
    Defined → Managed), and a free-text note for the decision/gap.
 4. **Generate the after-action** — a one-page **readiness snapshot** by CSF function, a **top-gaps list** with
    recommendations, and the participant roster — copyable as text or JSON.
+5. **Uncertainty mode (optional)** — inspired by *Backdoors & Breaches*: declare the CSF functions you're
+   **Established** in, then roll a **d20** per inject to see whether your tooling/process actually caught the
+   step (11+ succeeds, +4 if Established; natural 20/1 auto). A miss throws a **curveball** complication and
+   feeds a **detection-coverage** read into the after-action. All original content — the mechanic is credited
+   to B&B, not copied.
 
 Everything runs in the browser; nothing leaves the machine. Keyboard `←` / `→` to step injects.
 
