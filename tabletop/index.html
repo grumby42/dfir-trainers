@@ -62,6 +62,12 @@ a{color:var(--accent)}
 footer.stamp{border-top:1px solid var(--line);margin-top:26px;padding-top:12px;color:var(--faint);font-size:11px}
 footer .mono{font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--accent2)}
 .hide{display:none}
+@media print{
+  body{background:#fff;color:#000;background-image:none}
+  header.top,#setup,#run,footer.stamp,.btn,.copied{display:none!important}
+  #aa{display:block!important}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
 </style>
 </head>
 <body>
@@ -74,6 +80,7 @@ footer .mono{font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--accen
 
   <!-- SETUP -->
   <div id="setup">
+    <div id="resumeBanner" class="panel hide" style="border-color:var(--accent)"></div>
     <div class="panel">
       <h2 class="title">1 · Pick a scenario</h2>
       <p class="sub" style="margin-top:0">Case scenarios replay a real intrusion from the trainers as decision injects. Readiness scenarios drill the calls that have no single analyst answer.</p>
@@ -120,6 +127,8 @@ footer .mono{font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--accen
     <div class="row">
       <button class="btn" id="copyTxt">Copy as text</button>
       <button class="btn ghost" id="copyJson">Copy as JSON</button>
+      <button class="btn ghost" id="printAa">Print / Save as PDF</button>
+      <button class="btn ghost" id="clearSess">New session</button>
       <span class="copied" id="copied">Copied ✓</span>
     </div>
   </div>
@@ -128,8 +137,8 @@ footer .mono{font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--accen
 </div>
 
 <script>
-const BUILD_ID="HUNT-20261017-0045Z · design-rev 2026-10-16";
-const STAMP_UTC="2026-10-17T00:45Z";
+const BUILD_ID="HUNT-20261017-0054Z · design-rev 2026-10-16";
+const STAMP_UTC="2026-10-17T00:54Z";
 
 const ROLES=["SOC Lead","IR Manager","IT / Identity Admin","Legal / Privacy","Comms / PR","Exec Sponsor"];
 const CSF=[
@@ -260,12 +269,38 @@ const SCENARIOS=[
    {t:"T+6h",title:"Press the vendor",text:"You need facts the vendor isn't volunteering.",owner:3,csf:"Govern",ask:"Who owns the vendor relationship and the contractual right to answers/forensics?",good:"Invoke contractual notification/forensic clauses; a named owner drives structured asks (scope, data, IOCs, timeline). Have the questions pre-written."},
    {t:"T+1d",title:"Your own obligations",text:"If your data was in their breach, your obligations may trigger regardless of whose network it was.",owner:3,csf:"Identify",ask:"Does their incident create notification duties for you, and who decides?",good:"Legal/Privacy assess your obligations based on your data in their environment — a vendor breach can start your clock. Don't assume it's only their problem."},
    {t:"T+2d",title:"Reduce the dependency risk",text:"Leadership asks how exposed you are to this vendor and others like it.",owner:5,csf:"Recover",ask:"What do you commit to — and is it a program, not a one-off?",good:"Third-party risk as an ongoing program: dependency mapping, least-privilege vendor access, breach clauses, and an exit/failover plan for critical vendors."}
+  ]},
+
+ {id:"bec-wire",kind:"Readiness",name:"BEC wire-fraud",
+  summary:"A vendor 'bank-details update' email leads to a fraudulent wire. This drills the finance/treasury/legal race — the technical question (spoof vs. account takeover) is secondary to how fast the money gets chased.",
+  source:"Playbook-level. Anchors: NIST SP 800-61r3; FBI IC3 (BEC / Financial Fraud Kill Chain). Verify specifics with counsel, your bank, and law enforcement.",
+  injects:[
+   {t:"T+0",title:"The 'updated bank details'",text:"Finance flags that a vendor emailed new banking details last week and a large payment was just approved to them.",owner:1,csf:"Detect",ask:"Who confirms whether this is fraud, and how — before assuming the worst or the best?",good:"Out-of-band verification (known phone number, not one from the email) of any payment-detail change; treat a suspected BEC as an incident immediately. The control is the callback, not the email."},
+   {t:"T+30m",title:"The money already moved",text:"The wire went out hours ago.",owner:5,csf:"Respond",ask:"Who contacts the bank, and what's the recall window — is that known in advance?",good:"Immediate bank notification + recall request; the FBI Financial Fraud Kill Chain works best the same day / within ~72h. Treasury owns the bank relationship; speed beats certainty here."},
+   {t:"T+1h",title:"Spoof or takeover?",text:"Was the vendor's (or your) mailbox actually compromised, or just spoofed?",owner:2,csf:"Detect",ask:"How do you tell, and does it change the scope?",good:"Check for inbox rules/auto-forwarding, OAuth grants, and sign-in anomalies (adversary-in-the-middle). A real account takeover widens scope well beyond this one wire."},
+   {t:"T+3h",title:"Law enforcement + insurer",text:"Reporting and recovery paths need to open.",owner:3,csf:"Identify",ask:"Who files with FBI IC3 and notifies the cyber-insurer, and is that decided in advance?",good:"File the IC3 complaint promptly (it aids recall); notify the insurer per policy terms. Legal owns the external reporting; pre-agreed so it isn't improvised."},
+   {t:"T+1d",title:"Stop the next one",text:"Leadership wants assurance this can't recur.",owner:2,csf:"Protect",ask:"What controls do you commit to, and who owns them?",good:"Mandatory out-of-band callback for any payment-detail change, dual approval on wires over a threshold, email authentication (SPF/DKIM/DMARC), and vendor-change verification. Named owners, not aspirations."}
+  ]},
+
+ {id:"insider-threat",kind:"Readiness",name:"Malicious / negligent insider",
+  summary:"A trusted, privileged employee is staging unusual volumes of sensitive data. Intent is unknown. This drills the authority, fairness, and 'do we tip them off' calls — where HR and Legal matter more than forensics.",
+  source:"Playbook-level. Anchors: NIST SP 800-61r3; CISA insider-threat mitigation guidance. Coordinate with HR/Legal; this touches employment law.",
+  injects:[
+   {t:"T+0",title:"An anomaly, not an accusation",text:"UEBA flags a privileged employee accessing and staging sensitive data well outside their normal pattern.",owner:0,csf:"Detect",ask:"Is this an incident, and what's the authority to monitor an employee more closely?",good:"Establish a predicate and get HR/Legal authority before deepening monitoring; an anomaly is a lead, not a verdict. Don't accuse on a UEBA hit."},
+   {t:"T+1h",title:"Who's in the room",text:"The access is confirmed anomalous, by a trusted insider.",owner:3,csf:"Govern",ask:"Who is read in — and who is deliberately not (the subject, maybe their manager)?",good:"Tight need-to-know: HR + Legal + security only; avoid tipping the subject; document who authorized the investigation and its scope."},
+   {t:"T+3h",title:"Cut access, or watch?",text:"Disabling access now may tip them off; watching risks ongoing harm.",owner:5,csf:"Respond",ask:"Who authorizes, and how do you weigh evidence-preservation against stopping harm?",good:"Decision owned by a defined authority; preserve evidence under legal hold; stage containment so it can be executed fast if intent is confirmed."},
+   {t:"T+1d",title:"Intent is still unclear",text:"It could be malicious, negligent, or authorized-but-unusual.",owner:1,csf:"Respond",ask:"How do you avoid confirmation bias — and protect the employee if they're innocent?",good:"Run ACH on intent; take proportionate, reversible actions; protect a possibly-innocent person's reputation. Fairness is part of the standard, not a nicety."},
+   {t:"T+2d",title:"Close the gap, handle the human side",text:"Whatever the finding, something needs to change.",owner:2,csf:"Protect",ask:"What controls and what process do you commit to?",good:"Least-privilege review, DLP/UEBA tuning, tightened offboarding/access-revocation — plus a fair, documented HR process. Named owners for both the technical and the human fixes."}
   ]}
 ];
 
 /* ---------------- state ---------------- */
 let scn=null, idx=0, ratings={}, notes={}, participants={};
 let uncertainty=false, established=[], rolls={};
+const SKEY='dfir-tabletop-session-v1';
+function saveState(){try{localStorage.setItem(SKEY,JSON.stringify({sel:selScenario.value,scnId:scn?scn.id:null,idx,ratings,notes,rolls,participants,uncertainty,established}));}catch(e){}}
+function clearState(){try{localStorage.removeItem(SKEY);}catch(e){}}
+function loadState(){try{return JSON.parse(localStorage.getItem(SKEY)||'null');}catch(e){return null;}}
 
 const $=id=>document.getElementById(id);
 const selScenario=$('selScenario');
@@ -273,7 +308,7 @@ SCENARIOS.forEach((s,i)=>{const o=document.createElement('option');o.value=i;o.t
 
 function roleInputs(){
  $('roleInputs').innerHTML=ROLES.map((r,i)=>`<div><label>${r}</label><input data-role="${i}" placeholder="name (optional)" value="${participants[i]||''}"></div>`).join('');
- document.querySelectorAll('#roleInputs input').forEach(inp=>inp.addEventListener('input',e=>{participants[e.target.dataset.role]=e.target.value;}));
+ document.querySelectorAll('#roleInputs input').forEach(inp=>inp.addEventListener('input',e=>{participants[e.target.dataset.role]=e.target.value;saveState();}));
 }
 function showSummary(){const s=SCENARIOS[selScenario.value];$('scnSummary').innerHTML=`<b style="font-family:var(--serif)">${s.name}</b><div class="sub" style="margin-top:4px">${s.summary}</div><div class="sub" style="margin-top:6px;color:var(--faint)">${s.source}</div>`;}
 selScenario.addEventListener('change',showSummary);
@@ -281,11 +316,25 @@ roleInputs();showSummary();
 
 function estChips(){
  $('estChips').innerHTML=CSF.map(c=>{const on=established.includes(c[0]);return `<button class="btn ghost sm estc" data-f="${c[0]}" style="${on?'background:var(--accent);color:#1a1507;border-color:var(--accent)':''}">${c[0]}</button>`;}).join('');
- document.querySelectorAll('.estc').forEach(b=>b.addEventListener('click',()=>{const f=b.dataset.f;if(established.includes(f))established=established.filter(x=>x!==f);else if(established.length<3)established.push(f);estChips();}));
+ document.querySelectorAll('.estc').forEach(b=>b.addEventListener('click',()=>{const f=b.dataset.f;if(established.includes(f))established=established.filter(x=>x!==f);else if(established.length<3)established.push(f);estChips();saveState();}));
 }
-$('uncToggle').addEventListener('change',e=>{uncertainty=e.target.checked;$('estPick').classList.toggle('hide',!uncertainty);if(uncertainty)estChips();});
+$('uncToggle').addEventListener('change',e=>{uncertainty=e.target.checked;$('estPick').classList.toggle('hide',!uncertainty);if(uncertainty)estChips();saveState();});
 
-$('startBtn').addEventListener('click',()=>{scn=SCENARIOS[selScenario.value];idx=0;$('setup').classList.add('hide');$('run').classList.remove('hide');$('runScnName').textContent=scn.name;renderInject();});
+(function resumeInit(){const s=loadState();if(!s)return;const b=$('resumeBanner');b.classList.remove('hide');
+ const scName=(SCENARIOS.find(x=>x.id===s.scnId)||{}).name;
+ b.innerHTML=`<b style="font-family:var(--serif)">Resume previous session?</b> <span class="sub">${s.scnId?('“'+(scName||s.scnId)+'”, inject '+((s.idx||0)+1)):'setup in progress'}</span><div class="row" style="margin-top:8px"><button class="btn sm" id="resumeBtn">Resume</button><button class="btn ghost sm" id="discardBtn">Discard</button></div>`;
+ $('discardBtn').addEventListener('click',()=>{clearState();b.classList.add('hide');});
+ $('resumeBtn').addEventListener('click',()=>{
+   ratings=s.ratings||{};notes=s.notes||{};rolls=s.rolls||{};participants=s.participants||{};uncertainty=!!s.uncertainty;established=s.established||[];
+   if(s.sel!=null)selScenario.value=s.sel;
+   $('uncToggle').checked=uncertainty;$('estPick').classList.toggle('hide',!uncertainty);if(uncertainty)estChips();
+   roleInputs();showSummary();
+   if(s.scnId){scn=SCENARIOS.find(x=>x.id===s.scnId)||null;idx=s.idx||0;if(scn){$('setup').classList.add('hide');$('run').classList.remove('hide');$('runScnName').textContent=scn.name;renderInject();}}
+   b.classList.add('hide');
+ });
+})();
+
+$('startBtn').addEventListener('click',()=>{scn=SCENARIOS[selScenario.value];idx=0;$('setup').classList.add('hide');$('run').classList.remove('hide');$('runScnName').textContent=scn.name;renderInject();saveState();});
 $('toSetup').addEventListener('click',()=>{$('run').classList.add('hide');$('setup').classList.remove('hide');});
 
 function key(i){return scn.id+':'+i;}
@@ -321,11 +370,12 @@ function renderInject(){
   <div style="margin-top:12px"><label>Decision made / gap noted (optional)</label><textarea id="noteBox" placeholder="e.g. 'No clear authority to disable an identity — gap.'">${notes[key(idx)]||''}</textarea></div>`;
  $('revealBtn').addEventListener('click',()=>{$('goodBox').classList.toggle('hide');});
  document.querySelectorAll('#matRow button').forEach(b=>b.addEventListener('click',()=>{ratings[key(idx)]=+b.dataset.m;renderInject();}));
- $('noteBox').addEventListener('input',e=>{notes[key(idx)]=e.target.value;});
+ $('noteBox').addEventListener('input',e=>{notes[key(idx)]=e.target.value;saveState();});
  if(uncertainty){const rb=$('rollBtn');if(rb)rb.addEventListener('click',()=>doRoll(idx));const rr=$('rerollBtn');if(rr)rr.addEventListener('click',()=>{delete rolls[key(idx)];renderInject();});}
  $('next').textContent = idx===n-1 ? 'Finish → after-action' : 'Next inject';
  $('prev').disabled = idx===0;
  $('stepList').innerHTML=scn.injects.map((x,i)=>`<li class="${i===idx?'active':(i<idx?'done':'')}">${i+1}. ${x.title} <span style="color:var(--faint)">· ${x.csf}${ratings[key(i)]?(' · '+ratings[key(i)]):''}</span></li>`).join('');
+ saveState();
 }
 $('next').addEventListener('click',()=>{if(idx<scn.injects.length-1){idx++;renderInject();}else{showAfterAction();}});
 $('prev').addEventListener('click',()=>{if(idx>0){idx--;renderInject();}});
@@ -378,6 +428,8 @@ function aaText(){
  return o;
 }
 function copy(txt){(async()=>{try{await navigator.clipboard.writeText(txt);}catch(e){}const c=$('copied');c.classList.add('show');setTimeout(()=>c.classList.remove('show'),1600);})();}
+$('printAa').addEventListener('click',()=>window.print());
+$('clearSess').addEventListener('click',()=>{clearState();try{location.reload();}catch(e){}});
 $('copyTxt').addEventListener('click',()=>copy(aaText()));
 $('copyJson').addEventListener('click',()=>copy(JSON.stringify({scenario:scn.name,kind:scn.kind,participants,ratings,notes,uncertainty,established,rolls,generated:new Date().toISOString()},null,2)));
 

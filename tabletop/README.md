@@ -26,9 +26,9 @@ room**: who owns each call, what good looks like, and how mature the response ca
 ## What it is
 
 1. **Pick a scenario** — six **case** scenarios replay the repo's trainers (Squidoor, ToolShell, Salt Typhoon,
-   OneDrive, Scattered Spider, Cloud Identity) as decision injects; three **readiness** scenarios drill the
+   OneDrive, Scattered Spider, Cloud Identity) as decision injects; five **readiness** scenarios drill the
    calls with no clean technical answer (ransomware-extortion decision, breach-notification clock, third-party
-   vendor compromise).
+   vendor compromise, BEC wire-fraud, malicious/negligent insider).
 2. **Name the room (optional)** — assign each of six roles (SOC Lead, IR Manager, IT/Identity Admin,
    Legal/Privacy, Comms/PR, Exec Sponsor) so the after-action records who owned which call.
 3. **Run the injects** — each inject names the **decision owner**, the **CSF 2.0 function** it exercises, a
@@ -42,7 +42,10 @@ room**: who owns each call, what good looks like, and how mature the response ca
    feeds a **detection-coverage** read into the after-action. All original content — the mechanic is credited
    to B&B, not copied.
 
-Everything runs in the browser; nothing leaves the machine. Keyboard `←` / `→` to step injects.
+Everything runs in the browser; nothing leaves the machine. Keyboard `←` / `→` to step injects. Progress
+(ratings, rolls, notes) **auto-saves to this browser** so a refresh won't lose a session — a **Resume** prompt
+appears on return, and **New session** clears it (do that on a shared facilitation machine). The after-action
+has a **Print / Save as PDF** button for a clean one-page handout.
 
 ## How to use
 
@@ -62,7 +65,7 @@ Everything runs in the browser; nothing leaves the machine. Keyboard `←` / `�
 ## Build / provenance
 
 - **Author:** Theodore "Ted" Gransbury — [github.com/grumby42](https://github.com/grumby42) · [grumbylearns.io](https://grumbylearns.io) · [linkedin.com/in/tgransbury](https://www.linkedin.com/in/tgransbury). Independent educational tool, **assembled with AI assistance (Claude)**.
-- Build ID: `HUNT-20261016-2024Z` · design-rev 2026-10-16
+- Build ID: `HUNT-20261017-0054Z` · design-rev 2026-10-16
 - Single file, offline, no external dependencies, no network calls, no telemetry.
 
 ## License

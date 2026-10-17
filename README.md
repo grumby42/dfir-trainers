@@ -36,7 +36,7 @@ dependencies, no network calls, no telemetry.
 
 ## Tabletop & IR-readiness (facilitator)
 
-Beyond the analyst trainers, **[`tabletop/`](tabletop/)** runs any case — plus three readiness-only scenarios (ransomware-extortion decision, breach-notification clock, vendor compromise) — as a **facilitated tabletop**: decision injects with role owners, a maturity rating per inject, and a one-page after-action scored against **NIST SP 800-61r3 / CSF 2.0**. It is the advisory-side companion to the trainers — for IR-readiness reviews and exercises, not analyst drills. Served at `…/tabletop/`.
+Beyond the analyst trainers, **[`tabletop/`](tabletop/)** runs any case — plus five readiness-only scenarios (ransomware-extortion decision, breach-notification clock, vendor compromise, BEC wire-fraud, malicious/negligent insider) — as a **facilitated tabletop**: decision injects with role owners, a maturity rating per inject, and a one-page after-action scored against **NIST SP 800-61r3 / CSF 2.0**. It is the advisory-side companion to the trainers — for IR-readiness reviews and exercises, not analyst drills. Served at `…/tabletop/`.
 
 ---
 
